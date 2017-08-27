@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Mtomman
+Bundle-SymbolicName: au.blindmot.mtomman
+Bundle-Version: 1.0.0.qualifier
+Bundle-Vendor: Blindmotion
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Require-Bundle: org.adempiere.base,
+ org.adempiere.plugin.utils;bundle-version="4.1.0"
+Service-Component: OSGI-INF/*.xml,
+ OSGI-INF/DocFactory.xml
