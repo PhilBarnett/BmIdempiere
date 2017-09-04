@@ -5,7 +5,12 @@ Bundle-SymbolicName: au.blindmot.mtomman
 Bundle-Version: 1.0.0.qualifier
 Bundle-Vendor: Blindmotion
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
-Require-Bundle: org.adempiere.base,
+Import-Package: org.compiere.model,
+ org.osgi.framework
+Bundle-ActivationPolicy: lazy
+Require-Bundle: org.adempiere.base, 
  org.adempiere.plugin.utils;bundle-version="4.1.0"
-Service-Component: OSGI-INF/*.xml,
+Service-Component: OSGI-INF/ModelFactory.xml,
  OSGI-INF/DocFactory.xml
+
+

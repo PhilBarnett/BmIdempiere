@@ -155,6 +155,15 @@ public interface I_BLD_mtom_item_line
 	  */
 	public String getDescription();
 
+    /** Column name instance_string */
+    public static final String COLUMNNAME_instance_string = "instance_string";
+
+	/** Set instance_string	  */
+	public void setinstance_string (String instance_string);
+
+	/** Get instance_string	  */
+	public String getinstance_string();
+
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";
 

@@ -20,7 +20,12 @@ package au.blindmot.model;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.Properties;
-import org.compiere.model.*;
+
+import org.compiere.model.I_M_Locator;
+import org.compiere.model.I_Persistent;
+import org.compiere.model.MTable;
+import org.compiere.model.PO;
+import org.compiere.model.POInfo;
 
 /** Generated Model for BLD_mtom_item_line
  *  @author iDempiere (generated) 
@@ -31,7 +36,7 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20170827L;
+	private static final long serialVersionUID = 20170830L;
 
     /** Standard Constructor */
     public X_BLD_mtom_item_line (Properties ctx, int BLD_mtom_item_line_ID, String trxName)
@@ -207,6 +212,20 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	public String getDescription () 
 	{
 		return (String)get_Value(COLUMNNAME_Description);
+	}
+
+	/** Set instance_string.
+		@param instance_string instance_string	  */
+	public void setinstance_string (String instance_string)
+	{
+		set_Value (COLUMNNAME_instance_string, instance_string);
+	}
+
+	/** Get instance_string.
+		@return instance_string	  */
+	public String getinstance_string () 
+	{
+		return (String)get_Value(COLUMNNAME_instance_string);
 	}
 
 	/** Set Complete.
