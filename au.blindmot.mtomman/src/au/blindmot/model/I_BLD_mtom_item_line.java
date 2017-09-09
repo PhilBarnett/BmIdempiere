@@ -18,8 +18,12 @@ package au.blindmot.model;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import org.compiere.model.*;
+
+import org.compiere.model.I_M_AttributeSetInstance;
+import org.compiere.model.I_M_Locator;
+import org.compiere.model.MTable;
 import org.compiere.util.KeyNamePair;
+
 
 /** Generated Interface for BLD_mtom_item_line
  *  @author iDempiere (generated) 
@@ -207,6 +211,21 @@ public interface I_BLD_mtom_item_line
 
 	/** Get isrework	  */
 	public boolean isrework();
+
+    /** Column name M_AttributeSetInstance_ID */
+    public static final String COLUMNNAME_M_AttributeSetInstance_ID = "M_AttributeSetInstance_ID";
+
+	/** Set Attribute Set Instance.
+	  * Product Attribute Set Instance
+	  */
+	public void setM_AttributeSetInstance_ID (int M_AttributeSetInstance_ID);
+
+	/** Get Attribute Set Instance.
+	  * Product Attribute Set Instance
+	  */
+	public int getM_AttributeSetInstance_ID();
+
+	public I_M_AttributeSetInstance getM_AttributeSetInstance() throws RuntimeException;
 
     /** Column name M_Locator_ID */
     public static final String COLUMNNAME_M_Locator_ID = "M_Locator_ID";

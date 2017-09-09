@@ -73,23 +73,9 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		setC_Order_ID(morderid);
 		setDescription(mOrder.getDescription());
 		
-		//Add shell of finished items based on Order line from MOrder
-		addProductionItem();
 		
 	}
 
-	private void addProductionItem() {
-		MOrderLine[] orderLines = mOrder.getLines();
-		for (int i=0; i < orderLines.length; i++)
-		{
-			MOrderLine line = orderLines[i];
-			//TODO Check if line is a MTM product, if not, skip and log, add to string for display?
-			//If it is MTM product, add to bld_mtom_item_line in 'unprocessed' form
-			//Iterate through until done
-		}
-		
-		
-	}
 
 
 	@Override
@@ -145,13 +131,17 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	public String prepareIt() {
 		setC_DocType_ID(getC_DocTypeTarget_ID());
 		
+		//Add shell of finished items based on Order line from MOrder
+		addProductionItems();
+				
 		
+		log.warning("---------------In MBLDMtomProduction.prepareIt()");
 		return DocAction.STATUS_InProgress;
 	}
 
 	@Override
 	public boolean approveIt() {
-
+		log.warning("---------------In MBLDMtomProduction.approveIt()");
 		return true;
 	}
 
@@ -163,13 +153,14 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 
 	@Override
 	public String completeIt() {
+		log.warning("---------------In MBLDMtomProduction.completeIt()");
 		setProcessed(true);
 		return DocAction.STATUS_Completed;
 	}
 
 	@Override
 	public boolean voidIt() {
-
+		log.warning("---------------In MBLDMtomProduction.voidIt()");
 		return true;
 	}
 
@@ -211,7 +202,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 
 	@Override
 	public File createPDF() {
-		
+		log.warning("---------------In MBLDMtomProduction.createPDF()");
 		return null;
 	}
 
@@ -232,5 +223,42 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		return BigDecimal.ONE;
 	}
 
-
+	@Override
+	protected boolean beforeSave(boolean newRecord)
+	{
+		
+		/*
+		 * /TODO prevent save if the MOrder has already been produced, ie check morder_id is unique in
+		 * TABLE bld_mtom_production
+		 */
+		
+		/** Prevents saving
+		log.saveError("Error", Msg.parseTranslation(getCtx(), "@C_Currency_ID@ = @C_Currency_ID@"));
+		log.saveError("FillMandatory", Msg.getElement(getCtx(), "PriceEntered"));
+		/** Issues message
+		log.saveWarning(AD_Message, message);
+		log.saveInfo (AD_Message, message);
+		**/
+		return true;
+	}
+	private void addProductionItems() {
+		MOrderLine[] orderLines = mOrder.getLines();
+		MBLDMtomItemLine mtmLine = null;
+		int mtmProdID = this.getbld_mtom_production_ID();
+		for (int i=0; i < orderLines.length; i++)
+		{
+			MOrderLine line = orderLines[i];
+			if(line.get_ValueAsBoolean("ismadetomeasure")){
+				if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+line.toString()+" to production items for production " + mtmProdID);
+				mtmLine = new MBLDMtomItemLine(line, mtmProdID);
+			};
+			
+			//TODO Check if line is a MTM product, if not, skip and log, add to string for display?
+			//If it is MTM product && is manufactured, add to bld_mtom_item_line in 'unprocessed' form
+			//Iterate through until done
+		}
+		
+		
+	}
+	
 }

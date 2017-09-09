@@ -20,12 +20,7 @@ package au.blindmot.model;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.Properties;
-
-import org.compiere.model.I_M_Locator;
-import org.compiere.model.I_Persistent;
-import org.compiere.model.MTable;
-import org.compiere.model.PO;
-import org.compiere.model.POInfo;
+import org.compiere.model.*;
 
 /** Generated Model for BLD_mtom_item_line
  *  @author iDempiere (generated) 
@@ -36,7 +31,7 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20170830L;
+	private static final long serialVersionUID = 20170909L;
 
     /** Standard Constructor */
     public X_BLD_mtom_item_line (Properties ctx, int BLD_mtom_item_line_ID, String trxName)
@@ -292,6 +287,34 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 			return "Y".equals(oo);
 		}
 		return false;
+	}
+
+	public I_M_AttributeSetInstance getM_AttributeSetInstance() throws RuntimeException
+    {
+		return (I_M_AttributeSetInstance)MTable.get(getCtx(), I_M_AttributeSetInstance.Table_Name)
+			.getPO(getM_AttributeSetInstance_ID(), get_TrxName());	}
+
+	/** Set Attribute Set Instance.
+		@param M_AttributeSetInstance_ID 
+		Product Attribute Set Instance
+	  */
+	public void setM_AttributeSetInstance_ID (int M_AttributeSetInstance_ID)
+	{
+		if (M_AttributeSetInstance_ID < 0) 
+			set_Value (COLUMNNAME_M_AttributeSetInstance_ID, null);
+		else 
+			set_Value (COLUMNNAME_M_AttributeSetInstance_ID, Integer.valueOf(M_AttributeSetInstance_ID));
+	}
+
+	/** Get Attribute Set Instance.
+		@return Product Attribute Set Instance
+	  */
+	public int getM_AttributeSetInstance_ID () 
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_AttributeSetInstance_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
 	}
 
 	public I_M_Locator getM_Locator() throws RuntimeException

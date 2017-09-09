@@ -16,6 +16,9 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		super(ctx, rs, trxName);
 		// TODO Auto-generated constructor stub
 	}
+	/**
+	 * The standard constructor call
+	 */
 	
 	public MBLDMtomItemLine(MOrderLine orderLine, int mTM_prod_ID) {
 		this(orderLine.getCtx(), 0, orderLine.get_TrxName());
