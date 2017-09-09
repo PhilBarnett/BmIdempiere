@@ -29,6 +29,20 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		setbarcode(generateBarcode(m_Prod_ID));
 		setName(orderLine.getName());
 		setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
+		setM_AttributeSetInstance_ID(orderLine.getM_AttributeSetInstance_ID());
+		/*
+		 * Once the prduction lines are in, what do we do with them?
+		 * Calculate and store cut lengths for things like base bars and tubes. - where?
+		 * 'Interpret' from AttributeSetInstance the components required, may need some sort of 
+		 *  AttributeSetInstance to components/cuts table for settings - eg what components (products) are required 
+		 *   for a link blind? a drop down awning with motor?
+		 *   Add deductions as a product attribute?
+		 *  Develop business logic around 'how things are made' with deductions, normal roll/reverse roll etc.
+		 *  	Think about how blind calculations are made to manuallly make a blind to get ideas.
+		 *  
+		 *  Calculate BOM_derived quantities for invent adjustment, look at 'productionline' for code guidelines.
+		 *  
+		 */
 		
 		
 	}
