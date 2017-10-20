@@ -25,6 +25,7 @@ import org.adempiere.webui.component.Window;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.FDialog;
 import org.compiere.model.GridTab;
+import org.compiere.model.MOrderLine;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -39,6 +40,9 @@ import org.zkoss.zul.Vbox;
 
 /**
  * @author phil
+ * This should really be done by an extra field in the c_orderline table 'mtmoptions' that stores
+ * the options and the product_ids like mattributeinstances eg 'chain=1000012_fabric=1000018'
+ * and should be entered and validated by an editor.
  *
  */
 public class MtmButtonAction implements IAction, EventListener<Event> {
@@ -58,7 +62,8 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private String fabFamilySelected = null;
 	private String fabColourSelected = null;
 	private String fabTypeSelected = null;
-	private int currentSelection = 0;
+	private int currentFabSelection = 0;
+	private int currentChainSelection = 0;
 	
 	
 	/**
@@ -80,7 +85,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 		log.info("MtmButtonAction window title: " + window.getTitle());
 		m_AD_Window_ID = tab.getAD_Window_ID();
-		m_Tab_id = tab.getAD_Tab_ID();
+		m_Tab_id = tab.getAD_Tab_ID();split example
 		
 		//Test to see if the current record is a mtm product.
 		//Get the c_orderline_id, find the product_id, check if the product_id is a mtm product
@@ -101,7 +106,23 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 				{
 					FDialog.warn(tab.getWindowNo(), "There's no made to measure product to specify options for.", "Warning");
 				}
-				else show();
+				else 
+				{
+					//Check if this order line already has attributes assigned.
+					int mLine = Integer.parseInt(c_Order_line);
+					MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), mLine, null);
+					String mtmAttribute = new String((String) thisOrderLine.get_Value("mtm_attribute"));
+					if(mtmAttribute!="")
+					{
+						//Split the value of the mtm_attribute column, first value id fabric, second is chain
+						String[] products = mtmAttribute.split(",");
+						currentFabSelection = Integer.parseInt(products[0]);
+						currentChainSelection = Integer.parseInt(products[1]);
+						
+					}
+					
+					show();
+				}
 			}
 		
 		
@@ -233,12 +254,19 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabFamily.setMold("select");
 			KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql, true);
 			ArrayList<String> dupCheck = new ArrayList<String>();
+			ListItem item = null;
 			for (KeyNamePair pair : keyNamePairs) {
 				
 					//Remove duplicates
 					if (!dupCheck.contains(pair.getName())) fabFamily.appendItem(pair.getName(), pair.getID());
+					if(pair.getID()==Integer.toString(currentFabSelection)) item = new ListItem(pair.getName(), pair.getID());//Stores the already selected fabric
 					dupCheck.add(pair.getName());
 				}
+			if (currentFabSelection !=0)
+			{
+				fabFamily.selectItem(item);//Initializes the list with the value from the DB
+				currentFabSelection = 0;//Sets the fabric back to 0
+			}
 		
 			}
 	
