@@ -4,7 +4,8 @@
 package au.blindmot.mtmbtn;
 
 import java.util.ArrayList;
-import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.adempiere.webui.LayoutUtils;
 import org.adempiere.webui.action.IAction;
@@ -31,6 +32,8 @@ import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
+import org.compiere.util.Trx;
+import org.compiere.util.TrxRunnable;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
@@ -64,6 +67,8 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private String fabTypeSelected = null;
 	private int currentFabSelection = 0;
 	private int currentChainSelection = 0;
+	private int currOrderLine = 0;
+	private boolean isChainDriven = false;
 	
 	
 	/**
@@ -85,7 +90,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 		log.info("MtmButtonAction window title: " + window.getTitle());
 		m_AD_Window_ID = tab.getAD_Window_ID();
-		m_Tab_id = tab.getAD_Tab_ID();split example
+		m_Tab_id = tab.getAD_Tab_ID();
 		
 		//Test to see if the current record is a mtm product.
 		//Get the c_orderline_id, find the product_id, check if the product_id is a mtm product
@@ -96,6 +101,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		}
 			else if(c_Order_line != "")
 			{
+				currOrderLine = Integer.parseInt(c_Order_line);
 				StringBuilder sql = new StringBuilder("SELECT m_product_id FROM c_orderline WHERE c_orderline_id = ");
 				sql.append(c_Order_line);
 				int m_Product = DB.getSQLValue(null, sql.toString());
@@ -109,16 +115,26 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 				else 
 				{
 					//Check if this order line already has attributes assigned.
-					int mLine = Integer.parseInt(c_Order_line);
-					MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), mLine, null);
-					String mtmAttribute = new String((String) thisOrderLine.get_Value("mtm_attribute"));
-					if(mtmAttribute!="")
+					MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
+					
+					String patternString = "[0-9]+";
+				    Pattern pattern = Pattern.compile(patternString);
+					
+					Object mtmAttribute = thisOrderLine.get_Value("mtm_attribute");
+					
+					if(mtmAttribute!=null && mtmAttribute.toString().contains("_"))
 					{
 						//Split the value of the mtm_attribute column, first value id fabric, second is chain
-						String[] products = mtmAttribute.split(",");
-						currentFabSelection = Integer.parseInt(products[0]);
-						currentChainSelection = Integer.parseInt(products[1]);
+						String[] products = mtmAttribute.toString().split("_");
 						
+						
+						Matcher matcher = pattern.matcher(products[0]);
+					    boolean matches = matcher.matches();
+						if(matches)currentFabSelection = Integer.parseInt(products[0]);
+						
+						Matcher matcher1 = pattern.matcher(products[1]);
+					    boolean matches1 = matcher1.matches();
+						if(matches1)currentChainSelection = Integer.parseInt(products[1]);
 					}
 					
 					show();
@@ -126,7 +142,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			}
 		
 		
-		System.out.println("In execute of MtmButtonAction" + " tab ID: " + m_Tab_id + " record ID: " + tab.getRecord_ID());
+		System.out.println("In execute of MtmButtonAction" + " tab ID: " + m_Tab_id + " record ebayID: " + tab.getRecord_ID());
 		System.out.println(Env.getCtx().toString());
 		System.out.println("Attempting to parse c_order_line: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true));
 		/*If this returns "" then it fails the check. Should return 'M_Product_ID =1000010' or similar.
@@ -186,10 +202,11 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		//Add the fabFam list
 		Row row = new Row();
 		rows.appendChild(row);
-		row.appendChild(new Label("Fabric Family:")); //This translate() method is pretty cool. Such a big codebase to work with.
+		row.appendChild(new Label("Fabric Family:"));
 		row.appendChild(fabFamily);
 		ZKUpdateUtil.setHflex(fabFamily, "1");
 		fabFamily.addEventListener(Events.ON_SELECT, this);
+	
 		
 		//Add the fabColour Listbox
 		Row row1 = new Row();
@@ -206,7 +223,19 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		row2.appendChild(new Label("Fabric Type:")); 
 		row2.appendChild(fabType);
 		ZKUpdateUtil.setHflex(fabType, "1");
+		fabType.addEventListener(Events.ON_SELECT, this);
 		if(fabColourSelected == null)fabType.setVisible(false);//Don't show this Listbox until a fabric colour is selected. 
+		
+		/*
+		 * Add chainFam Listbox
+		 * Check if it's chain driven
+		 */
+		isChainDriven = checkChainDrive();
+		if(isChainDriven)
+		{
+			//Add chainFam Listbox and other required stuff for chain selection
+		}
+		
 		
 		//Add confirm panel
 		vb.appendChild(confirmPanel);
@@ -232,15 +261,40 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabColour.setMold("select");
 		ArrayList<String> dupCheck = new ArrayList<String>();
 		KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql.toString(), true);
-		for (KeyNamePair pair : keyNamePairs) {
-			
-					//Remove duplicfabColourSelectedates
+		ListItem item = null;
+		for (KeyNamePair pair : keyNamePairs) 
+		{	
+			if(pair!=null && pair.getID() == Integer.toString(currentFabSelection))fabColour.appendItem(pair.getName(), pair.getID());//Prevents currentFabSelection being missed.
+			//Remove duplicfabColourSelectedates
 					if (!dupCheck.contains(pair.getName())) fabColour.appendItem(pair.getName(), pair.getID());
 					dupCheck.add(pair.getName());
-			
+					if(pair.getID()==Integer.toString(currentFabSelection)) item = new ListItem(pair.getName(), pair.getID());//Stores the already selected fabric
 		}
+		
+		if (currentFabSelection !=0)
+		{
+			fabColour.selectItem(item);//Initializes the list with the value from the DB
+		}
+		
+		
 	}
 	
+	
+	private KeyNamePair checkFabric(KeyNamePair[] keyNamePairs)
+	{
+	if(currentFabSelection !=0)//There's already fabric selected, add it to the list at index 1
+	{
+		for (KeyNamePair pair : keyNamePairs)
+		{
+			if(pair.getKey() > 1)
+			{
+				if(pair.getID().equals(Integer.toString(currentFabSelection)))return pair;
+			}
+				
+			
+		}
+	}return null;
+	}
 	
 	private void initFabFam() {
 		
@@ -254,20 +308,31 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabFamily.setMold("select");
 			KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql, true);
 			ArrayList<String> dupCheck = new ArrayList<String>();
-			ListItem item = null;
-			for (KeyNamePair pair : keyNamePairs) {
-				
-					//Remove duplicates
-					if (!dupCheck.contains(pair.getName())) fabFamily.appendItem(pair.getName(), pair.getID());
-					if(pair.getID()==Integer.toString(currentFabSelection)) item = new ListItem(pair.getName(), pair.getID());//Stores the already selected fabric
-					dupCheck.add(pair.getName());
+			boolean addCurrent = false;
+			int count = 0;
+			
+			KeyNamePair checkFab = checkFabric(keyNamePairs);
+			if (checkFab != null)
+				{
+				dupCheck.add(checkFab.getName());
+				addCurrent = true;
 				}
-			if (currentFabSelection !=0)
-			{
-				fabFamily.selectItem(item);//Initializes the list with the value from the DB
-				currentFabSelection = 0;//Sets the fabric back to 0
+			
+			for (KeyNamePair pair : keyNamePairs) 
+			{	
+				System.out.println("Before check "+ pair.getID());
+				if(count == 1 && addCurrent)fabFamily.appendItem(checkFab.getName(), checkFab.getID());//adds the current selection at index 1
+				
+				if (!dupCheck.contains(pair.getName())) fabFamily.appendItem(pair.getName(), pair.getID());//Remove duplicates
+					
+					dupCheck.add(pair.getName());
+					count++;
 			}
-		
+			
+			if(currentFabSelection != 0)fabFamily.setSelectedIndex(1);//Sets the list with the value from the DB
+				
+				//TODO: Call loadFabColour(String m_Product_id)
+			
 			}
 	
 	
@@ -287,12 +352,24 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 		fabType.setMold("select");
 		KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql.toString(), true);
-		for (KeyNamePair pair : keyNamePairs) {
+		ListItem item = null;
+		for (KeyNamePair pair : keyNamePairs) 
+		{
 			fabType.appendItem(pair.getName(), pair.getID());
+			if(pair.getID()==Integer.toString(currentFabSelection)) item = new ListItem(pair.getName(), pair.getID());//Stores the already selected fabric
+		}
+		
+		if (currentFabSelection !=0)
+		{
+			fabType.selectItem(item);//Initializes the list with the value from the DB
 		}
 		int fabTypeItemCount = fabType.getItemCount();
 		if(fabTypeItemCount <3)fabType.setEnabled(false);//If only one item, select it and set box unable
-			if (fabTypeItemCount >1 && fabTypeItemCount <3)fabType.setSelectedIndex(1);
+			if (fabTypeItemCount >1 && fabTypeItemCount <3)
+			{
+				fabType.setSelectedIndex(1);
+				fabTypeSelected = Integer.toString(fabType.getSelectedIndex());
+			}
 			if (fabTypeItemCount <=1)FDialog.warn(tab.getWindowNo(), "Fabric type not determined, check product setup.", "Warning");
 				
 			
@@ -306,7 +383,24 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 
 	private void validate() throws Exception
 	{
-		//Validate 
+		/*
+		 * Validate
+		 * Don't update the DB unless there are complete values
+		 * For fabric, fabTypeSelected, which is the last fabric config option, MUST have a value
+		 * if it is to be written to DB.
+		 * For chains, the last field in the dialog must have been given a value. If the blind is not
+		 * chain driven, then "" is to be passed
+		 */
+		
+	//If all OK then:
+		if(currentFabSelection==0)
+		{
+			FDialog.warn(tab.getWindowNo(), "Fabric not selected.", "Warning");//Cannot proceed without fabric
+		}
+		else 
+		{
+			setCurrentSelection(currentFabSelection,currentChainSelection);
+		}
 	}
 	
 	@Override
@@ -316,6 +410,8 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			blindConfig.onClose();
 		
 		else if(event.getTarget().getId().equals(ConfirmPanel.A_OK)) {
+			
+			if(Integer.parseInt(fabTypeSelected)!=0)currentFabSelection = Integer.parseInt(fabTypeSelected);
 			
 			blindConfig.setVisible(false);
 			Clients.showBusy(Msg.getMsg(Env.getCtx(), "Processing"));
@@ -360,10 +456,10 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			ListItem li = fabType.getSelectedItem();
 			fabTypeSelected = li.getValue();
 			
-			setCurrentSelection(fabTypeSelected);
+			currentFabSelection = Integer.parseInt(fabTypeSelected);
 		}
 		
-		else if (event.getName().equals("onValidate")) 
+		else if (event.getName().equals("onValidate"))
 		{
 			try {
 				validate();
@@ -386,9 +482,46 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 	}
 	
-	private final void setCurrentSelection(String lastFabricType)
+	private void setCurrentSelection(final int lastFabric, final int lastChain)
 	{
-		currentSelection = Integer.parseInt(lastFabricType);
+		//set the mtm_attribute column, but may need to get current contents then make new. Nah, just overwrite it.
+	        Trx.run(new TrxRunnable() {
+	            public void run(String trxName) {
+	            	MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
+	        		StringBuilder replaceValue = new StringBuilder(Integer.toString(lastFabric));
+	        		replaceValue.append("_");
+	        		replaceValue.append(Integer.toString(lastChain));
+	        		String look = replaceValue.toString();
+	        		thisOrderLine.set_ValueOfColumn("mtm_attribute", replaceValue.toString());
+	        		
+	        		System.out.println(look);
+	              
+	            
+	                thisOrderLine.saveEx();
+	            }
+	      
+	        });
+	}
+	
+
+	
+	private boolean checkChainDrive()
+	{
+		MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
+		int attInsID = thisOrderLine.getM_AttributeSetInstance_ID();
+		StringBuilder sql = new StringBuilder("SELECT description ");
+		sql.append("FROM m_attributesetinstance ");
+		sql.append("WHERE m_attributesetinstance_id = ?");
+		
+		//Get instance attribute for this lineitem.
+		String description = DB.getSQLValueString(null, sql.toString(), attInsID);
+		
+		String word = "chain";
+		Boolean found;
+		found = description.contains(word);
+		System.out.println(description + found.toString());
+		
+		return found;
 	}
 	
 
