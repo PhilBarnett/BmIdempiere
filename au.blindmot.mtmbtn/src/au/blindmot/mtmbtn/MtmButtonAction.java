@@ -59,12 +59,12 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private Listbox fabFamily = new Listbox();
 	private Listbox fabColour = new Listbox();
 	private Listbox fabType = new Listbox();
-	private Listbox chainMaterial = new Listbox();
-	private Listbox chainLength = new Listbox();
+	private Listbox chainList = new Listbox();
 	private Window 	blindConfig = null;
 	private String fabFamilySelected = null;
 	private String fabColourSelected = null;
 	private String fabTypeSelected = null;
+	private String chainSelected = null;
 	private int currentFabSelection = 0;
 	private int currentChainSelection = 0;
 	private int currOrderLine = 0;
@@ -117,7 +117,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 					//Check if this order line already has attributes assigned.
 					MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
 					
-					String patternString = "[0-9]+";
+					String patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
 				    Pattern pattern = Pattern.compile(patternString);
 					
 					Object mtmAttribute = thisOrderLine.get_Value("mtm_attribute");
@@ -131,6 +131,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 						Matcher matcher = pattern.matcher(products[0]);
 					    boolean matches = matcher.matches();
 						if(matches)currentFabSelection = Integer.parseInt(products[0]);
+						if(products[0].length() != 7)currentFabSelection = 0;
 						
 						Matcher matcher1 = pattern.matcher(products[1]);
 					    boolean matches1 = matcher1.matches();
@@ -142,7 +143,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			}
 		
 		
-		System.out.println("In execute of MtmButtonAction" + " tab ID: " + m_Tab_id + " record ebayID: " + tab.getRecord_ID());
+		System.out.println("In execute of MtmButtonAction" + " tab ID: " + m_Tab_id + " record ID: " + tab.getRecord_ID());
 		System.out.println(Env.getCtx().toString());
 		System.out.println("Attempting to parse c_order_line: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true));
 		/*If this returns "" then it fails the check. Should return 'M_Product_ID =1000010' or similar.
@@ -160,9 +161,8 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabColour.setEnabled(false);
 		fabType.getItems().clear();
 		fabType.setEnabled(false);
-		chainMaterial.getItems().clear();
-		chainMaterial.setEnabled(false);//TODO: Set enabled(true) if the item is chain controlled.
-		chainLength.getItems().clear();
+		chainList.getItems().clear();
+		chainList.setEnabled(false);//TODO: Set enabled(true) if the item is chain controlled.
 		fabFamily.setMold("select");
 		fabFamily.getItems().clear();
 		initFabFam();
@@ -214,7 +214,10 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		row1.appendChild(new Label("Fabric Colour:")); 
 		row1.appendChild(fabColour);
 		ZKUpdateUtil.setHflex(fabColour, "1");
-		if(fabFamilySelected == null)fabColour.setVisible(false);//Don't show this box until a fabric family is selected.
+		if(currentFabSelection == 0 && fabFamilySelected == null)
+			{
+			fabColour.setVisible(false);//Don't show this box until a fabric family is selected.
+			}
 		fabColour.addEventListener(Events.ON_SELECT, this);
 		
 		//Add the fabType Listbox
@@ -224,7 +227,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		row2.appendChild(fabType);
 		ZKUpdateUtil.setHflex(fabType, "1");
 		fabType.addEventListener(Events.ON_SELECT, this);
-		if(fabColourSelected == null)fabType.setVisible(false);//Don't show this Listbox until a fabric colour is selected. 
+		if(currentFabSelection == 0 && fabColourSelected == null)fabType.setVisible(false);//Don't show this Listbox until a fabric colour is selected. 
 		
 		/*
 		 * Add chainFam Listbox
@@ -233,7 +236,13 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		isChainDriven = checkChainDrive();
 		if(isChainDriven)
 		{
-			//Add chainFam Listbox and other required stuff for chain selection
+			Row row21 = new Row();
+			rows.appendChild(row21);
+			row21.appendChild(new Label("Chain:")); 
+			row21.appendChild(chainList);
+			ZKUpdateUtil.setHflex(chainList, "1");
+			chainList.addEventListener(Events.ON_SELECT, this);
+			initChains();
 		}
 		
 		
@@ -261,40 +270,60 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabColour.setMold("select");
 		ArrayList<String> dupCheck = new ArrayList<String>();
 		KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql.toString(), true);
-		ListItem item = null;
+		
+		KeyNamePair checkFab = checkSelection(keyNamePairs, currentFabSelection);
+		boolean addCurrent = false;
+		if (checkFab != null)
+			{
+			dupCheck.add(checkFab.getName());
+			addCurrent = true;
+			}
+		
+		int count = 0;
 		for (KeyNamePair pair : keyNamePairs) 
 		{	
-			if(pair!=null && pair.getID() == Integer.toString(currentFabSelection))fabColour.appendItem(pair.getName(), pair.getID());//Prevents currentFabSelection being missed.
+			System.out.println("Before check "+ pair.getID());
+		
+			if(count  == 1 && addCurrent)fabColour.appendItem(checkFab.getName(), checkFab.getID());//adds the current selection at index 1
+		
 			//Remove duplicfabColourSelectedates
-					if (!dupCheck.contains(pair.getName())) fabColour.appendItem(pair.getName(), pair.getID());
-					dupCheck.add(pair.getName());
-					if(pair.getID()==Integer.toString(currentFabSelection)) item = new ListItem(pair.getName(), pair.getID());//Stores the already selected fabric
+				if (!dupCheck.contains(pair.getName())) fabColour.appendItem(pair.getName(), pair.getID());
+				dupCheck.add(pair.getName());
+				count++;
 		}
+		
 		
 		if (currentFabSelection !=0)
 		{
-			fabColour.selectItem(item);//Initializes the list with the value from the DB
+			fabColour.setSelectedIndex(1);//Initializes the list with the value from the DB
+			fabColour.setEnabled(true);
+			fabColour.setVisible(true);
+			loadFabType(Integer.toString(currentFabSelection));
+			
 		}
 		
-		
-	}
+	   }
 	
 	
-	private KeyNamePair checkFabric(KeyNamePair[] keyNamePairs)
+	private KeyNamePair checkSelection(KeyNamePair[] keyNamePairs, int currentSelection)
 	{
-	if(currentFabSelection !=0)//There's already fabric selected, add it to the list at index 1
+	if(currentSelection !=0)//There's already a selection, add it to the list at index 1
 	{
 		for (KeyNamePair pair : keyNamePairs)
 		{
 			if(pair.getKey() > 1)
 			{
-				if(pair.getID().equals(Integer.toString(currentFabSelection)))return pair;
+				if(pair.getID().equals(Integer.toString(currentSelection)))return pair;
 			}
 				
 			
 		}
 	}return null;
 	}
+	
+	
+	
+	
 	
 	private void initFabFam() {
 		
@@ -311,7 +340,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			boolean addCurrent = false;
 			int count = 0;
 			
-			KeyNamePair checkFab = checkFabric(keyNamePairs);
+			KeyNamePair checkFab = checkSelection(keyNamePairs, currentFabSelection);
 			if (checkFab != null)
 				{
 				dupCheck.add(checkFab.getName());
@@ -329,15 +358,23 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 					count++;
 			}
 			
-			if(currentFabSelection != 0)fabFamily.setSelectedIndex(1);//Sets the list with the value from the DB
+			if(currentFabSelection != 0)
+				{
+				fabFamily.setSelectedIndex(1);//Sets the list with the value from the DB
+				loadFabColour(Integer.toString(currentFabSelection));
+				fabFamilySelected = Integer.toString(currentFabSelection);
+				}
 				
-				//TODO: Call loadFabColour(String m_Product_id)
 			
 			}
 	
 	
-	private void loadFabType(String selectedColour)//Is this the correct parameter to pass?
+	private void loadFabType(String selectedColour)
 	{
+		if(currentFabSelection != 0)
+		{
+			fabFamilySelected = Integer.toString(currentFabSelection);
+		}
 		StringBuilder sql = new StringBuilder();
 		sql.append("SELECT mp.m_product_id, ma.value ");
 		sql.append("FROM m_product mp ");
@@ -352,33 +389,94 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 		fabType.setMold("select");
 		KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql.toString(), true);
-		ListItem item = null;
+		ArrayList<String> dupCheck = new ArrayList<String>();
+		
+		KeyNamePair checkFab = checkSelection(keyNamePairs, currentFabSelection);
+		boolean addCurrent = false;
+		if (checkFab != null)
+			{
+			addCurrent = true;
+			dupCheck.add(checkFab.getName());
+			}
+		
+		int count = 0;
 		for (KeyNamePair pair : keyNamePairs) 
-		{
-			fabType.appendItem(pair.getName(), pair.getID());
-			if(pair.getID()==Integer.toString(currentFabSelection)) item = new ListItem(pair.getName(), pair.getID());//Stores the already selected fabric
+		{	
+		
+			if(count  == 1 && addCurrent)fabType.appendItem(checkFab.getName(), checkFab.getID());//adds the current selection at index 1
+		
+			//Remove duplicfabColourSelectedates
+			if (!dupCheck.contains(pair.getName())) fabType.appendItem(pair.getName(), pair.getID());//Remove duplicates
+			
+			dupCheck.add(pair.getName());
+			count++;
 		}
 		
 		if (currentFabSelection !=0)
 		{
-			fabType.selectItem(item);//Initializes the list with the value from the DB
+			fabType.setSelectedIndex(1);//Initializes the list with the value from the DB
+			fabType.setEnabled(true);
+			fabType.setVisible(true);
+			
 		}
+		
 		int fabTypeItemCount = fabType.getItemCount();
 		if(fabTypeItemCount <3)fabType.setEnabled(false);//If only one item, select it and set box unable
 			if (fabTypeItemCount >1 && fabTypeItemCount <3)
 			{
 				fabType.setSelectedIndex(1);
-				fabTypeSelected = Integer.toString(fabType.getSelectedIndex());
+				fabTypeSelected = selectedColour;
 			}
 			if (fabTypeItemCount <=1)FDialog.warn(tab.getWindowNo(), "Fabric type not determined, check product setup.", "Warning");
-				
 			
-			
+	}
+	
+	private void initChains()
+	{
+		if(currentChainSelection != 0)
+		{
+			chainSelected = Integer.toString(currentChainSelection);
+		}
 		
-		/*TODO: Check current item to see it it's chain controlled. If it is, add a Listbox with chain products.
-		 * 
-		 *
-		 */
+		StringBuilder sql = new StringBuilder("SELECT m_product_id, CONCAT(name, ' ', description) AS Summary ");
+		sql.append("FROM m_product mp ");
+		sql.append("WHERE mp.m_parttype_id = ");
+		sql.append("(SELECT m_parttype_id FROM m_parttype WHERE m_parttype.name = 'Chain');");
+		
+		chainList.setMold("select");
+		KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql.toString(), true);
+		ArrayList<String> dupCheck = new ArrayList<String>();
+		
+		KeyNamePair checkChains = checkSelection(keyNamePairs, currentChainSelection);
+		boolean addCurrent = false;
+		if (checkChains != null)
+			{
+			addCurrent = true;
+			dupCheck.add(checkChains.getName());
+			}
+		
+		int count = 0;
+		for (KeyNamePair pair : keyNamePairs) 
+		{	
+		
+			if(count  == 1 && addCurrent)chainList.appendItem(checkChains.getName(), checkChains.getID());//adds the current selection at index 1
+		
+			//Remove duplicfabColourSelectedates
+			if (!dupCheck.contains(pair.getName())) chainList.appendItem(pair.getName(), pair.getID());//Remove duplicates
+			
+			dupCheck.add(pair.getName());
+			count++;
+		}
+		
+		if (currentChainSelection !=0)
+		{
+			chainList.setSelectedIndex(1);//Initializes the list with the value from the DB
+		}
+		
+		chainList.setEnabled(true);
+		chainList.setVisible(true);
+		
+		
 	}
 
 	private void validate() throws Exception
@@ -416,6 +514,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			blindConfig.setVisible(false);
 			Clients.showBusy(Msg.getMsg(Env.getCtx(), "Processing"));
 			Events.echoEvent("onValidate", blindConfig, null);
+
 		}
 		
 		else if (event.getTarget() == fabFamily)
@@ -430,9 +529,12 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			fabColour.removeAllItems();
 			fabType.removeAllItems();
 			fabType.setEnabled(false);
+			fabType.setVisible(false);
 			fabColour.setEnabled(true);
 			fabColour.setVisible(true);
+			currentFabSelection = 0;
 			loadFabColour(fabFamilySelected);
+			setOkButton();
 			
 		}
 		
@@ -446,7 +548,9 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			fabType.removeAllItems();
 			fabType.setEnabled(true);
 			fabType.setVisible(true);
+			currentFabSelection = 0;
 			loadFabType(fabColourSelected);
+			setOkButton();
 		}
 		
 		else if(event.getTarget() == fabType)
@@ -456,7 +560,26 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			ListItem li = fabType.getSelectedItem();
 			fabTypeSelected = li.getValue();
 			
-			currentFabSelection = Integer.parseInt(fabTypeSelected);
+			if(fabTypeSelected == null)
+			{
+				confirmPanel.setEnabled("OK", false);
+			}
+			else 
+				{
+				currentFabSelection = Integer.parseInt(fabTypeSelected);
+				confirmPanel.setEnabled("OK", false);
+				}
+			setOkButton();
+		}
+		
+		else if(event.getTarget() == chainList)
+		{
+			chainSelected = null;
+			ListItem li = chainList.getSelectedItem();
+			chainSelected = li.getValue();
+			
+			if (chainSelected != null)currentChainSelection = Integer.parseInt(chainSelected );
+			setOkButton();
 		}
 		
 		else if (event.getName().equals("onValidate"))
@@ -476,9 +599,29 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 
 	}
 	
+	private void setOkButton()
+	{
+		confirmPanel.setEnabled("Ok", true);
+		ListItem li = fabType.getSelectedItem();
+		if(li != null)fabTypeSelected = li.getValue();
+		
+		if(fabTypeSelected == null||li == null)
+		{
+			confirmPanel.setEnabled("Ok", false);
+		}
+		
+		ListItem li2 = chainList.getSelectedItem();
+		if(li2 != null)chainSelected = li2.getValue();
+		
+		if (chainSelected == null & isChainDriven)
+			{
+			confirmPanel.setEnabled("Ok", false);
+			}
+	}
+	
 	public int getCurrentselection()
 	{
-		return 1;//TODO: Change to something that makes sense.
+		return currentFabSelection;//TODO: Change to something that makes sense.
 		
 	}
 	
