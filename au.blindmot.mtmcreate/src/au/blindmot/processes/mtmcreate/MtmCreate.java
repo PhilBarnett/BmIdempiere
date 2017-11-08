@@ -3,7 +3,6 @@
  */
 package au.blindmot.processes.mtmcreate;
 
-import java.math.BigDecimal;
 import java.util.logging.Level;
 
 import org.compiere.model.MOrder;
@@ -12,11 +11,12 @@ import org.compiere.model.MProduct;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
+import org.compiere.util.DB;
 import org.compiere.util.Env;
 
 /**
  * @author phil
- * A process to create MBLDMtomProduction form orders
+ * A process to create MBLDMtomProduction from orders
  *
  */
 public class MtmCreate extends SvrProcess {
@@ -31,9 +31,9 @@ public class MtmCreate extends SvrProcess {
 		for(ProcessInfoParameter para : paras)
 		{
 			String paraName = para.getParameterName();
-			if(paraName.equalsIgnoreCase("Order_ID"))
+			if(paraName.equalsIgnoreCase("c_Order_ID"))
 				C_Order_ID = para.getParameterAsInt();
-			else if(paraName.equalsIgnoreCase("Overwrite_existing"))
+			else if(paraName.equalsIgnoreCase("check_box"))
 				ignoreExistingmtmProd = para.getParameterAsBoolean(); 
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + paraName);
@@ -67,9 +67,11 @@ public class MtmCreate extends SvrProcess {
 	private boolean checkOrderStatus()
 	{
 		MOrder thisOrder = new MOrder(Env.getCtx(), C_Order_ID, null);
-		if(!thisOrder.getDocStatus().equals("CL")) 
+		if(!thisOrder.getDocStatus().equals("CL")&&!thisOrder.getDocStatus().equals("CO")) //Is order complete/closed?
 			{
-				throw new AdempiereUserError ("Order " + C_Order_ID + " status not closed");
+				log.log(Level.INFO, "Order not complete or closed, status was: " + thisOrder.getDocStatus());
+				throw new AdempiereUserError ("Order " + C_Order_ID + " status not closed or complete");
+				
 			}
 		MOrderLine[] lines = thisOrder.getLines();
 		boolean pass = true;
@@ -77,26 +79,43 @@ public class MtmCreate extends SvrProcess {
 		{
 			int mProduct = line.get_ValueAsInt("m_product_id");
 			MProduct productToCheck = new MProduct(getCtx(), mProduct, get_TrxName());
-			String isMtm = productToCheck.get_ValueAsString("ismadetomeasure");
+			boolean isMtm = productToCheck.get_ValueAsBoolean("ismadetomeasure");
 			boolean isManufactured = productToCheck.isManufactured();
-			if(!isManufactured && isMtm != "Y")
+			if(isManufactured && isMtm)
 			{
-				pass = false;
+				pass = true;
 				break;
 			}
 		}
 		return pass;
 	}
+	/**
+	 * checkMtmStatus()
+	 * Check if there's an existing MtmProduction with C_Order_ID in it.
+	 * 
+	 */
 	
 	private boolean checkMtmStatus()
 	{
 		if(ignoreExistingmtmProd)return true;
-		//TODO: Check if there's an existing MtmProduction with C_Order_ID in it.
-		return false;
+		
+		StringBuilder sql = new StringBuilder("SELECT c_order_id ");
+		sql.append("FROM bld_mtom_production WHERE ");
+		sql.append("c_order_id = '" + C_Order_ID +"'");
+		int existingOrder = DB.getSQLValue(get_TrxName(), sql.toString());//returns -1 if no record is found.
+		if(existingOrder != -1)
+			{
+				log.log(Level.INFO, "Production with c_order_id" + C_Order_ID + " exists already");
+				return false;
+			}
+		else return true;
+		
 	}
 
 	private boolean createNewMtmProduction()
 	{
+		//TODO: create a new MTMproduction
+		
 		return false;
 	}
 }

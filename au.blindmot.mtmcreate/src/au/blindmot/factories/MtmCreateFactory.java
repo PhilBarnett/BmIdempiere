@@ -13,7 +13,7 @@ public class MtmCreateFactory implements IProcessFactory {
 
 	@Override
 	public ProcessCall newProcessInstance(String className) {
-		if(className.equals("au.blindmot.process.MtmCreate"))return new MtmCreate();
+		if(className.equals("au.blindmot.processes.mtmcreate.MtmCreate"))return new MtmCreate();
 		return null;
 	}
 
