@@ -12,5 +12,6 @@ Require-Bundle: org.adempiere.base,
  org.adempiere.plugin.utils;bundle-version="4.1.0"
 Service-Component: OSGI-INF/ModelFactory.xml,
  OSGI-INF/DocFactory.xml
+Export-Package: au.blindmot.model
 
 

@@ -31,14 +31,22 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
 		setM_AttributeSetInstance_ID(orderLine.getM_AttributeSetInstance_ID());
 		/*
-		 * Once the prduction lines are in, what do we do with them?
-		 * Calculate and store cut lengths for things like base bars and tubes. - where?
+		 * Once the prduction lines are in, what do we do with them? 
+		 * TODO: Create table bld_mtom_cuts, add the table to 'Table and Column', generate I & X classes, no M class.
+		 * 
 		 * 'Interpret' from AttributeSetInstance the components required, may need some sort of 
 		 *  AttributeSetInstance to components/cuts table for settings - eg what components (products) are required 
 		 *   for a link blind? a drop down awning with motor?
 		 *   Add deductions as a product attribute?
+		 *   As attributes are going to be the way to propagate info, there will have to be protocol 
+		 *   that determines their use, possibly a verification process?
 		 *  Develop business logic around 'how things are made' with deductions, normal roll/reverse roll etc.
-		 *  	Think about how blind calculations are made to manuallly make a blind to get ideas.
+		 *  	Think about how blind calculations are made to manually make a blind to get ideas.
+		 *  	Consider a 'BLDMtomBLindFactory' class that returns a class that implements I_BLD_mtom_Blinds interface
+		 *  	with methods like:
+		 *  		getSkinSize(int width, int drop)	
+		 *  		getCutLengths(int product_ID)
+		 *  	Classes to return example: RollerMaker, CommercialRollerMaker, AcmedaWireAwningMaker etc		
 		 *  
 		 *  Calculate BOM_derived quantities for invent adjustment, look at 'productionline' for code guidelines.
 		 *  

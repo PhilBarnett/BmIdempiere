@@ -9,9 +9,11 @@ import java.util.logging.Level;
 
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
+import org.compiere.model.MPriceList;
 import org.compiere.process.DocAction;
 import org.compiere.process.DocOptions;
 import org.compiere.process.DocumentEngine;
+import org.compiere.util.Env;
 
 public class MBLDMtomProduction extends X_BLD_mtom_production implements DocAction, DocOptions {
 
@@ -19,7 +21,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	 * 
 	 */
 	private static final long serialVersionUID = 2339407400844279640L;
-	private int Morder_id = 0;
+	private int mOrder_id = 0;
 	private MOrder mOrder = null;
 
 	
@@ -28,7 +30,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	 *  Default Constructor
 	 *  @param ctx context
 	 *  @param  BLD_mtom_production_ID    order to load, (0 create new order)
-	 *  @param trxName trx name
+	 *  @param trxName trx namenewMtm_ID
 	 */
 	public MBLDMtomProduction(Properties ctx, int BLD_mtom_production_ID, String trxName) {
 		super(ctx, BLD_mtom_production_ID, trxName);
@@ -63,15 +65,16 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	 *  @param trxName trx name
 	 *  @param morderid
 	 */
-	public MBLDMtomProduction(Properties ctx, ResultSet rs, String trxName, int morderid) {
+	public MBLDMtomProduction(Properties ctx, ResultSet rs, String trxName, int Corder_id) {
 		super(ctx, rs, trxName);
 		//Get info from parent MOrder
-		mOrder = new MOrder(ctx, morderid, get_TrxName());
+		mOrder = new MOrder(ctx, Corder_id, get_TrxName());
 		setC_BPartner_ID(mOrder.getC_BPartner_ID());
 		setC_Campaign_ID(mOrder.getC_Campaign_ID());
 		setC_Project_ID(mOrder.getC_Project_ID());
-		setC_Order_ID(morderid);
+		setC_Order_ID(Corder_id);
 		setDescription(mOrder.getDescription());
+		mOrder_id = Corder_id;
 		
 		
 	}
@@ -129,13 +132,37 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 
 	@Override
 	public String prepareIt() {
-		setC_DocType_ID(getC_DocTypeTarget_ID());
+		int docTypeTarget_id = getC_DocTypeTarget_ID();
+		if(docTypeTarget_id < 1)docTypeTarget_id = 1000000;//TODO: Hard coded may have unexpected results, use sql something like
+		//SELECT c_doctyoetarget_id from c_doctype WHERE name = 'Made to Measure';
+		setC_DocTypeTarget_ID(docTypeTarget_id);
+
+		int docType_id = getC_DocTypeTarget_ID();
+		if(docType_id < 1)docType_id = 1000000;//TODO: Hard coded may have unexpected results, use sql something like
+		//SELECT c_doctyoe_id from c_doctype WHERE name = 'Made to Measure';
+		setC_DocType_ID(docType_id);
+		
+		Timestamp timeStamp1 = getMovementDate();
+		if(timeStamp1 == null)
+		{
+			setMovementDate(new Timestamp( System.currentTimeMillis() ));
+		}
+		setDateAcct (new Timestamp( System.currentTimeMillis() ));
+		
+		if(getC_Currency_ID() == 0)
+		{
+			MPriceList plDefault = MPriceList.getDefault(getCtx(), true); 
+			setC_Currency_ID(plDefault.getC_Currency().getC_Currency_ID());
+		}
+		
+		//TODO:Set ADUSerID for this record.
+		
 		
 		//Add shell of finished items based on Order line from MOrder
 		addProductionItems();
-				
 		
 		log.warning("---------------In MBLDMtomProduction.prepareIt()");
+		setDocStatus(DOCSTATUS_Drafted);
 		return DocAction.STATUS_InProgress;
 	}
 
@@ -252,7 +279,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 				if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+line.toString()+" to production items for production " + mtmProdID);
 				mtmLine = new MBLDMtomItemLine(line, mtmProdID);
 			};
-			
+			//TODO: Fix this, it doesn't currently work.
 			//TODO Check if line is a MTM product, if not, skip and log, add to string for display?
 			//If it is MTM product && is manufactured, add to bld_mtom_item_line in 'unprocessed' form
 			//Iterate through until done
