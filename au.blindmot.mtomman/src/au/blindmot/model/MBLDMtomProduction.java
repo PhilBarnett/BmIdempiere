@@ -10,6 +10,7 @@ import java.util.logging.Level;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
+import org.compiere.model.MProduct;
 import org.compiere.process.DocAction;
 import org.compiere.process.DocOptions;
 import org.compiere.process.DocumentEngine;
@@ -74,11 +75,12 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		setC_Project_ID(mOrder.getC_Project_ID());
 		setC_Order_ID(Corder_id);
 		setDescription(mOrder.getDescription());
+		setDatePromised(mOrder.getDatePromised());
+		setIsComplete(false);
 		mOrder_id = Corder_id;
 		
 		
 	}
-
 
 
 	@Override
@@ -132,37 +134,12 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 
 	@Override
 	public String prepareIt() {
-		int docTypeTarget_id = getC_DocTypeTarget_ID();
-		if(docTypeTarget_id < 1)docTypeTarget_id = 1000000;//TODO: Hard coded may have unexpected results, use sql something like
-		//SELECT c_doctyoetarget_id from c_doctype WHERE name = 'Made to Measure';
-		setC_DocTypeTarget_ID(docTypeTarget_id);
-
-		int docType_id = getC_DocTypeTarget_ID();
-		if(docType_id < 1)docType_id = 1000000;//TODO: Hard coded may have unexpected results, use sql something like
-		//SELECT c_doctyoe_id from c_doctype WHERE name = 'Made to Measure';
-		setC_DocType_ID(docType_id);
-		
-		Timestamp timeStamp1 = getMovementDate();
-		if(timeStamp1 == null)
-		{
-			setMovementDate(new Timestamp( System.currentTimeMillis() ));
-		}
-		setDateAcct (new Timestamp( System.currentTimeMillis() ));
-		
-		if(getC_Currency_ID() == 0)
-		{
-			MPriceList plDefault = MPriceList.getDefault(getCtx(), true); 
-			setC_Currency_ID(plDefault.getC_Currency().getC_Currency_ID());
-		}
-		
-		//TODO:Set ADUSerID for this record.
-		
 		
 		//Add shell of finished items based on Order line from MOrder
 		addProductionItems();
 		
 		log.warning("---------------In MBLDMtomProduction.prepareIt()");
-		setDocStatus(DOCSTATUS_Drafted);
+		setDocStatus(DOCSTATUS_InProgress);
 		return DocAction.STATUS_InProgress;
 	}
 
@@ -254,6 +231,34 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	protected boolean beforeSave(boolean newRecord)
 	{
 		
+		int docTypeTarget_id = getC_DocTypeTarget_ID();
+		if(docTypeTarget_id < 1)docTypeTarget_id = 1000000;//TODO: Hard coded may have unexpected results, use sql something like
+		//SELECT c_doctyoetarget_id from c_doctype WHERE name = 'Made to Measure';
+		setC_DocTypeTarget_ID(docTypeTarget_id);
+
+		int docType_id = getC_DocTypeTarget_ID();
+		if(docType_id < 1)docType_id = 1000000;//TODO: Hard coded may have unexpected results, use sql something like
+		//SELECT c_doctyoe_id from c_doctype WHERE name = 'Made to Measure';
+		setC_DocType_ID(docType_id);
+		
+		Timestamp timeStamp1 = getMovementDate();
+		if(timeStamp1 == null)
+		{
+			setMovementDate(new Timestamp( System.currentTimeMillis() ));
+		}
+		setDateAcct (new Timestamp( System.currentTimeMillis() ));
+		
+		if(getC_Currency_ID() == 0)
+		{
+			MPriceList plDefault = MPriceList.getDefault(getCtx(), true); 
+			setC_Currency_ID(plDefault.getC_Currency().getC_Currency_ID());
+		}
+		
+		if(getAD_User_ID() == 0)
+			{
+				setAD_User_ID(Env.getAD_User_ID(getCtx()));
+			}
+		
 		/*
 		 * /TODO prevent save if the MOrder has already been produced, ie check morder_id is unique in
 		 * TABLE bld_mtom_production
@@ -268,24 +273,29 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		**/
 		return true;
 	}
-	private void addProductionItems() {
+	private void addProductionItems()  {
+		
+		int mtom_production_ID = getbld_mtom_production_ID();
+		if ( mtom_production_ID == 0)//The record hasn't been saved yet
+		{
+			log.severe("Can't add prodcution lines to null record. mtom_production_ID == " + mtom_production_ID);
+		}
+		/*Currently able to be added twice.
+		 * TODO: Check for duplicates or alert user.
+		 */
 		MOrderLine[] orderLines = mOrder.getLines();
 		MBLDMtomItemLine mtmLine = null;
 		int mtmProdID = this.getbld_mtom_production_ID();
 		for (int i=0; i < orderLines.length; i++)
 		{
 			MOrderLine line = orderLines[i];
-			if(line.get_ValueAsBoolean("ismadetomeasure")){
+			MProduct mProduct = new MProduct(getCtx(), line.getM_Product_ID(),get_TrxName());
+			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
+			{
 				if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+line.toString()+" to production items for production " + mtmProdID);
 				mtmLine = new MBLDMtomItemLine(line, mtmProdID);
-			};
-			//TODO: Fix this, it doesn't currently work.
-			//TODO Check if line is a MTM product, if not, skip and log, add to string for display?
-			//If it is MTM product && is manufactured, add to bld_mtom_item_line in 'unprocessed' form
-			//Iterate through until done
+				if(!mtmLine.save())log.severe("Can't add prodcution line:" +  mtmProdID + " to MTM production, mtom_production_ID == " + mtom_production_ID);
+			}
 		}
-		
-		
 	}
-	
 }
