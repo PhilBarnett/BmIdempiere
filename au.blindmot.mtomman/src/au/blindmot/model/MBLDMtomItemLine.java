@@ -5,6 +5,10 @@ import java.util.Properties;
 
 import org.compiere.model.MOrderLine;
 
+import au.blindmot.factories.BLDMtomMakeFactory;
+import au.blindmot.make.MadeToMeasureProduct;
+import au.blindmot.utils.MtmUtils;
+
 public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 
 	/**
@@ -26,12 +30,11 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		setDescription(orderLine.getDescription());
 		setM_Product_ID(m_Prod_ID);
 		setbld_mtom_production_ID(mTM_prod_ID);
-		setbarcode(generateBarcode(m_Prod_ID));
 		setName(orderLine.getName());
 		setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
 		setM_AttributeSetInstance_ID(orderLine.getM_AttributeSetInstance_ID());
 		/*
-		 * Once the prduction lines are in, what do we do with them? 
+		 * Once the production lines are in, what do we do with them? 
 		 * TODO: Create table bld_mtom_cuts, add the table to 'Table and Column', generate I & X classes, no M class.
 		 * 
 		 * 'Interpret' from AttributeSetInstance the components required, may need some sort of 
@@ -61,15 +64,38 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 	public MBLDMtomItemLine(Properties ctx, int BLD_mtom_item_line_ID, String trxName) {
 		super(ctx, BLD_mtom_item_line_ID, trxName);
 		// TODO Auto-generated constructor stub
+	
 	}
 	
-	private String generateBarcode(int m_Product_ID){
-		/*
-		 * TODO figure out a barcode protocol, make it future proof!
-		 * Use ProductID, '_' then bld_mtom_item_line_uu?
-		 */
+	public void set_Barcode(){
+		setbarcode(MtmUtils.getBarcode(get_Table_ID(), getbld_mtom_item_line_ID()));
+	}
+	
+	public boolean processMtmLineItem() {
+		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID());
 		
-		return "";
+		if(mTmProduct.createBomDerived())
+			/*
+			*TODO: Ensure that no orphan records get created
+			*Delete/rollback any BOM derived, ProductionLine and Cuts records 
+			*with this.getbld_mtom_item_line_ID()
+			*Or possibly add deleteCuts(), deleteProductionLine(), deleteBomDerived() to 
+			*MadeToMeasureProduct so that if the create/get/create methods fail then 
+			*the children can be easily deleted.
+			**/
+			{
+				if(mTmProduct.getCuts())
+				{
+					if(mTmProduct.createProductionLine())
+					{
+						return true;
+					}
+				}
+			}
+		
+		
+		return false;
+		
 	}
 
 }

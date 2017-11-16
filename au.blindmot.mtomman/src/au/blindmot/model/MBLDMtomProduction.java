@@ -294,7 +294,15 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			{
 				if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+line.toString()+" to production items for production " + mtmProdID);
 				mtmLine = new MBLDMtomItemLine(line, mtmProdID);
-				if(!mtmLine.save())log.severe("Can't add prodcution line:" +  mtmProdID + " to MTM production, mtom_production_ID == " + mtom_production_ID);
+				if(!mtmLine.save())
+					{
+						log.severe("Can't add prodcution line:" +  mtmProdID + " to MTM production, mtom_production_ID == " + mtom_production_ID);
+					}
+				else 
+					{
+						mtmLine.set_Barcode();
+						mtmLine.saveEx();
+					}
 			}
 		}
 	}
