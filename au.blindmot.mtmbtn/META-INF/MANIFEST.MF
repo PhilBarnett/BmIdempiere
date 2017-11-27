@@ -10,7 +10,8 @@ Require-Bundle: org.adempiere.ui.zk;bundle-version="4.1.0",
 Service-Component: au.blindmot.mtmbtn.action.mtmb.xml
 Export-Package: action.images
 Bundle-ActivationPolicy: lazy
-Import-Package: org.zkoss.zk.ui,
+Import-Package: au.blindmot.model,
+ org.zkoss.zk.ui,
  org.zkoss.zk.ui.event,
  org.zkoss.zk.ui.util,
  org.zkoss.zul

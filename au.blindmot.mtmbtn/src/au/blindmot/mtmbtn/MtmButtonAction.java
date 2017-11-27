@@ -39,13 +39,15 @@ import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
 import org.zkoss.zk.ui.util.Clients;
 import org.zkoss.zul.Vbox;
-
+import au.blindmot.model.MBLDMtomItemLine;
 
 /**
  * @author phil
  * This should really be done by an extra field in the c_orderline table 'mtmoptions' that stores
  * the options and the product_ids like mattributeinstances eg 'chain=1000012_fabric=1000018'
  * and should be entered and validated by an editor.
+ * NOTE: If the button is called from a mtmproduction window, any changes to the values are written to the
+ * mbldtmtomlineitem. The instance variables are still read from the c_orderline.
  *
  */
 public class MtmButtonAction implements IAction, EventListener<Event> {
@@ -54,11 +56,10 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private AbstractADWindowContent panel;
 	private ConfirmPanel 	confirmPanel = new ConfirmPanel(true);
 	private GridTab 		tab = null;
-	private int m_AD_Window_ID;
-	private int m_Tab_id;
 	private Listbox fabFamily = new Listbox();
 	private Listbox fabColour = new Listbox();
 	private Listbox fabType = new Listbox();
+	private Listbox controlType = new Listbox();
 	private Listbox chainList = new Listbox();
 	private Window 	blindConfig = null;
 	private String fabFamilySelected = null;
@@ -68,33 +69,61 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private int currentFabSelection = 0;
 	private int currentChainSelection = 0;
 	private int currOrderLine = 0;
+	private int currbldmtomitemlineID = 0;
 	private boolean isChainDriven = false;
+	private boolean isMtmProdWindow = false;
+
 	
+	/*
+	 * TODO:Add a 'control' ListBox and populate with product from BOM with Part Type = Tubular blind control
+	 * TODO: Modify code in Listbox chainList to add chain options if the 'control' is a chain drive
+	 * TODO:Add a 'control' ListBox and populate with product from BOM with Part Type = Tubular blind control
+	 * TODO:Add a 'non-control' ListBox and populate with product from BOM with Part Type = Tubular non-control mech
+	 * TODO:Add a 'Bracket' ListBox and populate with product from BOM with Part Type = Roller Bracket
+	 * TODO:Add a 'Bottom bar' ListBox and populate with product from BOM with Part Type = Bottom bar
+	 */
 	
 	/**
 	 * <div>Icons made by <a href="https://www.flaticon.com/authors/smashicons" title="Smashicons">Smashicons</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a></div>
 	 */
 	public MtmButtonAction() {
-		// TODO Auto-generated constructor stub
+	
 	}
 
 	@Override
 	public void execute(Object target) {
-		// TODO Auto-generated method stub
+		fabFamilySelected = null;
+		fabColourSelected = null;
+		fabTypeSelected = null;
+		chainSelected = null;
+		currentFabSelection = 0;
+		currentChainSelection = 0;
+		currOrderLine = 0;
+		currbldmtomitemlineID = 0;
+		isChainDriven = false;
+		isMtmProdWindow = false;
 		
 		ADWindow window = (ADWindow)target;
 		ADWindowContent content = window.getADWindowContent();
 		tab = content.getActiveGridTab();
-		m_AD_Window_ID = tab.getAD_Window_ID();
+		tab.getAD_Window_ID();
 		panel = content;
 		
 		log.info("MtmButtonAction window title: " + window.getTitle());
-		m_AD_Window_ID = tab.getAD_Window_ID();
-		m_Tab_id = tab.getAD_Tab_ID();
+		tab.getAD_Window_ID();
+		tab.getAD_Tab_ID();
+		if(window.getTitle().toString().equalsIgnoreCase("Production - made to measure"))isMtmProdWindow = true;
+		
+		System.out.println("Attempting to parse c_order_line: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true));
+		System.out.println("Attempting to parse bld_mtom_item_line_ID: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
+		if(Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true).length()!=0)
+			{
+				currbldmtomitemlineID = Integer.parseInt(Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
+			}
 		
 		//Test to see if the current record is a mtm product.
 		//Get the c_orderline_id, find the product_id, check if the product_id is a mtm product
-		
+		Object mtmAttribute;
 		String c_Order_line = Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true);
 		if (c_Order_line ==""){
 			FDialog.warn(tab.getWindowNo(), "There's no order line to specify options for.", "Warning");
@@ -112,21 +141,30 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 				{
 					FDialog.warn(tab.getWindowNo(), "There's no made to measure product to specify options for.", "Warning");
 				}
-				else 
+				else //If not mtmproduction window, do below code - check if attributes already assigned
 				{
+					
+					if(isMtmProdWindow&&currbldmtomitemlineID!=0)
+					{
+						MBLDMtomItemLine thisMtmLine = new MBLDMtomItemLine(Env.getCtx(), currbldmtomitemlineID, null);
+						mtmAttribute = thisMtmLine.getinstance_string();
+					}
+					else
+					{
+						MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
+						mtmAttribute = thisOrderLine.get_Value("mtm_attribute");
+					}
+					  	
+					
 					//Check if this order line already has attributes assigned.
-					MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
 					
 					String patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
 				    Pattern pattern = Pattern.compile(patternString);
-					
-					Object mtmAttribute = thisOrderLine.get_Value("mtm_attribute");
 					
 					if(mtmAttribute!=null && mtmAttribute.toString().contains("_"))
 					{
 						//Split the value of the mtm_attribute column, first value id fabric, second is chain
 						String[] products = mtmAttribute.toString().split("_");
-						
 						
 						Matcher matcher = pattern.matcher(products[0]);
 					    boolean matches = matcher.matches();
@@ -143,9 +181,6 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			}
 		
 		
-		System.out.println("In execute of MtmButtonAction" + " tab ID: " + m_Tab_id + " record ID: " + tab.getRecord_ID());
-		System.out.println(Env.getCtx().toString());
-		System.out.println("Attempting to parse c_order_line: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true));
 		/*If this returns "" then it fails the check. Should return 'M_Product_ID =1000010' or similar.
 		 * Possibly should check for just roller blind?
 		 * Maybe create a new category?
@@ -162,7 +197,15 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabType.getItems().clear();
 		fabType.setEnabled(false);
 		chainList.getItems().clear();
-		chainList.setEnabled(false);//TODO: Set enabled(true) if the item is chain controlled.
+		try
+		{
+			chainList.setEnabled(false);
+		}
+		catch(NullPointerException ex)
+		{
+			System.out.println("Whoopsie: " + ex.toString());
+		}
+		//TODO: Set enabled(true) if the item is chain controlled.	
 		fabFamily.setMold("select");
 		fabFamily.getItems().clear();
 		initFabFam();
@@ -229,6 +272,15 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabType.addEventListener(Events.ON_SELECT, this);
 		if(currentFabSelection == 0 && fabColourSelected == null)fabType.setVisible(false);//Don't show this Listbox until a fabric colour is selected. 
 		
+		//Add control Listbox
+		Row row3 = new Row();
+		rows.appendChild(row3);
+		row3.appendChild(new Label("Control type:")); 
+		row3.appendChild(controlType);
+		ZKUpdateUtil.setHflex(controlType, "1");
+		controlType.addEventListener(Events.ON_SELECT, this);
+		
+		
 		/*
 		 * Add chainFam Listbox
 		 * Check if it's chain driven
@@ -282,7 +334,6 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		int count = 0;
 		for (KeyNamePair pair : keyNamePairs) 
 		{	
-			System.out.println("Before check "+ pair.getID());
 		
 			if(count  == 1 && addCurrent)fabColour.appendItem(checkFab.getName(), checkFab.getID());//adds the current selection at index 1
 		
@@ -431,7 +482,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			
 	}
 	
-	private void initChains()
+	private void initChains()//We want the chains to be on the BOM for the product being optioned.
 	{
 		if(currentChainSelection != 0)
 		{
@@ -505,11 +556,17 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	public void onEvent(Event event) throws Exception {
 		
 		if(event.getTarget().getId().equals(ConfirmPanel.A_CANCEL))
+			
 			blindConfig.onClose();
+			
+			
 		
 		else if(event.getTarget().getId().equals(ConfirmPanel.A_OK)) {
 			
-			if(Integer.parseInt(fabTypeSelected)!=0)currentFabSelection = Integer.parseInt(fabTypeSelected);
+			if(fabTypeSelected!=null){
+				if(Integer.parseInt(fabTypeSelected)!=0)currentFabSelection = Integer.parseInt(fabTypeSelected);
+			}
+			
 			
 			blindConfig.setVisible(false);
 			Clients.showBusy(Msg.getMsg(Env.getCtx(), "Processing"));
@@ -628,19 +685,30 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private void setCurrentSelection(final int lastFabric, final int lastChain)
 	{
 		//set the mtm_attribute column, but may need to get current contents then make new. Nah, just overwrite it.
+		//TODO: Modify to allow use in the context of mtmProduction window.
 	        Trx.run(new TrxRunnable() {
 	            public void run(String trxName) {
-	            	MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
+	            	
 	        		StringBuilder replaceValue = new StringBuilder(Integer.toString(lastFabric));
 	        		replaceValue.append("_");
 	        		replaceValue.append(Integer.toString(lastChain));
 	        		String look = replaceValue.toString();
-	        		thisOrderLine.set_ValueOfColumn("mtm_attribute", replaceValue.toString());
 	        		
+	        		if(currbldmtomitemlineID != 0)//It's an mtmproductionline
+	        		{
+	        			MBLDMtomItemLine thisMtmLine = new MBLDMtomItemLine(Env.getCtx(), currbldmtomitemlineID, null);
+						thisMtmLine.setinstance_string(replaceValue.toString());
+						thisMtmLine.saveEx();
+	        		}
+	        		else
+	        		{
+	        			MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
+	        			thisOrderLine.set_ValueOfColumn("mtm_attribute", replaceValue.toString());
+	        			thisOrderLine.saveEx();
+	        		}
+	        	
 	        		System.out.println(look);
-	              
-	            
-	                thisOrderLine.saveEx();
+	        
 	            }
 	      
 	        });
@@ -648,7 +716,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	
 
 	
-	private boolean checkChainDrive()
+	private boolean checkChainDrive()//TODO: Modify to suit 
 	{
 		MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
 		int attInsID = thisOrderLine.getM_AttributeSetInstance_ID();
@@ -667,6 +735,13 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		return found;
 	}
 	
-
+	private void setOptions(int m_product_id) 
+	{
+		/*DB.getRowSet(sql) or getKeynamePair()?
+		*Get BOM: SELECT mp.m_parttype_id, mp.m_product_id FROM m_product mp INNER JOIN m_product_bom mpb ON mp.m_product_id = mpb.m_productbom_id AND mpb.m_product_id = '1000010';
+		*or SELECT mp.name, mp.m_product_id, mp.m_parttype_id FROM m_product mp INNER JOIN m_product_bom mpb ON mp.m_product_id = mpb.m_productbom_id AND mpb.m_product_id = '1000010';
+		*Figure out which BOM items are: Chain, control, roller bracket, bottom bar, TNCM (tubular non control mech)
+		*/
+	}
 }
 
