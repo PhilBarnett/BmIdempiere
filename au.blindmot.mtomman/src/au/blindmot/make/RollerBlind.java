@@ -1,15 +1,20 @@
 package au.blindmot.make;
 
 import org.compiere.model.MAttributeSetInstance;
-import org.compiere.util.KeyNamePair;
 
 public class RollerBlind extends MadeToMeasureProduct {
 
+	public RollerBlind (int product_id, int bld_mtom_item_line_id) {
+		super(product_id, bld_mtom_item_line_id);
+	}
+	
+	
 	@Override
 	public void interpretMattributeSetInstance(MAttributeSetInstance mAttribute) {
-		// TODO Auto-generated method stub
+		// TODO Can this method be removed from Super class and here?
 
 	}
+	
 
 	@Override
 	public boolean getCuts() {
@@ -25,7 +30,13 @@ public class RollerBlind extends MadeToMeasureProduct {
 	}
 
 	@Override
-	public boolean createBomDerived() {
+	public boolean createBomDerived() {//This is the first method called when processing
+		/*TODO: Get the AttributePair[] containing the control, non control
+		 * 
+		 */
+		AttributePair[] attributePair = getMAttributeSetInstance();
+		if(mBLDMtomItemLine != null);//There's part numbers ready to add if this isn't null.
+		
 		return false;
 		// TODO Auto-generated method stub
 		
@@ -36,6 +47,27 @@ public class RollerBlind extends MadeToMeasureProduct {
 		return false;
 		// TODO Auto-generated method stub
 		
+	}
+
+
+	@Override
+	public boolean deleteBomDerived() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+
+	@Override
+	public boolean deleteCuts() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+
+	@Override
+	public boolean deleteProductionLine() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 }

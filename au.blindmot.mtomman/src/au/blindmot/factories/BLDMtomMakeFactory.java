@@ -20,20 +20,23 @@ public class BLDMtomMakeFactory {
 	 * match those below; 'roller', 'awning', 'panel' etc.
 	 * As a new product is added:
 	 * -Decide if it warrants creating an interface to ensure some common functionality is provided.
-	 * -Extend WindowFurnishing and implement the appropriate interface.
+	 * -Extend MadeToMeasureProduct and implement the appropriate interface if one is available.
 	 * 
 	 */
-	  public static MadeToMeasureProduct getMtmProduct(int m_Product_ID)
+	  public static MadeToMeasureProduct getMtmProduct(int m_Product_ID, int bld_mtom_item_line_id)
 	  {
 		 String sql = new String("SELECT classification from m_product WHERE m_product_id = ?");
 		 String classification = DB.getSQLValueString(null, sql, m_Product_ID);
 		 
+		 int mProduct_ID = m_Product_ID;
+		 int mtom_item_line_id = bld_mtom_item_line_id;
+		 
 	    if ( classification.equals("roller") )
-	      return new RollerBlind();
+	      return new RollerBlind(mProduct_ID, mtom_item_line_id);
 	    else if ( classification.equals("awning") )
-	      return new AwningBlind();
+	      return new AwningBlind(mProduct_ID, mtom_item_line_id);
 	    else if ( classification.equals("panel") )
-	      return new PanelGlide();
+	      return new PanelGlide(mProduct_ID, mtom_item_line_id);
 
 	    return null;
 	  }

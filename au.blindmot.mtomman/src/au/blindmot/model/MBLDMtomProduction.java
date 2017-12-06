@@ -4,17 +4,22 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 
+import org.adempiere.webui.component.Messagebox;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
 import org.compiere.model.MProduct;
+import org.compiere.model.Query;
 import org.compiere.process.DocAction;
 import org.compiere.process.DocOptions;
 import org.compiere.process.DocumentEngine;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.Env;
+import org.compiere.util.Util;
 
 public class MBLDMtomProduction extends X_BLD_mtom_production implements DocAction, DocOptions {
 
@@ -24,6 +29,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	private static final long serialVersionUID = 2339407400844279640L;
 	private int mOrder_id = 0;
 	private MOrder mOrder = null;
+	private MBLDMtomItemLine[] m_lines = null;
 
 	
 	
@@ -48,7 +54,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 				setDateAcct (new Timestamp(System.currentTimeMillis()));
 				setDatePromised (new Timestamp(System.currentTimeMillis()));
 				setC_BPartner_ID (0);
-			
+				setIsApproved(false);
 				
 			}
 		}	//	MBLDMtomProduction
@@ -68,7 +74,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	 */
 	public MBLDMtomProduction(Properties ctx, ResultSet rs, String trxName, int Corder_id) {
 		super(ctx, rs, trxName);
-		//Get info from parent MOrder
+		//Get info from parent MOrder 
 		mOrder = new MOrder(ctx, Corder_id, get_TrxName());
 		setC_BPartner_ID(mOrder.getC_BPartner_ID());
 		setC_Campaign_ID(mOrder.getC_Campaign_ID());
@@ -78,8 +84,6 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		setDatePromised(mOrder.getDatePromised());
 		setIsComplete(false);
 		mOrder_id = Corder_id;
-		
-		
 	}
 
 
@@ -105,15 +109,21 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 
 		return index;
 		
-		
-		
-		
-		
 	}
 	
 	
 	@Override
 	public boolean processIt(String action) throws Exception {
+		
+		/*TODO: get mtmlineitems, iterate through calling mbldmlineitem.processMtmLineItem()
+		 * TODO: Handle freshly created Productions that aren't based on an Order: I.E. if
+		 * there's no Order_ID for the production header, Ask user to manually add items.
+		 */
+		m_lines = getLines();
+		for(int i = 0; i < m_lines.length; i++)
+		{
+			m_lines[i].processMtmLineItem();
+		}
 		log.warning("Processing Action=" + action + " - DocStatus=" + getDocStatus() + " - DocAction=" + getDocAction());
 		DocumentEngine engine = new DocumentEngine(this, getDocStatus());
 		return engine.processIt(action, getDocAction());
@@ -134,11 +144,15 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 
 	@Override
 	public String prepareIt() {
-		
+		log.warning("---------------In MBLDMtomProduction.prepareIt()");
+		/*
+		 * /TODO: Handle an Production created by user from the MTM production window,
+		 * That is, one that has no Order number or any line items.
+		 */
 		//Add shell of finished items based on Order line from MOrder
 		addProductionItems();
 		
-		log.warning("---------------In MBLDMtomProduction.prepareIt()");
+		
 		setDocStatus(DOCSTATUS_InProgress);
 		return DocAction.STATUS_InProgress;
 	}
@@ -260,7 +274,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			}
 		
 		/*
-		 * /TODO prevent save if the MOrder has already been produced, ie check morder_id is unique in
+		 * //TODO prevent save if the MOrder has already been produced, ie check morder_id is unique in
 		 * TABLE bld_mtom_production
 		 */
 		
@@ -275,14 +289,21 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	}
 	private void addProductionItems()  {
 		
+		
 		int mtom_production_ID = getbld_mtom_production_ID();
 		if ( mtom_production_ID == 0)//The record hasn't been saved yet
 		{
 			log.severe("Can't add prodcution lines to null record. mtom_production_ID == " + mtom_production_ID);
+			throw new AdempiereUserError("Can't add prodcution lines to null record. mtom_production_ID == " + mtom_production_ID, "Have you saved the header record?");
+			
 		}
 		/*Currently able to be added twice.
 		 * TODO: Check for duplicates or alert user.
 		 */
+		if(mOrder == null)
+		{
+			throw new AdempiereUserError("There's no Order to get production items from.", "You should either manually add production items or delete this Production and create it from an existing order");
+		}
 		MOrderLine[] orderLines = mOrder.getLines();
 		MBLDMtomItemLine mtmLine = null;
 		int mtmProdID = this.getbld_mtom_production_ID();
@@ -297,6 +318,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 				if(!mtmLine.save())
 					{
 						log.severe("Can't add prodcution line:" +  mtmProdID + " to MTM production, mtom_production_ID == " + mtom_production_ID);
+						
 					}
 				else 
 					{
@@ -305,5 +327,44 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 					}
 			}
 		}
+
+	}
+	
+	public MBLDMtomItemLine[] getLines (boolean requery, String orderBy)
+	{
+		if (m_lines != null && !requery) {
+			set_TrxName(m_lines, get_TrxName());
+			return m_lines;
+		}
+		//
+		String orderClause = "";
+		if (orderBy != null && orderBy.length() > 0)orderClause += orderBy;
+		
+		m_lines = getLines(null, orderClause);
+		return m_lines;
+	}	//	getLines
+	
+	public MBLDMtomItemLine[] getLines (String whereClause, String orderClause)
+	{
+		
+		//This method Copied from MOrder
+		//Note: The explodeBOM() in MOrder creates a sql string to pass to MOrder.getLines(String, String)
+		//red1 - using new Query class from Teo / Victor's MDDOrder.java implementation
+		StringBuilder whereClauseFinal = new StringBuilder(MBLDMtomItemLine.COLUMNNAME_C_OrderLine_ID+"=? ");
+		if (!Util.isEmpty(whereClause, true))
+			whereClauseFinal.append(whereClause);
+		if (orderClause.length() == 0)
+			orderClause = MBLDMtomItemLine.COLUMNNAME_C_OrderLine_ID;
+		//
+		List<MBLDMtomItemLine> list = new Query(getCtx(), I_BLD_mtom_item_line.Table_Name, whereClauseFinal.toString(), get_TrxName())
+										.setParameters(get_ID())
+										.setOrderBy(orderClause)
+										.list();
+		//
+		return list.toArray(new MBLDMtomItemLine[list.size()]);		
+	}	//	getLines
+	
+	public MBLDMtomItemLine[] getLines() {
+		return getLines(false, null);
 	}
 }

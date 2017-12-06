@@ -33,6 +33,16 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		setName(orderLine.getName());
 		setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
 		setM_AttributeSetInstance_ID(orderLine.getM_AttributeSetInstance_ID());
+		if(orderLine.get_Value("mtm_attribute")!=null)
+		{
+			setinstance_string(orderLine.get_Value("mtm_attribute").toString());
+		}
+		else
+		{
+			setinstance_string("0_0");
+		}
+		
+		
 		/*
 		 * Once the production lines are in, what do we do with them? 
 		 * TODO: Create table bld_mtom_cuts, add the table to 'Table and Column', generate I & X classes, no M class.
@@ -49,12 +59,11 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		 *  	with methods like:
 		 *  		getSkinSize(int width, int drop)	
 		 *  		getCutLengths(int product_ID)
-		 *  	Classes to return example: RollerMaker, CommercialRollerMaker, AcmedaWireAwningMaker etc		
+		 *  	Classes to returTODO Auto-generated constructor stubs example: RollerMaker, CommercialRollerMaker, AcmedaWireAwningMaker etc		
 		 *  
 		 *  Calculate BOM_derived quantities for invent adjustment, look at 'productionline' for code guidelines.
 		 *  
 		 */
-		
 		
 	}
 
@@ -71,8 +80,24 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		setbarcode(MtmUtils.getBarcode(get_Table_ID(), getbld_mtom_item_line_ID()));
 	}
 	
+	public boolean deleteProcessedMtmLineItem() {
+		return false;
+		/*TODO: implement a reversal of processMtmLineItem()
+		 * May need to add abstract methods to MadeToMeasureProduct
+		 * deleteBomDerived(), delteCuts(), deleteProductionLine()
+		 */
+		
+		
+	}
+	
 	public boolean processMtmLineItem() {
-		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID());
+		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID(), getbld_mtom_item_line_ID () );
+		/*
+		 * TODO: interpret MAinstance, set fields in MadeToMeasureProduct object,
+		 * 
+		 */
+		
+		System.out.println("In processMtmLineItem.");
 		
 		if(mTmProduct.createBomDerived())
 			/*
