@@ -189,4 +189,13 @@ public interface I_BLD_mtom_bomderived
 	  * User who updated this records
 	  */
 	public int getUpdatedBy();
+	
+	/** Column name description */
+    public static final String COLUMNNAME_Description = "description";
+    
+    /** Get description */
+    public String getDescription();
+    
+    /** Set description */
+    public void setDescription(String description);
 }

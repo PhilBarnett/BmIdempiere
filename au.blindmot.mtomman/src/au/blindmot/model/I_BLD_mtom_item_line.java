@@ -285,6 +285,46 @@ public interface I_BLD_mtom_item_line
 	  * User who updated this records
 	  */
 	public int getUpdatedBy();
+	
+	/** Column name control_side */
+	public static final String COLUMNNAME_Control_Side = "control_side";
+	
+	/**
+	 *Get control side
+	 */
+	public String getControlSide();
+	
+	/**
+	 *Set control side
+	 */
+	public void setControlSide(String controlSide);
+	
+	/** Column name control_side */
+	public static final String COLUMNNAME_Roll_Type = "roll_type";
+	
+	/**
+	 * Set roll type
+	 */
+	public void setRollType(String rollType);
+	
+	/**
+	 * Get roll type
+	 */
+	public String getRollType();
+	
+	/** Column name control_side */
+	public static final String COLUMNNAME_Location = "location";
+	
+	/**
+	 * Set location
+	 */
+	public void setLocation(String location);
+	
+	/**
+	 * Get location
+	 */
+	public String getLocation();
+	
 
     /** Column name Value */
     public static final String COLUMNNAME_Value = "Value";

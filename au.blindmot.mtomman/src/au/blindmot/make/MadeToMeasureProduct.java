@@ -23,6 +23,7 @@ protected int high = 0;
 protected int deep = 0;
 protected int m_product_id = 0;
 protected int mtom_item_line_id = 0;
+protected String mtmInstanceParts = null;
 protected CLogger log;
 protected MBLDMtomItemLine mBLDMtomItemLine = null;
 
@@ -155,13 +156,11 @@ protected MBLDMtomItemLine mBLDMtomItemLine = null;
 				
 				else 
 					{
-						list.add(new AttributePair(attributes[i].getDescription().toString(), mai.getValue()));
+						list.add(new AttributePair(attributes[i].getDescription().toString(), mai.getValue()));//Add the remaining attributes to an AtributePair
 
 					}
 				
-				/*TODO: Check the value of attributes[i] against fields.
-				 * Set fields with mai.getValue()
-				 * More fields will need to be added.
+				/*
 				 * Notes: mai contains the actual instance value, like '1600' or 'Right hand chain'
 				 * attributes[] holds the names of the attributes in order that appear in the Attribute Set Instance dialog box.
 				 * 
@@ -169,8 +168,9 @@ protected MBLDMtomItemLine mBLDMtomItemLine = null;
 			}
 				
 		}
+		if(mBLDMtomItemLine.getinstance_string() != null)mtmInstanceParts = mBLDMtomItemLine.getinstance_string();
 		return list.toArray(new AttributePair[list.size()]);
-		/*
+		/*mtmInstanceParts
 		 * TODO: Add fields for fabric and chain get/set/handle MBLDMtomItemLine.instance_string
 		 * Note MBLDMtomItemLine.instance_string holds the values for chain and fabric product_ids
 		 */

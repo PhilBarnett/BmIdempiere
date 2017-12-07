@@ -223,4 +223,15 @@ public class X_BLD_mtom_bomderived extends PO implements I_BLD_mtom_bomderived, 
 			 return Env.ZERO;
 		return bd;
 	}
+
+	@Override
+	public String getDescription() {
+		return (String)get_Value(COLUMNNAME_Description);
+	}
+
+	@Override
+	public void setDescription(String description) {
+		set_Value(COLUMNNAME_Description, description);
+		
+	}
 }

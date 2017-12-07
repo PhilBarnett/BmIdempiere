@@ -39,7 +39,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		}
 		else
 		{
-			setinstance_string("0_0");
+			setinstance_string("0_0_0");
 		}
 		
 		
@@ -104,7 +104,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 			*TODO: Ensure that no orphan records get created
 			*Delete/rollback any BOM derived, ProductionLine and Cuts records 
 			*with this.getbld_mtom_item_line_ID()
-			*Or possibly add deleteCuts(), deleteProductionLine(), deleteBomDerived() to 
+			*deleteCuts(), deleteProductionLine(), deleteBomDerived() is in
 			*MadeToMeasureProduct so that if the create/get/create methods fail then 
 			*the children can be easily deleted.
 			**/

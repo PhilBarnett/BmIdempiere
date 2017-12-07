@@ -406,4 +406,38 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	{
 		return (String)get_Value(COLUMNNAME_Value);
 	}
+	
+
+	@Override
+	public String getControlSide() {
+		return (String)get_Value(COLUMNNAME_Control_Side);
+	}
+
+	@Override
+	public void setControlSide(String ControlSide) {
+		set_Value(COLUMNNAME_Control_Side, ControlSide);
+		
+	}
+
+	@Override
+	public void setRollType(String rollType) {
+		set_Value(COLUMNNAME_Roll_Type, rollType);
+		
+	}
+
+	@Override
+	public String getRollType() {
+		return (String)get_Value(COLUMNNAME_Roll_Type);
+	}
+
+	@Override
+	public void setLocation(String value) {
+		set_Value(COLUMNNAME_Location, value);
+		
+	}
+
+	@Override
+	public String getLocation() {
+		return (String)get_Value(COLUMNNAME_Location);
+	}
 }
