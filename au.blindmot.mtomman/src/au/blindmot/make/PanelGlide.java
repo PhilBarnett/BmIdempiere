@@ -35,7 +35,7 @@ public class PanelGlide extends MadeToMeasureProduct {
 	}
 	
 	@Override
-	public void interpretMattributeSetInstance(MAttributeSetInstance mAttribute) {
+	public void interpretMattributeSetInstance() {
 		// TODO Auto-generated method stub
 
 	}

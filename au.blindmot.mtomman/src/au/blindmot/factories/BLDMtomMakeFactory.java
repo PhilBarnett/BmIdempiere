@@ -3,6 +3,7 @@
  */
 package au.blindmot.factories;
 
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 
 import au.blindmot.make.AwningBlind;
@@ -28,6 +29,10 @@ public class BLDMtomMakeFactory {
 		 String sql = new String("SELECT classification from m_product WHERE m_product_id = ?");
 		 String classification = DB.getSQLValueString(null, sql, m_Product_ID);
 		 
+		 if(classification == null)
+		 {
+			 throw new AdempiereUserError("Classisfication cannot be resolved, check the 'classification' field in the product window.");
+		 }
 		 int mProduct_ID = m_Product_ID;
 		 int mtom_item_line_id = bld_mtom_item_line_id;
 		 

@@ -3,12 +3,11 @@ package au.blindmot.make;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
-
+import org.compiere.util.CLogger;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
-import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import au.blindmot.model.MBLDMtomItemLine;
 
@@ -106,7 +105,7 @@ protected MBLDMtomItemLine mBLDMtomItemLine = null;
 	 * 
 	 * @param mAttribute
 	 */
-	public abstract void interpretMattributeSetInstance(MAttributeSetInstance mAttribute);
+	public abstract void interpretMattributeSetInstance();
 	
 	public AttributePair[] getMAttributeSetInstance() {
 		int mAttributeSetInstance_ID = mBLDMtomItemLine.getM_AttributeSetInstance_ID();
@@ -130,33 +129,38 @@ protected MBLDMtomItemLine mBLDMtomItemLine = null;
 		List<AttributePair> list = new ArrayList<AttributePair>();
 		for (int i = 0; i < attributes.length; i++) {
 			MAttributeInstance mai = attributes[i].getMAttributeInstance(mAttributeSetInstance.getM_AttributeSetInstance_ID());
-			if (mai != null && mai.getValue() != null)
+			if (mai == null || mai.getValue() == null || attributes[i] == null)
 			{
-				if(attributes[i].getDescription().length() == 0)
+				break;
+			}
+			else
+			{
+				
+				if(attributes[i].getName() == null)
 				{
 					log.log(Level.SEVERE, "Atrributes missing from mtom_item_line_id: " + mtom_item_line_id);
 				}
 				
-				else if(attributes[i].getDescription().equalsIgnoreCase("Width"))
+				else if(attributes[i].getName().equalsIgnoreCase("Width"))
 				{
 					wide = Integer.parseInt(mai.getValue());
 				}
-				else if(attributes[i].getDescription().equalsIgnoreCase("Drop"))
+				else if(attributes[i].getName().equalsIgnoreCase("Drop"))
 				{
 					high = Integer.parseInt(mai.getValue());
 				}
-				else if(attributes[i].getDescription().equalsIgnoreCase("Height"))
+				else if(attributes[i].getName().equalsIgnoreCase("Height"))
 				{
 					high = Integer.parseInt(mai.getValue());
 				}
-				else if(attributes[i].getDescription().equalsIgnoreCase("Depth"))
+				else if(attributes[i].getName().equalsIgnoreCase("Depth"))
 				{
 					deep = Integer.parseInt(mai.getValue());
 				}
 				
 				else 
 					{
-						list.add(new AttributePair(attributes[i].getDescription().toString(), mai.getValue()));//Add the remaining attributes to an AtributePair
+						list.add(new AttributePair(attributes[i].getName().toString(), mai.getValue()));//Add the remaining attributes to an AtributePair
 
 					}
 				

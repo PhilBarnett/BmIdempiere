@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 
-import org.adempiere.webui.component.Messagebox;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
@@ -105,6 +104,8 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		} else if (docStatus.equals(DocumentEngine.STATUS_Completed)) {
 			options[index++] = DocumentEngine.ACTION_Void;
 			options[index++] = DocumentEngine.ACTION_ReActivate;
+		} else if (docStatus.equals(DocumentEngine.STATUS_InProgress)) {
+			options[index++] = DocumentEngine.ACTION_Approve;
 		}
 
 		return index;
@@ -115,14 +116,14 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	@Override
 	public boolean processIt(String action) throws Exception {
 		
-		/*TODO: get mtmlineitems, iterate through calling mbldmlineitem.processMtmLineItem()
+		/*
 		 * TODO: Handle freshly created Productions that aren't based on an Order: I.E. if
 		 * there's no Order_ID for the production header, Ask user to manually add items.
 		 */
-		m_lines = getLines();
-		for(int i = 0; i < m_lines.length; i++)
+		MBLDMtomItemLine[] lines = getLines();
+		for(int i = 0; i < lines.length; i++)
 		{
-			m_lines[i].processMtmLineItem();
+			lines[i].setIsComplete(lines[i].processMtmLineItem());
 		}
 		log.warning("Processing Action=" + action + " - DocStatus=" + getDocStatus() + " - DocAction=" + getDocAction());
 		DocumentEngine engine = new DocumentEngine(this, getDocStatus());
@@ -150,7 +151,12 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		 * That is, one that has no Order number or any line items.
 		 */
 		//Add shell of finished items based on Order line from MOrder
-		addProductionItems();
+		System.out.println(getDocStatus());
+		if(!getDocStatus().equals(DOCSTATUS_InProgress)||getDocStatus().equals(DOCSTATUS_Drafted))
+		{
+			addProductionItems();
+		}
+		System.out.println(getDocStatus());
 		
 		
 		setDocStatus(DOCSTATUS_InProgress);
@@ -350,12 +356,13 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		//This method Copied from MOrder
 		//Note: The explodeBOM() in MOrder creates a sql string to pass to MOrder.getLines(String, String)
 		//red1 - using new Query class from Teo / Victor's MDDOrder.java implementation
-		StringBuilder whereClauseFinal = new StringBuilder(MBLDMtomItemLine.COLUMNNAME_C_OrderLine_ID+"=? ");
+		StringBuilder whereClauseFinal = new StringBuilder(MBLDMtomItemLine.COLUMNNAME_bld_mtom_production_ID+"=? ");
 		if (!Util.isEmpty(whereClause, true))
 			whereClauseFinal.append(whereClause);
 		if (orderClause.length() == 0)
-			orderClause = MBLDMtomItemLine.COLUMNNAME_C_OrderLine_ID;
+			orderClause = MBLDMtomItemLine.COLUMNNAME_bld_mtom_item_line_ID;
 		//
+		System.out.print(get_ID());
 		List<MBLDMtomItemLine> list = new Query(getCtx(), I_BLD_mtom_item_line.Table_Name, whereClauseFinal.toString(), get_TrxName())
 										.setParameters(get_ID())
 										.setOrderBy(orderClause)

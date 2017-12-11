@@ -286,8 +286,8 @@ public interface I_BLD_mtom_item_line
 	  */
 	public int getUpdatedBy();
 	
-	/** Column name control_side */
-	public static final String COLUMNNAME_Control_Side = "control_side";
+	/** Column name side_control */
+	public static final String COLUMNNAME_Control_Side = "side_control";
 	
 	/**
 	 *Get control side
@@ -299,7 +299,7 @@ public interface I_BLD_mtom_item_line
 	 */
 	public void setControlSide(String controlSide);
 	
-	/** Column name control_side */
+	/** Column name roll_type */
 	public static final String COLUMNNAME_Roll_Type = "roll_type";
 	
 	/**

@@ -77,6 +77,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 	}
 	
 	public void set_Barcode(){
+		log.warning("---------------In MBLDMtomItemLine.set_Barcode()");
 		setbarcode(MtmUtils.getBarcode(get_Table_ID(), getbld_mtom_item_line_ID()));
 	}
 	
@@ -87,17 +88,25 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		 * deleteBomDerived(), delteCuts(), deleteProductionLine()
 		 */
 		
-		
 	}
 	
 	public boolean processMtmLineItem() {
 		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID(), getbld_mtom_item_line_ID () );
+		
+		if(this.isComplete())//If it has already been processed, delete children and start again.
+		{
+			mTmProduct.deleteBomDerived();
+			mTmProduct.deleteCuts(); 
+			mTmProduct.deleteProductionLine();/*
+												/TODO Check that the inventory move is reversed when
+												 * the ProductionLines are deleted.
+												 */
+		}
 		/*
 		 * TODO: interpret MAinstance, set fields in MadeToMeasureProduct object,
 		 * 
 		 */
-		
-		System.out.println("In processMtmLineItem.");
+		log.warning("---------------In processMtmLineItem");
 		
 		if(mTmProduct.createBomDerived())
 			/*
