@@ -45,7 +45,7 @@ protected MBLDMtomItemLine mBLDMtomItemLine = null;
 		m_product_id = product_id;
 		mtom_item_line_id = bld_mtom_item_line_id;
 		mBLDMtomItemLine = new MBLDMtomItemLine(Env.getCtx(), bld_mtom_item_line_id, null);
-		
+		log = CLogger.getCLogger (getClass());
 	}
 	
 	/**

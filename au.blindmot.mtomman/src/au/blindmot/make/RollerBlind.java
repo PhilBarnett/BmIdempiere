@@ -120,20 +120,30 @@ public class RollerBlind extends MadeToMeasureProduct {
 	@Override
 	public boolean getCuts() {
 		return false;
-		/*
+		/*TODO: create fields for cuts so they can be used in BOM creation.
+		 * Possibly create utility method in MtmUtils to get deductions - pass an array of productIds to it?
 		 * TODO: Check that KeyNamePair is the right thing to return?
 		 * Perhaps a 2 dimensional array would be better? Would need to change here and in WindowFurnishing.java
 		 */
 	
 	
-		// TODO Auto-generated method stub
+		/*
+		 *TODO: 1. Get head rail deductions
+		 *2. tube cut length = width -  sum(rail head deductions)
+		 *3. fabric cut width =  tube - fabric deduction
+		 *4. fabric cut length = length + Fabric length addition - which is a non instance attribute of the
+		 *the actual finished product, eg 'roller blind'.
+		 *5. bottom bar cut length = fabric cut width - bottom bar deduction.
+		 *6. As each cut is determined, the qty in the BOM derived items for fabric, tube and bottom bar 
+		 *will need to be set.
+		 */
 		
 	}
 
 	@Override
 	public boolean createBomDerived() {//This is the first method called when processing
-		/*
-		 * What we wnat ot do here is add all the parts required to make the blind.
+		/*NOTE: IT SHOULD BE CALLED AFTER getCuts() SO THE CUT TO LENGTH BOMS CAN BE DETERMINED!!
+		 * What we want to do here is add all the parts required to make the blind.
 		 * The info we have is: 
 		 * 1. the list of actual ProductIDs from the mtmInstanceParts field which is set when getMAttributeSetInstance() is called.
 		 * 2. The attribute pairs from the getMAttributeSetInstance() method which returns an array of MAttributePairs which will need to matched to parts
@@ -151,8 +161,19 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 */
 		
 		interpretMattributeSetInstance();
-		populatePartTypes(m_product_id);
-		setValueProductID();
+		populatePartTypes(m_product_id);//Gets the ArrayLists of parts
+		setValueProductID();//Interprets the attribute instances and picks parts from ArrayLists to match, also creates BOM lines for chain driven blinds.
+		addMtmInstancePartsToBomDerived();//Creates BOM lines from the products in the 'instance_string' column.
+		
+		addBomDerivedLines(controlID, null);
+		addBomDerivedLines(nonControlID, null);
+		addBomDerivedLines(nonControlBracketID, null);
+		addBomDerivedLines(controlBracketID, null);
+		addBomDerivedLines(chainSafeID, null);
+		addBomDerivedLines(rollerTubeID, null);
+		addBomDerivedLines(endCapID, null);
+		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
+		//Tube selection: create static utility method in MtmUtils? Need to determine bending moment in tube centre.
 		
 		return true;
 	}
@@ -182,6 +203,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 	@Override
 	public boolean deleteProductionLine() {
 		// TODO Auto-generated method stub
+		//TODO: Ensure inventory moves are reversed.
 		return false;
 	}
 	
@@ -341,30 +363,6 @@ public class RollerBlind extends MadeToMeasureProduct {
 		        }
 		}
 		
-		if(mtmInstanceParts != null)//Add the parts stored in the bldmtomlineiem instance_string column
-		{
-		
-		String patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
-	    Pattern pattern = Pattern.compile(patternString);
-		
-		if(mtmInstanceParts!=null && mtmInstanceParts.toString().contains("_"))
-		{
-			//Split the value of the mtm_attribute column, first value id fabric, second is chain, third is bottom bar
-			String[] products = mtmInstanceParts.toString().split("_");
-			
-			for(int i = 0; i < products.length; i++)
-			{
-				Matcher matcher = pattern.matcher(products[i]);
-				boolean matches = matcher.matches();
-				if(matches)
-				{
-					int mProductId = Integer.parseInt(products[i]);
-					BigDecimal qty = getBomQty(mProductId);
-					addMBLDBomDerived(mProductId, qty, null);
-				}
-			}
-		}
-	}
 		
 		//Resolve controlBracketID
 		//TODO: Protocol must be bracket description contains: control(literal), colour(instance), type(instance) - dual, single extension etc.
@@ -376,7 +374,27 @@ public class RollerBlind extends MadeToMeasureProduct {
 			controlBracketID = resolveComponents(rollerBracket, rollerBracketColIns, rollerBracketIns);//
 			chainSafeID = resolveComponents(chainSafe, chainSafeIns);//Resolve chainSafeID
 			
-			//TODO: Resolve rollerTubeID
+			
+			/**
+			 * Set roller tube ID based on blind width only
+			 * 
+			*/
+			String tubeDuty = "";
+			if(wide > 2500)tubeDuty = "HD";
+			else {
+				tubeDuty = "MD";
+			}
+			
+			rollerTubeID = resolveComponents(rollerTube, tubeDuty);
+			 
+			 /* TODO: Resolve rollerTubeID via calculation
+			 * There's a method MtmUtils.getBendingMoment(int length, int fabricProductId, int basebarProductId)
+			 *that returns the bending moment (BM) in kg-metres.
+			 *the tube to select will be the smallest tube cross section that has a rated BM that exceeds
+			 *the computed BM for the blind being made.
+			 *
+			 * TODO: Handle blinds to be on the same size tube if they're all in the same room.
+			 */
 			//TODO: Resolve endCapID
 	}
 	/**
@@ -413,21 +431,21 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private int resolveComponents(ArrayList<KeyNamePair> parts, String instanceParse) {
 	
 		int part_ID = 0;
-		
+		String partDescription = "";
 		for(KeyNamePair partPair : parts) 
 		{
 			part_ID = partPair.getKey();
 			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, null);
-			String partDescription = productToExamine.getDescription().toLowerCase();
+			partDescription = productToExamine.getDescription().toLowerCase();
 			
 		if(partDescription.contains(instanceParse.toLowerCase()))
 			{
 				break;//part_ID should now contain the right MProductID
 			}
 		}
-		if(part_ID == 0)//The bracket couldn't be found.
+		if(part_ID == 0)//The part couldn't be found.
 	{
-		log.warning(instanceParse + "---------------Could not resolve control from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
+		log.warning(instanceParse + partDescription + "---------------Could not resolve control from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
 	}
 		return part_ID;
 	}
@@ -452,5 +470,41 @@ public class RollerBlind extends MadeToMeasureProduct {
 		log.warning(instanceParse + "---------------Could not resolve control from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
 	}
 		return part_ID;
+	}
+	
+	
+	private void addMtmInstancePartsToBomDerived(){
+	if(mtmInstanceParts != null)//Add the parts stored in the bldmtomlineiem instance_string column
+	{
+	
+	String patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
+    Pattern pattern = Pattern.compile(patternString);
+	
+    if(mtmInstanceParts!=null && mtmInstanceParts.toString().contains("_"))
+	{
+		//Split the value of the mtm_attribute column, first value id fabric, second is chain, third is bottom bar
+		String[] products = mtmInstanceParts.toString().split("_");
+		
+		for(int i = 0; i < products.length; i++)
+		{
+			Matcher matcher = pattern.matcher(products[i]);
+			boolean matches = matcher.matches();
+			if(matches)
+			{
+				int mProductId = Integer.parseInt(products[i]);
+				BigDecimal qty = getBomQty(mProductId);
+				addMBLDBomDerived(mProductId, qty, null);
+			}
+		}
+	}
+	}
+}
+	
+	private void addBomDerivedLines(int partProduct_id, String description){
+		if(partProduct_id != 0)
+		{
+			addMBLDBomDerived(partProduct_id, getBomQty(partProduct_id), description);
+		}
+		
 	}
 }
