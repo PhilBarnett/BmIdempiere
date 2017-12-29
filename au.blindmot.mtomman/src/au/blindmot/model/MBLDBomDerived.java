@@ -6,7 +6,7 @@ import java.util.Properties;
 public class MBLDBomDerived extends X_BLD_mtom_bomderived {
 
 	/**
-	 * 
+	 * This MCkass may not be necessary
 	 */
 	private static final long serialVersionUID = -6034231174542629519L;
 

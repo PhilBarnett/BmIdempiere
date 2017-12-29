@@ -7,6 +7,7 @@ import org.compiere.model.PO;
 import org.compiere.util.Env;
 
 import au.blindmot.model.MBLDBomDerived;
+import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
 
@@ -24,6 +25,9 @@ public class BLDMtomModelFactory implements IModelFactory {
 		
 		if(tableName.equalsIgnoreCase(MBLDBomDerived.Table_Name))
 			return MBLDBomDerived.class;
+
+		if(tableName.equalsIgnoreCase(MBLDMtomCuts.Table_Name))
+			return MBLDMtomCuts.class;
 		
 		
 		return null;
@@ -40,7 +44,9 @@ public class BLDMtomModelFactory implements IModelFactory {
 		
 		if(tableName.equalsIgnoreCase(MBLDBomDerived.Table_Name))
 			return new MBLDBomDerived(Env.getCtx(), Record_ID, trxName);
-			
+		
+		if(tableName.equalsIgnoreCase(MBLDMtomCuts.Table_Name))
+			return new MBLDBomDerived(Env.getCtx(), Record_ID, trxName);
 			
 		return null;
 	}
@@ -56,6 +62,9 @@ public class BLDMtomModelFactory implements IModelFactory {
 		
 		if(tableName.equalsIgnoreCase(MBLDBomDerived.Table_Name))
 			return new MBLDBomDerived(Env.getCtx(), rs, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDMtomCuts.Table_Name))
+			return new MBLDMtomCuts(Env.getCtx(), rs, trxName);
 		
 		return null;
 	}

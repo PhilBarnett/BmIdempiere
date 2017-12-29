@@ -71,10 +71,8 @@ protected MBLDMtomItemLine mBLDMtomItemLine = null;
 	 */
 	public abstract boolean getCuts();//Return true if successful, delete created records if fail.
 	public abstract boolean createBomDerived();//Return true if successful, delete created records if fail.
-	public abstract boolean createProductionLine();//Return true if successful, delete created records if fail.
 	public abstract boolean deleteBomDerived();
 	public abstract boolean deleteCuts(); 
-	public abstract boolean deleteProductionLine();
 	
 
 	public int getWide() {
@@ -108,7 +106,7 @@ protected MBLDMtomItemLine mBLDMtomItemLine = null;
 	public abstract void interpretMattributeSetInstance();
 	
 	public AttributePair[] getMAttributeSetInstance() {
-		int mAttributeSetInstance_ID = mBLDMtomItemLine.getM_AttributeSetInstance_ID();
+		int mAttributeSetInstance_ID = mBLDMtomItemLine.getattributesetinstance_id();
 		MAttributeSetInstance mAttributeSetInstance = new MAttributeSetInstance(null, mAttributeSetInstance_ID, null);
 		
 		MAttributeSet mAttributeSet = new MAttributeSet(null, mAttributeSetInstance.getM_AttributeSet_ID(), null);

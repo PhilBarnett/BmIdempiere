@@ -31,7 +31,7 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20170909L;
+	private static final long serialVersionUID = 20171228L;
 
     /** Standard Constructor */
     public X_BLD_mtom_item_line (Properties ctx, int BLD_mtom_item_line_ID, String trxName)
@@ -76,6 +76,28 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
         .append(get_ID()).append("]");
       return sb.toString();
     }
+
+	public I_M_AttributeSetInstance getattributesetinstance() throws RuntimeException
+    {
+		return (I_M_AttributeSetInstance)MTable.get(getCtx(), I_M_AttributeSetInstance.Table_Name)
+			.getPO(getattributesetinstance_id(), get_TrxName());	}
+
+	/** Set attributesetinstance_id.
+		@param attributesetinstance_id attributesetinstance_id	  */
+	public void setattributesetinstance_id (int attributesetinstance_id)
+	{
+		set_Value (COLUMNNAME_attributesetinstance_id, Integer.valueOf(attributesetinstance_id));
+	}
+
+	/** Get attributesetinstance_id.
+		@return attributesetinstance_id	  */
+	public int getattributesetinstance_id () 
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_attributesetinstance_id);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
 
 	/** Set barcode.
 		@param barcode barcode	  */
@@ -268,6 +290,27 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 		return (String)get_Value(COLUMNNAME_IsCreated);
 	}
 
+	/** Set isprocessed.
+		@param isprocessed isprocessed	  */
+	public void setisprocessed (boolean isprocessed)
+	{
+		set_Value (COLUMNNAME_isprocessed, Boolean.valueOf(isprocessed));
+	}
+
+	/** Get isprocessed.
+		@return isprocessed	  */
+	public boolean isprocessed () 
+	{
+		Object oo = get_Value(COLUMNNAME_isprocessed);
+		if (oo != null) 
+		{
+			 if (oo instanceof Boolean) 
+				 return ((Boolean)oo).booleanValue(); 
+			return "Y".equals(oo);
+		}
+		return false;
+	}
+
 	/** Set isrework.
 		@param isrework isrework	  */
 	public void setisrework (boolean isrework)
@@ -289,32 +332,18 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 		return false;
 	}
 
-	public I_M_AttributeSetInstance getM_AttributeSetInstance() throws RuntimeException
-    {
-		return (I_M_AttributeSetInstance)MTable.get(getCtx(), I_M_AttributeSetInstance.Table_Name)
-			.getPO(getM_AttributeSetInstance_ID(), get_TrxName());	}
-
-	/** Set Attribute Set Instance.
-		@param M_AttributeSetInstance_ID 
-		Product Attribute Set Instance
-	  */
-	public void setM_AttributeSetInstance_ID (int M_AttributeSetInstance_ID)
+	/** Set Location.
+		@param location Location	  */
+	public void setlocation (String location)
 	{
-		if (M_AttributeSetInstance_ID < 0) 
-			set_Value (COLUMNNAME_M_AttributeSetInstance_ID, null);
-		else 
-			set_Value (COLUMNNAME_M_AttributeSetInstance_ID, Integer.valueOf(M_AttributeSetInstance_ID));
+		set_Value (COLUMNNAME_location, location);
 	}
 
-	/** Get Attribute Set Instance.
-		@return Product Attribute Set Instance
-	  */
-	public int getM_AttributeSetInstance_ID () 
+	/** Get Location.
+		@return Location	  */
+	public String getlocation () 
 	{
-		Integer ii = (Integer)get_Value(COLUMNNAME_M_AttributeSetInstance_ID);
-		if (ii == null)
-			 return 0;
-		return ii.intValue();
+		return (String)get_Value(COLUMNNAME_location);
 	}
 
 	public I_M_Locator getM_Locator() throws RuntimeException
@@ -405,39 +434,5 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	public String getValue () 
 	{
 		return (String)get_Value(COLUMNNAME_Value);
-	}
-	
-
-	@Override
-	public String getControlSide() {
-		return (String)get_Value(COLUMNNAME_Control_Side);
-	}
-
-	@Override
-	public void setControlSide(String ControlSide) {
-		set_Value(COLUMNNAME_Control_Side, ControlSide);
-		
-	}
-
-	@Override
-	public void setRollType(String rollType) {
-		set_Value(COLUMNNAME_Roll_Type, rollType);
-		
-	}
-
-	@Override
-	public String getRollType() {
-		return (String)get_Value(COLUMNNAME_Roll_Type);
-	}
-
-	@Override
-	public void setLocation(String value) {
-		set_Value(COLUMNNAME_Location, value);
-		
-	}
-
-	@Override
-	public String getLocation() {
-		return (String)get_Value(COLUMNNAME_Location);
 	}
 }

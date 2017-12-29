@@ -1,7 +1,5 @@
 package au.blindmot.make;
 
-import org.compiere.model.MAttributeSetInstance;
-
 public class PanelGlide extends MadeToMeasureProduct {
 	
 
@@ -26,13 +24,6 @@ public class PanelGlide extends MadeToMeasureProduct {
 		// TODO Auto-generated method stub
 		
 	}
-
-	@Override
-	public boolean createProductionLine() {
-		return false;
-		// TODO Auto-generated method stub
-		
-	}
 	
 	@Override
 	public void interpretMattributeSetInstance() {
@@ -48,12 +39,6 @@ public class PanelGlide extends MadeToMeasureProduct {
 
 	@Override
 	public boolean deleteCuts() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public boolean deleteProductionLine() {
 		// TODO Auto-generated method stub
 		return false;
 	}

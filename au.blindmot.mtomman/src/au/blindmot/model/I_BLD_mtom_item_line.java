@@ -18,12 +18,8 @@ package au.blindmot.model;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-
-import org.compiere.model.I_M_AttributeSetInstance;
-import org.compiere.model.I_M_Locator;
-import org.compiere.model.MTable;
+import org.compiere.model.*;
 import org.compiere.util.KeyNamePair;
-
 
 /** Generated Interface for BLD_mtom_item_line
  *  @author iDempiere (generated) 
@@ -68,6 +64,17 @@ public interface I_BLD_mtom_item_line
 	  */
 	public int getAD_Org_ID();
 
+    /** Column name attributesetinstance_id */
+    public static final String COLUMNNAME_attributesetinstance_id = "attributesetinstance_id";
+
+	/** Set attributesetinstance_id	  */
+	public void setattributesetinstance_id (int attributesetinstance_id);
+
+	/** Get attributesetinstance_id	  */
+	public int getattributesetinstance_id();
+
+	public I_M_AttributeSetInstance getattributesetinstance() throws RuntimeException;
+
     /** Column name barcode */
     public static final String COLUMNNAME_barcode = "barcode";
 
@@ -104,7 +111,7 @@ public interface I_BLD_mtom_item_line
 	/** Get Made to measure production	  */
 	public int getbld_mtom_production_ID();
 
-	public I_BLD_mtom_production getbld_mtom_production() throws RuntimeException;
+	//public I_bld_mtom_production getbld_mtom_production() throws RuntimeException;
 
     /** Column name completed */
     public static final String COLUMNNAME_completed = "completed";
@@ -203,6 +210,15 @@ public interface I_BLD_mtom_item_line
 	/** Get Records created	  */
 	public String getIsCreated();
 
+    /** Column name isprocessed */
+    public static final String COLUMNNAME_isprocessed = "isprocessed";
+
+	/** Set isprocessed	  */
+	public void setisprocessed (boolean isprocessed);
+
+	/** Get isprocessed	  */
+	public boolean isprocessed();
+
     /** Column name isrework */
     public static final String COLUMNNAME_isrework = "isrework";
 
@@ -212,20 +228,14 @@ public interface I_BLD_mtom_item_line
 	/** Get isrework	  */
 	public boolean isrework();
 
-    /** Column name M_AttributeSetInstance_ID */
-    public static final String COLUMNNAME_M_AttributeSetInstance_ID = "M_AttributeSetInstance_ID";
+    /** Column name location */
+    public static final String COLUMNNAME_location = "location";
 
-	/** Set Attribute Set Instance.
-	  * Product Attribute Set Instance
-	  */
-	public void setM_AttributeSetInstance_ID (int M_AttributeSetInstance_ID);
+	/** Set Location	  */
+	public void setlocation (String location);
 
-	/** Get Attribute Set Instance.
-	  * Product Attribute Set Instance
-	  */
-	public int getM_AttributeSetInstance_ID();
-
-	public I_M_AttributeSetInstance getM_AttributeSetInstance() throws RuntimeException;
+	/** Get Location	  */
+	public String getlocation();
 
     /** Column name M_Locator_ID */
     public static final String COLUMNNAME_M_Locator_ID = "M_Locator_ID";
@@ -285,46 +295,6 @@ public interface I_BLD_mtom_item_line
 	  * User who updated this records
 	  */
 	public int getUpdatedBy();
-	
-	/** Column name side_control */
-	public static final String COLUMNNAME_Control_Side = "side_control";
-	
-	/**
-	 *Get control side
-	 */
-	public String getControlSide();
-	
-	/**
-	 *Set control side
-	 */
-	public void setControlSide(String controlSide);
-	
-	/** Column name roll_type */
-	public static final String COLUMNNAME_Roll_Type = "roll_type";
-	
-	/**
-	 * Set roll type
-	 */
-	public void setRollType(String rollType);
-	
-	/**
-	 * Get roll type
-	 */
-	public String getRollType();
-	
-	/** Column name control_side */
-	public static final String COLUMNNAME_Location = "location";
-	
-	/**
-	 * Set location
-	 */
-	public void setLocation(String location);
-	
-	/**
-	 * Get location
-	 */
-	public String getLocation();
-	
 
     /** Column name Value */
     public static final String COLUMNNAME_Value = "Value";

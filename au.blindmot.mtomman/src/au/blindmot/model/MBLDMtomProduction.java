@@ -18,6 +18,8 @@ import org.compiere.process.DocOptions;
 import org.compiere.process.DocumentEngine;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.Env;
+//import org.compiere.util.Trx;
+//import org.compiere.util.TrxRunnable;
 import org.compiere.util.Util;
 
 public class MBLDMtomProduction extends X_BLD_mtom_production implements DocAction, DocOptions {
@@ -116,16 +118,13 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	@Override
 	public boolean processIt(String action) throws Exception {
 		
-		/*
-		 * TODO: Handle freshly created Productions that aren't based on an Order: I.E. if
-		 * there's no Order_ID for the production header, Ask user to manually add items.
-		 */
+		//TODO: Move code lines 122 to 130 to more appropriate method.
 		MBLDMtomItemLine[] lines = getLines();
 		for(int i = 0; i < lines.length; i++)
 		{
-			lines[i].setIsComplete(lines[i].processMtmLineItem());
+			lines[i].setIsComplete(lines[i].processMtmLineItem(getDocAction()));
 		}
-		log.warning("Processing Action=" + action + " - DocStatus=" + getDocStatus() + " - DocAction=" + getDocAction());
+		log.warning("---------------Processing Action= " + action + " - DocStatus= " + getDocStatus() + " - DocAction= " + getDocAction());
 		DocumentEngine engine = new DocumentEngine(this, getDocStatus());
 		return engine.processIt(action, getDocAction());
 	}
@@ -151,10 +150,14 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		 * That is, one that has no Order number or any line items.
 		 */
 		//Add shell of finished items based on Order line from MOrder
+		MBLDMtomItemLine[] lines = getLines();
 		System.out.println(getDocStatus());
 		if(!getDocStatus().equals(DOCSTATUS_InProgress)||getDocStatus().equals(DOCSTATUS_Drafted))
 		{
-			addProductionItems();
+			if(lines.length == 0)
+			{
+				addProductionItems();
+			}
 		}
 		System.out.println(getDocStatus());
 		
@@ -306,34 +309,50 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		/*Currently able to be added twice.
 		 * TODO: Check for duplicates or alert user.
 		 */
+		
+		mOrder = new MOrder(p_ctx, getC_Order_ID(), get_TrxName());
 		if(mOrder == null)
 		{
 			throw new AdempiereUserError("There's no Order to get production items from.", "You should either manually add production items or delete this Production and create it from an existing order");
 		}
-		MOrderLine[] orderLines = mOrder.getLines();
-		MBLDMtomItemLine mtmLine = null;
-		int mtmProdID = this.getbld_mtom_production_ID();
+		final MOrderLine[] orderLines = mOrder.getLines();
+		//final MBLDMtomItemLine mtmLine = null;
+		final int mtmProdID = this.getbld_mtom_production_ID();
+		
+		
 		for (int i=0; i < orderLines.length; i++)
 		{
-			MOrderLine line = orderLines[i];
-			MProduct mProduct = new MProduct(getCtx(), line.getM_Product_ID(),get_TrxName());
+			final MOrderLine theOrderLine = orderLines[i];
+			//MOrderLine line = orderLines[i];
+			MProduct mProduct = new MProduct(getCtx(), orderLines[i].getM_Product_ID(),get_TrxName());
 			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
 			{
-				if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+line.toString()+" to production items for production " + mtmProdID);
-				mtmLine = new MBLDMtomItemLine(line, mtmProdID);
-				if(!mtmLine.save())
-					{
-						log.severe("Can't add prodcution line:" +  mtmProdID + " to MTM production, mtom_production_ID == " + mtom_production_ID);
-						
-					}
-				else 
-					{
-						mtmLine.set_Barcode();
-						mtmLine.saveEx();
+				if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+orderLines[i].toString()+" to production items for production " + mtmProdID);
+				final String trxn = get_TrxName();
+				System.out.println("trxn: " + trxn + " get_TrxName(): " + get_TrxName());
+				//MBLDMtomItemLine mtmLine = orderLines[i];
+				
+			    /*{
+			        Trx.run(new TrxRunnable() {
+			            public void run(String trxName) {
+			            	MBLDMtomItemLine Line = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
+							Line.setFromOrderLine(theOrderLine);
+							Line.saveEx();
+			                
+			            }
+			        });
+			    }*/
+				
+				MBLDMtomItemLine Line = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
+				Line.setFromOrderLine(theOrderLine);
+				Line.saveEx();
+				
+				
+				Line.set_Barcode();
+				Line.saveEx();
+	
 					}
 			}
-		}
-
 	}
 	
 	public MBLDMtomItemLine[] getLines (boolean requery, String orderBy)

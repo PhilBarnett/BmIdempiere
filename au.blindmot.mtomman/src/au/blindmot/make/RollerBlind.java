@@ -16,7 +16,9 @@ import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 
 import au.blindmot.model.MBLDBomDerived;
+import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
+import au.blindmot.utils.MtmUtils;
 
 
 public class RollerBlind extends MadeToMeasureProduct {
@@ -37,13 +39,23 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private String mechColIns = null;
 	private String chainSafeIns = null;
 	boolean isChainControl = false;
+	
+	//Various BOM parts to make the blind
 	private int controlBracketID = 0;
 	private int nonControlBracketID = 0;
 	private int controlID = 0;
 	private int nonControlID = 0;
 	private int chainSafeID = 0;
 	private int rollerTubeID = 0;
+	private int fabricID = 0;
 	private int endCapID = 0;
+	private int bottomBarID = 0;
+	
+	//Cuts for cut to size items.
+	private int rollerTubeCut = 0;
+	private int bottomBarCut = 0;
+	private int fabricWidth = 0;
+	private int fabricDrop = 0;
 
 	
 	
@@ -68,20 +80,10 @@ public class RollerBlind extends MadeToMeasureProduct {
 			mInstance = attributePair[i].getInstance();
 			mInstanceValue = attributePair[i].getInstanceValue();
 			
-			if(mInstance.equalsIgnoreCase("Blind control side"))
+			if(mInstance.equalsIgnoreCase("Location"))
 			{
-				if(mtmrolleritem.getControlSide() == null || mtmrolleritem.getControlSide().length()<1)
-				mtmrolleritem.set_ValueOfColumn("side_control", mInstanceValue);
-			}
-			else if(mInstance.equalsIgnoreCase("Roll type"))
-			{
-				if(mtmrolleritem.getRollType() == null || mtmrolleritem.getRollType().length()<1)
-				mtmrolleritem.setRollType(mInstanceValue);
-			}
-			else if(mInstance.equalsIgnoreCase("Location"))
-			{
-				if(mtmrolleritem.getLocation() == null || mtmrolleritem.getLocation().length()<1)
-				mtmrolleritem.setLocation(mInstanceValue);
+				if(mtmrolleritem.getlocation() == null || mtmrolleritem.getlocation().length()<1)
+				mtmrolleritem.setlocation(mInstanceValue);
 			}
 			else if(mInstance.equalsIgnoreCase("Blind control"))
 			{	
@@ -119,8 +121,26 @@ public class RollerBlind extends MadeToMeasureProduct {
 
 	@Override
 	public boolean getCuts() {
-		return false;
-		/*TODO: create fields for cuts so they can be used in BOM creation.
+		//Get a value for field rollerTubeCut
+		ArrayList <Integer> headRailComps = new ArrayList <Integer>();
+		headRailComps.add(nonControlBracketID);
+		headRailComps.add(controlBracketID);
+		headRailComps.add(controlID);
+		headRailComps.add(nonControlID);
+		
+		rollerTubeCut = wide - MBLDMtomCuts.getDeductions(headRailComps, MtmUtils.MTM_HEAD_RAIL_DEDUCTION);
+		
+		//Get a value for field fabricWidth & fabricDrop
+		fabricWidth = rollerTubeCut - MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION);
+		fabricDrop = high + MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION);
+		bottomBarCut = fabricWidth - MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
+		
+		if(fabricID !=0 )addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);
+		if(rollerTubeID !=0 )addBldMtomCuts(rollerTubeID,0,rollerTubeCut,0);
+		if(bottomBarID !=0 )addBldMtomCuts(bottomBarID,0,bottomBarCut ,0);
+		
+		return true;
+		/*
 		 * Possibly create utility method in MtmUtils to get deductions - pass an array of productIds to it?
 		 * TODO: Check that KeyNamePair is the right thing to return?
 		 * Perhaps a 2 dimensional array would be better? Would need to change here and in WindowFurnishing.java
@@ -179,32 +199,25 @@ public class RollerBlind extends MadeToMeasureProduct {
 	}
 
 	@Override
-	public boolean createProductionLine() {
-		return false;
-		// TODO Auto-generated method stub
-		
-	}
-
-
-	@Override
 	public boolean deleteBomDerived() {
 		// TODO Auto-generated method stub
-		return false;
+		return true;
 	}
 
 
 	@Override
 	public boolean deleteCuts() {
-		// TODO Auto-generated method stub
-		return false;
+		MBLDMtomCuts[] cuts = null;
+	if(mBLDMtomItemLine!=null)
+	{
+		cuts = mBLDMtomItemLine.getCutLines(Env.getCtx(), mtom_item_line_id);
+	}
+	for(int i =0; i<cuts.length; i++)
+	{
+		cuts[i].deleteEx(true);
 	}
 
-
-	@Override
-	public boolean deleteProductionLine() {
-		// TODO Auto-generated method stub
-		//TODO: Ensure inventory moves are reversed.
-		return false;
+		return true;
 	}
 	
 	/**
@@ -240,6 +253,11 @@ public class RollerBlind extends MadeToMeasureProduct {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+		    finally
+		    {
+		    	DB.close(rs);
+		    	rs = null;
+		    }
 		
 		Integer parts[] = partIDs.toArray(new Integer[(partIDs.size())]);
 		String names[] = mpName.toArray(new String[mpName.size()]);
@@ -252,7 +270,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		String cSafe = "Chain Safe";
 		String cAcc = "Chain accessory";
 		String rTube = "Roller tube";
-		String eCap = "End cap";
+		String eCap = "End Cap";
 	
 		
 			for(int i = 0; i < parts.length; i++) {
@@ -438,9 +456,12 @@ public class RollerBlind extends MadeToMeasureProduct {
 			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, null);
 			partDescription = productToExamine.getDescription().toLowerCase();
 			
-		if(partDescription.contains(instanceParse.toLowerCase()))
+			if(instanceParse!=null)
 			{
-				break;//part_ID should now contain the right MProductID
+				if(partDescription.contains(instanceParse.toLowerCase()))
+				{
+					break;//part_ID should now contain the right MProductID
+				}
 			}
 		}
 		if(part_ID == 0)//The part couldn't be found.
@@ -460,10 +481,13 @@ public class RollerBlind extends MadeToMeasureProduct {
 			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, null);
 			String partDescription = productToExamine.getDescription().toLowerCase();
 			
-		if(partDescription.contains(instanceParse.toLowerCase()) && partDescription.contains(instanceParse2.toLowerCase()))
+		if(instanceParse != null && instanceParse2 != null)
+		  {
+			if(partDescription.contains(instanceParse.toLowerCase()) && partDescription.contains(instanceParse2.toLowerCase()))
 			{
 				break;//part_ID should now contain the right MProductID
 			}
+		  }
 		}
 		if(part_ID == 0)//The bracket couldn't be found.
 	{
@@ -494,6 +518,9 @@ public class RollerBlind extends MadeToMeasureProduct {
 				int mProductId = Integer.parseInt(products[i]);
 				BigDecimal qty = getBomQty(mProductId);
 				addMBLDBomDerived(mProductId, qty, null);
+				
+				if(i == 0)fabricID = mProductId;
+				if(i == 2)bottomBarID = mProductId;
 			}
 		}
 	}
@@ -507,4 +534,23 @@ public class RollerBlind extends MadeToMeasureProduct {
 		}
 		
 	}
+	
+	private void addBldMtomCuts(int mProductID, int width, int length, int height){
+		BigDecimal bigWidth = new BigDecimal(width);
+		BigDecimal bigLength = new BigDecimal(length);
+		BigDecimal bigHeight = new BigDecimal(height);
+		if(mProductID != 0)
+		{
+			MBLDMtomCuts cut = new MBLDMtomCuts(Env.getCtx(), null, null);
+			cut.setWidth(bigWidth);
+			cut.setLength(bigLength);
+			cut.setHeight(bigHeight);
+			cut.setM_Product_ID(mProductID);
+			cut.setbld_mtom_item_line_ID(mtom_item_line_id);
+			cut.saveEx();
+		}
+		
+	}
+	
+
 }
