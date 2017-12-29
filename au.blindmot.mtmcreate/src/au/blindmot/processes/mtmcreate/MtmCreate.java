@@ -3,6 +3,7 @@
  */
 package au.blindmot.processes.mtmcreate;
 
+import java.util.Properties;
 import java.util.logging.Level;
 
 import org.compiere.model.MOrder;
@@ -14,9 +15,14 @@ import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 
+import au.blindmot.model.MBLDMtomItemLine;
+import au.blindmot.model.MBLDMtomProduction;
+
+
 /**
  * @author phil
  * A process to create MBLDMtomProduction from orders
+ * Ordinarily called from Order window.
  *
  */
 public class MtmCreate extends SvrProcess {
@@ -26,6 +32,7 @@ public class MtmCreate extends SvrProcess {
 
 	@Override
 	protected void prepare() {
+		
 		
 		ProcessInfoParameter[] paras = getParameter();
 		for(ProcessInfoParameter para : paras)
@@ -50,18 +57,34 @@ public class MtmCreate extends SvrProcess {
 		 * /
 		 */
 		
-		if(checkOrderStatus() && checkMtmStatus())
-		{
-			createNewMtmProduction();
-		}
+		
 		
 	}
 
 	@Override
 	protected String doIt() throws Exception {
 		//TODO: Show dialog with number of lines created and hyperlink to mtmproduction created.
+		MBLDMtomProduction mBLDMtomProduction = null;
+		if(checkOrderStatus())
+				{
+					if(checkMtmStatus())
+						{
+							mBLDMtomProduction = createNewMtmProduction();
+						}
+					else 
+						{
+							throw new AdempiereUserError("Production with c_order_id: " + C_Order_ID + " exists already");
+						}
+						
+				}
 		
-		return null;
+		
+		if(mBLDMtomProduction == null)return null;
+		
+		String msg = ("MTM Production Created " + mBLDMtomProduction.getDocumentNo());
+		addLog(mBLDMtomProduction.getbld_mtom_production_ID(), null, null, msg, MBLDMtomProduction.Table_ID, mBLDMtomProduction.getbld_mtom_production_ID());
+		return "@OK@";
+		
 	}
 	
 	private boolean checkOrderStatus()
@@ -112,10 +135,17 @@ public class MtmCreate extends SvrProcess {
 		
 	}
 
-	private boolean createNewMtmProduction()
+	private MBLDMtomProduction createNewMtmProduction()
 	{
-		//TODO: create a new MTMproduction
+		MBLDMtomProduction newMtm = new MBLDMtomProduction(getCtx(), null, get_TrxName(), C_Order_ID);
+		newMtm.save();
+		newMtm.prepareIt();
+		newMtm.setIsCreated("Y");
+		newMtm.save();
+		int newMtm_ID = newMtm.get_ID();
 		
-		return false;
+
+if(newMtm_ID != 0)return newMtm;
+		else return null;
 	}
 }

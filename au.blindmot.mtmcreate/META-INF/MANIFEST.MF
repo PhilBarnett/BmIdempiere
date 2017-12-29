@@ -7,3 +7,4 @@ Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Require-Bundle: org.adempiere.base;bundle-version="4.1.0",
  org.adempiere.plugin.utils;bundle-version="4.1.0"
 Service-Component: src/au/blindmot/factories/DocFactory.xml
+Import-Package: au.blindmot.model
