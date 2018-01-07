@@ -24,7 +24,7 @@ public class BLDMtomMakeFactory {
 	 * -Extend MadeToMeasureProduct and implement the appropriate interface if one is available.
 	 * 
 	 */
-	  public static MadeToMeasureProduct getMtmProduct(int m_Product_ID, int bld_mtom_item_line_id)
+	  public static MadeToMeasureProduct getMtmProduct(int m_Product_ID, int bld_mtom_item_line_id, String trxnName)
 	  {
 		 String sql = new String("SELECT classification from m_product WHERE m_product_id = ?");
 		 String classification = DB.getSQLValueString(null, sql, m_Product_ID);
@@ -37,11 +37,11 @@ public class BLDMtomMakeFactory {
 		 int mtom_item_line_id = bld_mtom_item_line_id;
 		 
 	    if ( classification.equals("roller") )
-	      return new RollerBlind(mProduct_ID, mtom_item_line_id);
+	      return new RollerBlind(mProduct_ID, mtom_item_line_id, trxnName);
 	    else if ( classification.equals("awning") )
-	      return new AwningBlind(mProduct_ID, mtom_item_line_id);
+	      return new AwningBlind(mProduct_ID, mtom_item_line_id, trxnName);
 	    else if ( classification.equals("panel") )
-	      return new PanelGlide(mProduct_ID, mtom_item_line_id);
+	      return new PanelGlide(mProduct_ID, mtom_item_line_id, trxnName);
 
 	    return null;
 	  }

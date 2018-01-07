@@ -25,6 +25,7 @@ protected int mtom_item_line_id = 0;
 protected String mtmInstanceParts = null;
 protected CLogger log;
 protected MBLDMtomItemLine mBLDMtomItemLine = null;
+protected String trxName;
 
 
 
@@ -40,12 +41,13 @@ protected MBLDMtomItemLine mBLDMtomItemLine = null;
 	 * @param product_id
 	 * @param bld_mtom_item_line_id
 	 */
-	public MadeToMeasureProduct(int product_id, int bld_mtom_item_line_id) {
+	public MadeToMeasureProduct(int product_id, int bld_mtom_item_line_id, String transactionName) {
 		
 		m_product_id = product_id;
 		mtom_item_line_id = bld_mtom_item_line_id;
-		mBLDMtomItemLine = new MBLDMtomItemLine(Env.getCtx(), bld_mtom_item_line_id, null);
+		mBLDMtomItemLine = new MBLDMtomItemLine(Env.getCtx(), bld_mtom_item_line_id, transactionName);
 		log = CLogger.getCLogger (getClass());
+		trxName = transactionName;
 	}
 	
 	/**

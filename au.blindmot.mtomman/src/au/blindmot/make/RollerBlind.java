@@ -61,8 +61,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 	
 	
 
-	public RollerBlind (int product_id, int bld_mtom_item_line_id) {
-		super(product_id, bld_mtom_item_line_id);
+	public RollerBlind (int product_id, int bld_mtom_item_line_id, String trxn) {
+		super(product_id, bld_mtom_item_line_id, trxn);
 	}
 	
 	
@@ -72,7 +72,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		
 		String mInstance;
 		String mInstanceValue;
-		MBLDMtomItemLine mtmrolleritem = new MBLDMtomItemLine(Env.getCtx(), mtom_item_line_id, null);
+		MBLDMtomItemLine mtmrolleritem = new MBLDMtomItemLine(Env.getCtx(), mtom_item_line_id, trxName);
 		
 		//Set fields based on the AttributePair[] contents.
 		for(int i = 0; i < attributePair.length; i++)
@@ -128,12 +128,12 @@ public class RollerBlind extends MadeToMeasureProduct {
 		headRailComps.add(controlID);
 		headRailComps.add(nonControlID);
 		
-		rollerTubeCut = wide - MBLDMtomCuts.getDeductions(headRailComps, MtmUtils.MTM_HEAD_RAIL_DEDUCTION);
+		rollerTubeCut = wide - MBLDMtomCuts.getDeductions(headRailComps, MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName);
 		
 		//Get a value for field fabricWidth & fabricDrop
-		fabricWidth = rollerTubeCut - MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION);
-		fabricDrop = high + MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION);
-		bottomBarCut = fabricWidth - MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
+		fabricWidth = rollerTubeCut - MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName);
+		fabricDrop = high + MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName);
+		bottomBarCut = fabricWidth - MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName);
 		
 		if(fabricID !=0 )addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);
 		if(rollerTubeID !=0 )addBldMtomCuts(rollerTubeID,0,rollerTubeCut,0);
@@ -368,11 +368,11 @@ public class RollerBlind extends MadeToMeasureProduct {
 		        sql.append("AND m_productbom_id = ");
 		        sql.append(ca.getID());
 		        
-		        int m_product_bom_id = DB.getSQLValue(null, sql.toString());
-				MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, null);
+		        int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
+				MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, trxName);
 				BigDecimal qty = mProductBom.getBOMQty();
 				
-				MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, null);
+				MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
 				mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
 				mBomDerived.setM_Product_ID(ca.getKey());
 				mBomDerived.setQty(qty);
@@ -429,8 +429,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 	        sql.append("AND m_productbom_id = ");
 	        sql.append(mProductBomid);
 	        
-	        int m_product_bom_id = DB.getSQLValue(null, sql.toString());
-			MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, null);
+	        int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
+			MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, trxName);
 			BigDecimal qty = mProductBom.getBOMQty();
 		
 		return qty;
@@ -438,7 +438,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 	}
 	
 	private void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {
-		MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, null);
+		MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
 		mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
 		mBomDerived.setM_Product_ID(mProductId);
 		mBomDerived.setQty(qty);
@@ -453,7 +453,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		for(KeyNamePair partPair : parts) 
 		{
 			part_ID = partPair.getKey();
-			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, null);
+			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, trxName);
 			partDescription = productToExamine.getDescription().toLowerCase();
 			
 			if(instanceParse!=null)
@@ -478,7 +478,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		for(KeyNamePair partPair : parts) 
 		{
 			part_ID = partPair.getKey();
-			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, null);
+			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, trxName);
 			String partDescription = productToExamine.getDescription().toLowerCase();
 			
 		if(instanceParse != null && instanceParse2 != null)
@@ -517,7 +517,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 			{
 				int mProductId = Integer.parseInt(products[i]);
 				BigDecimal qty = getBomQty(mProductId);
-				addMBLDBomDerived(mProductId, qty, null);
+				addMBLDBomDerived(mProductId, qty, trxName);
 				
 				if(i == 0)fabricID = mProductId;
 				if(i == 2)bottomBarID = mProductId;
@@ -541,7 +541,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		BigDecimal bigHeight = new BigDecimal(height);
 		if(mProductID != 0)
 		{
-			MBLDMtomCuts cut = new MBLDMtomCuts(Env.getCtx(), null, null);
+			MBLDMtomCuts cut = new MBLDMtomCuts(Env.getCtx(), 0, trxName);
 			cut.setWidth(bigWidth);
 			cut.setLength(bigLength);
 			cut.setHeight(bigHeight);

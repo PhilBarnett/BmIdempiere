@@ -111,7 +111,7 @@ public interface I_BLD_mtom_item_line
 	/** Get Made to measure production	  */
 	public int getbld_mtom_production_ID();
 
-	//public I_bld_mtom_production getbld_mtom_production() throws RuntimeException;
+	public I_BLD_mtom_production getbld_mtom_production() throws RuntimeException;
 
     /** Column name completed */
     public static final String COLUMNNAME_completed = "completed";

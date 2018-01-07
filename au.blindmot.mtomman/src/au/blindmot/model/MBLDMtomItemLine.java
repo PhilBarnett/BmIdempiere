@@ -35,6 +35,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 	private static final long serialVersionUID = 6986611760223696973L;
 	private int lineno;
 	private int count;
+	@SuppressWarnings("unused")
 	private int mProductId = 0;
 	private int m_Locator_ID = 0;
 	
@@ -138,7 +139,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 	}
 	
 	public boolean deleteProcessedMtmLineItem() {
-		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID(), getbld_mtom_item_line_ID () );
+		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID(), getbld_mtom_item_line_ID (), get_TrxName() );
 		mTmProduct.deleteBomDerived();
 		mTmProduct.deleteCuts(); 
 		
@@ -155,10 +156,10 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 	public boolean processMtmLineItem(String docAction) {
 		String action = docAction;
 		log.warning("---------------In processMtmLineItem");
-		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID(), getbld_mtom_item_line_ID () );
+		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID(), getbld_mtom_item_line_ID(), get_TrxName());
 		
 			
-		if(this.isComplete() && this.isprocessed())//If it has already been processed, delete children and start again.
+		if(isComplete() && isprocessed())//If it has already been processed, delete children and start again.
 			{
 				mTmProduct.deleteBomDerived();
 				mTmProduct.deleteCuts(); 
@@ -185,18 +186,13 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 			*the children can be easily deleted.
 			**/
 			{
-				if(mTmProduct.getCuts())//Comment out to see if there's a slow point
+				if(mTmProduct.getCuts())
 				{
-					/*
-					 * /if(mTmProduct.createProductionLine()) - createProductionLine() should not be in
-					 * MTMProduct or any sub classes
-					 */
 					if(createLines(false)>0)
 					{
-						MProduct mProduct = new MProduct(p_ctx, getM_Product_ID(), null);
+						MProduct mProduct = new MProduct(p_ctx, getM_Product_ID(), get_TrxName());
 						if(createLines(false, mProduct, BigDecimal.ONE) > 0)
 						setisprocessed(true);	
-						
 					}
 				}
 return true;
@@ -215,7 +211,7 @@ return false;
 	{
 		 {
 			 	final String whereClause = MBLDMtomCuts.COLUMNNAME_bld_mtom_item_line_ID+"=?"; 
-			 	List<MBLDMtomCuts> list = new Query(ctx, MBLDMtomCuts.Table_Name, whereClause, null)
+			 	List<MBLDMtomCuts> list = new Query(ctx, MBLDMtomCuts.Table_Name, whereClause, get_TrxName())
 			 		.setParameters(new Object[]{mtmLineItemId})
 			 		.setOrderBy(MBLDMtomCuts.COLUMNNAME_BLD_mtom_cuts_ID)
 			 		.list();
@@ -234,7 +230,7 @@ return false;
 	{
 		 {
 			 	final String whereClause = MBLDBomDerived.COLUMNNAME_bld_mtom_item_line_ID+"=?"; 
-			 	List<MBLDBomDerived> list = new Query(ctx, MBLDBomDerived.Table_Name, whereClause, null)
+			 	List<MBLDBomDerived> list = new Query(ctx, MBLDBomDerived.Table_Name, whereClause, get_TrxName())
 			 		.setParameters(new Object[]{mtmLineItemId})
 			 		.setOrderBy(MBLDBomDerived.COLUMNNAME_bld_mtom_bomderived_ID)
 			 		.list();
@@ -278,12 +274,17 @@ return false;
 		line.setLine( lineno );
 		line.setM_Product_ID( finishedProduct.get_ID() );
 		line.setM_Locator_ID( m_Locator_ID);
-		line.setMovementQty(BigDecimal.ONE);//always 1 for MTM manufacturing
+		line.setMovementQty(BigDecimal.ONE);//always 1 for MTM manufacturing. Gets overwritten in MProductionLine.beforeSave.
 		line.setPlannedQty(BigDecimal.ONE);//always 1 for MTM manufacturing
+		//line.setIsEndProduct(true);
 		line.setAD_Org_ID(determineAdOrgId());
 		line.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
-		
+		/*
+		 * TODO: Extend MProductionLine
+		 * Overwrite the beforeSave() method and stop the mtm end product being setIsEndProduct(false);
+		 */
 		line.saveEx(get_TrxName());
+		System.out.println("----------------line.isEndProduct(): "+ line.isEndProduct());
 		count++;
 		
 		createLines(mustBeStocked, finishedProduct, BigDecimal.ONE);
@@ -313,7 +314,7 @@ return false;
 		 * products used in production
 		 */
 		
-		MBLDBomDerived[] bomDerived = getBomDerivedLines(getCtx(), getbld_mtom_item_line_ID());//TODO: This is getting an empty array.
+		MBLDBomDerived[] bomDerived = getBomDerivedLines(getCtx(), getbld_mtom_item_line_ID());
 		try {
 			int BOMProduct_ID = 0;
 			BigDecimal BOMMovementQty;
@@ -524,7 +525,7 @@ return false;
 	public MProductionLine[] getLines(Properties ctx, int mtmlineid)
 	 {
 	 	final String whereClause = "m_productionline.bld_mtom_item_line_id"+"=?"; 
-	 	List<MProductionLine> list = new Query(ctx, MProductionLine.Table_Name, whereClause, null)
+	 	List<MProductionLine> list = new Query(ctx, MProductionLine.Table_Name, whereClause, get_TrxName())
 	 		.setParameters(new Object[]{mtmlineid})
 	 		.setOrderBy(MProductionLine.COLUMNNAME_M_ProductionLine_ID)
 	 		.list();
@@ -566,7 +567,7 @@ return false;
 		sql.append("FROM ad_table ");
 		sql.append("WHERE ad_table_id = ?");
 
-		String tableName = DB.getSQLValueStringEx(null, sql.toString(), table_id);
+		String tableName = DB.getSQLValueStringEx(get_TrxName(), sql.toString(), table_id);
 		String prefix = null;
 
 		if (tableName.equalsIgnoreCase("Made to measure production")) {
@@ -585,9 +586,20 @@ return false;
 		if(adOrdId != 0) return adOrdId;
 		else 
 		{
-			MBLDMtomProduction mBLDMtomProduction = new MBLDMtomProduction(p_ctx, getbld_mtom_production_ID(),null);
+			MBLDMtomProduction mBLDMtomProduction = new MBLDMtomProduction(p_ctx, getbld_mtom_production_ID(),get_TrxName());
 			adOrdId = mBLDMtomProduction.getAD_Org_ID();
 			return adOrdId;
 		}
+	}
+	@Override
+	protected boolean beforeSave(boolean newRecord) {
+		MProduct mProduct = new MProduct(p_ctx, getM_Product_ID(), get_TrxName());
+		if(mProduct.get_ValueAsBoolean("ismadetomeasure") && mProduct.isManufactured()) return true;
+		else return false;
+		
+	}
+	
+	public BigDecimal getProductionQty() {
+		return BigDecimal.ONE;
 	}
 }

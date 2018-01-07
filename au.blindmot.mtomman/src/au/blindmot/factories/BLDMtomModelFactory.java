@@ -3,6 +3,7 @@ package au.blindmot.factories;
 import java.sql.ResultSet;
 
 import org.adempiere.base.IModelFactory;
+import org.compiere.model.MProductionLine;
 import org.compiere.model.PO;
 import org.compiere.util.Env;
 
@@ -10,6 +11,7 @@ import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
+import au.blindmot.model.MProductionLine_BldMtoM;
 
 public class BLDMtomModelFactory implements IModelFactory {
 
@@ -29,7 +31,6 @@ public class BLDMtomModelFactory implements IModelFactory {
 		if(tableName.equalsIgnoreCase(MBLDMtomCuts.Table_Name))
 			return MBLDMtomCuts.class;
 		
-		
 		return null;
 	}
 
@@ -46,8 +47,8 @@ public class BLDMtomModelFactory implements IModelFactory {
 			return new MBLDBomDerived(Env.getCtx(), Record_ID, trxName);
 		
 		if(tableName.equalsIgnoreCase(MBLDMtomCuts.Table_Name))
-			return new MBLDBomDerived(Env.getCtx(), Record_ID, trxName);
-			
+			return new MBLDMtomCuts(Env.getCtx(), Record_ID, trxName);
+		
 		return null;
 	}
 
@@ -66,6 +67,7 @@ public class BLDMtomModelFactory implements IModelFactory {
 		if(tableName.equalsIgnoreCase(MBLDMtomCuts.Table_Name))
 			return new MBLDMtomCuts(Env.getCtx(), rs, trxName);
 		
+
 		return null;
 	}
 

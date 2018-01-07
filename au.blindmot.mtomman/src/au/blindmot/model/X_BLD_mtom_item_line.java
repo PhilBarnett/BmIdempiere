@@ -31,7 +31,7 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20171228L;
+	private static final long serialVersionUID = 20180106L;
 
     /** Standard Constructor */
     public X_BLD_mtom_item_line (Properties ctx, int BLD_mtom_item_line_ID, String trxName)
