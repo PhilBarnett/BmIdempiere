@@ -158,34 +158,43 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		log.warning("---------------In processMtmLineItem");
 		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID(), getbld_mtom_item_line_ID(), get_TrxName());
 		
-			/*
-			 * If it has already been processed, delete children and start again.
-			 * This if statement may be able to be deleted.
-			 */
-		if(isComplete() && isprocessed())
+			
+		if(isComplete() && isprocessed())//If it has already been processed, delete children and start again.
 			{
 				mTmProduct.deleteBomDerived();
 				mTmProduct.deleteCuts(); 
 				deleteProductionLines();
 				setIsComplete(false);
 				setisprocessed(false);
+				/*
+				/TODO Check that the inventory move is reversed when
+				* the ProductionLines are deleted.
+				*/
 			}
 	System.out.println("Complete: "+this.isComplete() + " Processed: "+ this.isprocessed() + "Action passed: " + action + " is it: " + DocumentEngine.ACTION_Void);
 		if(!isprocessed())//If it is already processed or it's being voided, skip processing
 		{
 			if((action.equalsIgnoreCase(DocumentEngine.ACTION_Void)))return false;
 		
-		if(mTmProduct.getCuts())
+		if(mTmProduct.createBomDerived())
+			/*
+			*TODO: Ensure that no orphan records get created
+			*Delete/rollback any BOM derived, ProductionLine and Cuts records 
+			*with this.getbld_mtom_item_line_ID()
+			*deleteCuts(), deleteProductionLine(), deleteBomDerived() is in
+			*MadeToMeasureProduct so that if the create/get/create methods fail then 
+			*the children can be easily deleted.
+			**/
 			{
-				if(mTmProduct.createBomDerived())
-				/*{*/
+				if(mTmProduct.getCuts())
+				{
 					if(createLines(false)>0)
-					/*{
+					{
 						MProduct mProduct = new MProduct(p_ctx, getM_Product_ID(), get_TrxName());
-						if(createLines(false, mProduct, getProductionQty()) > 0)
+						if(createLines(false, mProduct, BigDecimal.ONE) > 0)
 						setisprocessed(true);	
-					}*/
-				/*}*/
+					}
+				}
 return true;
 			}
 				
@@ -258,18 +267,14 @@ return false;
 			m_Locator_ID = DB.getSQLValue(get_TrxName(), sql.toString());
 		}
 
-		
-		/*
-		 * product to be produced 
-		 * In the context of MProduction, this would be one product only.
-		 */
+		// product to be produced 
 		MProduct finishedProduct = new MProduct(getCtx(), getM_Product_ID(), get_TrxName());
 
 		MProductionLine line = new MProductionLine(getCtx(), 0, get_TrxName());
 		line.setLine( lineno );
 		line.setM_Product_ID( finishedProduct.get_ID() );
 		line.setM_Locator_ID( m_Locator_ID);
-		line.setMovementQty(BigDecimal.ONE);//always 1 for MTM manufacturing. Gets overwritten in MProductionLine.beforeSave.
+		line.setMovementQty(BigDecimal.ONE);//always 1 for MTM manufacturing
 		line.setPlannedQty(BigDecimal.ONE);//always 1 for MTM manufacturing
 		//line.setIsEndProduct(true);
 		line.setAD_Org_ID(determineAdOrgId());
@@ -282,7 +287,7 @@ return false;
 		System.out.println("----------------line.isEndProduct(): "+ line.isEndProduct());
 		count++;
 		
-		createLines(mustBeStocked, finishedProduct, getProductionQty());
+		createLines(mustBeStocked, finishedProduct, BigDecimal.ONE);
 		
 		return count;
 	}
@@ -330,6 +335,7 @@ return false;
 				}
 				else
 				{
+
 					defaultLocator = bomproduct.getM_Locator_ID();
 					if ( defaultLocator == 0 )
 						defaultLocator = getM_Locator_ID();
@@ -347,7 +353,12 @@ return false;
 						BOMLine.setAD_Org_ID(determineAdOrgId());
 						BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
 						BOMLine.saveEx(get_TrxName());
-						
+						/*
+						setM_Production_ID( header.get_ID());
+						setAD_Client_ID(header.getAD_Client_ID());
+						setAD_Org_ID(header.getAD_Org_ID());
+						*/
+
 						lineno = lineno + 10;
 						count++;					
 					}

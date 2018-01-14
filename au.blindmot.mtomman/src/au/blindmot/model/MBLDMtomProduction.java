@@ -116,10 +116,9 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			options[index++] = DocumentEngine.ACTION_Prepare;
 			options[index++] = DocumentEngine.ACTION_Void;
 
-			// If the document is already completed, we also want to be able to reactivate or void it instead of only closing it
+			// If the document is already completed, we also want to be able to void it instead of only closing it
 		} else if (docStatus.equals(DocumentEngine.STATUS_Completed)) {
 			options[index++] = DocumentEngine.ACTION_Void;
-			options[index++] = DocumentEngine.ACTION_ReActivate;
 		} else if (docStatus.equals(DocumentEngine.STATUS_InProgress)) {
 			options[index++] = DocumentEngine.ACTION_Approve;
 		}
@@ -738,7 +737,6 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		for(MProductionLine fline : flines) {
 			MProductionLine tline = new MProductionLine(getCtx(), 0, get_TrxName());
 			PO.copyValues (fline, tline, getAD_Client_ID(), getAD_Org_ID());
-			//tline.setM_Production_ID(to.getM_Production_ID());
 			System.out.println("theLine.getbld_mtom_item_line_ID(): " + theLine.getbld_mtom_item_line_ID());
 			System.out.println("mBLDMtomItemLineFrom id: " + mBLDMtomItemLineFrom.getbld_mtom_item_line_ID());
 			tline.set_ValueOfColumn("bld_mtom_item_line_id", theLine.getbld_mtom_item_line_ID());

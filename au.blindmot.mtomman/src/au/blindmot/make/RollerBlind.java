@@ -50,16 +50,18 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private int fabricID = 0;
 	private int endCapID = 0;
 	private int bottomBarID = 0;
+	private BigDecimal bottomBarQty = BigDecimal.ZERO;
+	private BigDecimal fabricQty = BigDecimal.ZERO;
+	private BigDecimal rollerTubeQty = BigDecimal.ZERO;
 	
 	//Cuts for cut to size items.
 	private int rollerTubeCut = 0;
 	private int bottomBarCut = 0;
 	private int fabricWidth = 0;
 	private int fabricDrop = 0;
+	String patternString = null;
+    Pattern pattern = null;
 
-	
-	
-	
 
 	public RollerBlind (int product_id, int bld_mtom_item_line_id, String trxn) {
 		super(product_id, bld_mtom_item_line_id, trxn);
@@ -69,23 +71,23 @@ public class RollerBlind extends MadeToMeasureProduct {
 	@Override
 	public void interpretMattributeSetInstance() {
 		AttributePair[] attributePair = getMAttributeSetInstance();
-		
 		String mInstance;
 		String mInstanceValue;
-		MBLDMtomItemLine mtmrolleritem = new MBLDMtomItemLine(Env.getCtx(), mtom_item_line_id, trxName);
+		//MBLDMtomItemLine mtmrolleritem = new MBLDMtomItemLine(Env.getCtx(), mtom_item_line_id, trxName);
 		
 		//Set fields based on the AttributePair[] contents.
 		for(int i = 0; i < attributePair.length; i++)
 		{
 			mInstance = attributePair[i].getInstance();
 			mInstanceValue = attributePair[i].getInstanceValue();
-			
+			/*
 			if(mInstance.equalsIgnoreCase("Location"))
 			{
 				if(mtmrolleritem.getlocation() == null || mtmrolleritem.getlocation().length()<1)
 				mtmrolleritem.setlocation(mInstanceValue);
 			}
-			else if(mInstance.equalsIgnoreCase("Blind control"))
+			
+			else*/ if(mInstance.equalsIgnoreCase("Blind control"))
 			{	
 				blindControlIns = mInstanceValue;
 				if(mInstanceValue.equalsIgnoreCase("Chain control"))
@@ -115,12 +117,25 @@ public class RollerBlind extends MadeToMeasureProduct {
 				chainSafeIns = mInstanceValue;
 			}
 		}
-		mtmrolleritem.saveEx();
+		//mtmrolleritem.saveEx();
 	}
 	
 
 	@Override
+	/**
+	 * Must be first method called in object.
+	 * Should be called init()?
+	 * 
+	 */
 	public boolean getCuts() {
+		
+		interpretMattributeSetInstance();//
+		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
+	    pattern = Pattern.compile(patternString);
+	    setInstanceFields();//Sets instance fields from the instance_string column
+		populatePartTypes(m_product_id);//Gets the ArrayLists of parts
+		setValueProductID();//Interprets the attribute instances and picks parts from ArrayLists to match, also creates BOM lines for chain driven blinds.
+		
 		//Get a value for field rollerTubeCut
 		ArrayList <Integer> headRailComps = new ArrayList <Integer>();
 		headRailComps.add(nonControlBracketID);
@@ -134,21 +149,43 @@ public class RollerBlind extends MadeToMeasureProduct {
 		fabricWidth = rollerTubeCut - MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName);
 		fabricDrop = high + MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName);
 		bottomBarCut = fabricWidth - MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName);
-		
-		if(fabricID !=0 )addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);
-		if(rollerTubeID !=0 )addBldMtomCuts(rollerTubeID,0,rollerTubeCut,0);
-		if(bottomBarID !=0 )addBldMtomCuts(bottomBarID,0,bottomBarCut ,0);
+		BigDecimal oneHundred = new BigDecimal("100");
+		BigDecimal oneThousand = new BigDecimal("1000");
+		if(fabricID !=0 )
+			{
+				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);
+				BigDecimal fwidth = new BigDecimal(fabricWidth).divide(oneThousand);
+				BigDecimal fdrop = new BigDecimal(fabricDrop).divide(oneThousand);
+				BigDecimal qty = fwidth.multiply(fdrop);
+				BigDecimal waste = new BigDecimal(getWaste(fabricID));
+				qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
+				qty.setScale(4, BigDecimal.ROUND_CEILING);
+				fabricQty = qty;
+				//addMBLDBomDerived(fabricID, qty , "Procesed with waste factor of: " + (qty.multiply(waste)));
+			}
+		if(rollerTubeID !=0 )
+			{
+				addBldMtomCuts(rollerTubeID,0,rollerTubeCut,0);
+				BigDecimal qty = new BigDecimal(rollerTubeCut);
+				BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
+				qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
+				rollerTubeQty = qty;
+				//Create bom derived for this item
+				addMBLDBomDerived(rollerTubeID, qty , "Procesed with waste factor of: " + (qty.multiply(waste)));
+			}
+		if(bottomBarID !=0 )
+			{
+				addBldMtomCuts(bottomBarID,0,bottomBarCut ,0);
+				BigDecimal qty = new BigDecimal(bottomBarCut);
+				BigDecimal waste = new BigDecimal(getWaste(bottomBarID));
+				qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
+				bottomBarQty = qty;
+			}
 		
 		return true;
-		/*
-		 * Possibly create utility method in MtmUtils to get deductions - pass an array of productIds to it?
-		 * TODO: Check that KeyNamePair is the right thing to return?
-		 * Perhaps a 2 dimensional array would be better? Would need to change here and in WindowFurnishing.java
-		 */
-	
 	
 		/*
-		 *TODO: 1. Get head rail deductions
+		 *Get head rail deductions - head rail is the top part of roller blind from bracket to bracket.
 		 *2. tube cut length = width -  sum(rail head deductions)
 		 *3. fabric cut width =  tube - fabric deduction
 		 *4. fabric cut length = length + Fabric length addition - which is a non instance attribute of the
@@ -161,8 +198,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 	}
 
 	@Override
-	public boolean createBomDerived() {//This is the first method called when processing
-		/*NOTE: IT SHOULD BE CALLED AFTER getCuts() SO THE CUT TO LENGTH BOMS CAN BE DETERMINED!!
+	public boolean createBomDerived() {
+		/*
 		 * What we want to do here is add all the parts required to make the blind.
 		 * The info we have is: 
 		 * 1. the list of actual ProductIDs from the mtmInstanceParts field which is set when getMAttributeSetInstance() is called.
@@ -176,21 +213,14 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 * TNCN - tubular non control mech
 		 * etc
 		 * From the AttributePair[]
-		 * 
-		 * 
 		 */
-		
-		interpretMattributeSetInstance();
-		populatePartTypes(m_product_id);//Gets the ArrayLists of parts
-		setValueProductID();//Interprets the attribute instances and picks parts from ArrayLists to match, also creates BOM lines for chain driven blinds.
 		addMtmInstancePartsToBomDerived();//Creates BOM lines from the products in the 'instance_string' column.
-		
 		addBomDerivedLines(controlID, null);
 		addBomDerivedLines(nonControlID, null);
 		addBomDerivedLines(nonControlBracketID, null);
 		addBomDerivedLines(controlBracketID, null);
 		addBomDerivedLines(chainSafeID, null);
-		addBomDerivedLines(rollerTubeID, null);
+		//addBomDerivedLines(rollerTubeID, null) was added through getCuts();
 		addBomDerivedLines(endCapID, null);
 		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
 		//Tube selection: create static utility method in MtmUtils? Need to determine bending moment in tube centre.
@@ -422,18 +452,48 @@ public class RollerBlind extends MadeToMeasureProduct {
 	 * @return
 	 */
 	private BigDecimal getBomQty(int mProductBomid) { 
-		 StringBuilder sql = new StringBuilder("SELECT m_product_bom_id ");
+		BigDecimal qty = BigDecimal.ZERO;
+		if(mProductBomid == rollerTubeID)
+			{
+				qty = rollerTubeQty;
+				if(qty != BigDecimal.ZERO)
+				{
+					return qty;
+				}
+				
+			} else if(mProductBomid == fabricID)
+			{
+				qty = fabricQty;
+				if(qty != BigDecimal.ZERO)
+				{
+					return qty;
+				}
+			} else if(mProductBomid == bottomBarID)
+			{
+				qty = bottomBarQty;
+				if(qty != BigDecimal.ZERO)
+				{
+					return qty;
+				}
+			}
+		
+		
+		StringBuilder sql = new StringBuilder("SELECT m_product_bom_id ");
 	        sql.append("FROM m_product_bom ");
 	        sql.append("WHERE m_product_id = ");
 	        sql.append(m_product_id);
-	        sql.append("AND m_productbom_id = ");
+	        sql.append(" AND m_productbom_id = ");
 	        sql.append(mProductBomid);
 	        
 	        int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
 			MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, trxName);
-			BigDecimal qty = mProductBom.getBOMQty();
+			//if(mProductBom.get_ValueAsBoolean(columnName))
+			
+			
+			
+			BigDecimal bigQty = mProductBom.getBOMQty();
 		
-		return qty;
+		return bigQty;
 		
 	}
 	
@@ -441,6 +501,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
 		mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
 		mBomDerived.setM_Product_ID(mProductId);
+		qty.setScale(2, BigDecimal.ROUND_CEILING);
 		mBomDerived.setQty(qty);
 		if(description != null)mBomDerived.setDescription(description);
 		mBomDerived.saveEx();
@@ -500,14 +561,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private void addMtmInstancePartsToBomDerived(){
 	if(mtmInstanceParts != null)//Add the parts stored in the bldmtomlineiem instance_string column
 	{
-	
-	String patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
-    Pattern pattern = Pattern.compile(patternString);
-	
-    if(mtmInstanceParts!=null && mtmInstanceParts.toString().contains("_"))
-	{
-		//Split the value of the mtm_attribute column, first value id fabric, second is chain, third is bottom bar
-		String[] products = mtmInstanceParts.toString().split("_");
+		String[] products = getInstanceArray();
+		 if(products != null)
 		
 		for(int i = 0; i < products.length; i++)
 		{
@@ -518,14 +573,10 @@ public class RollerBlind extends MadeToMeasureProduct {
 				int mProductId = Integer.parseInt(products[i]);
 				BigDecimal qty = getBomQty(mProductId);
 				addMBLDBomDerived(mProductId, qty, trxName);
-				
-				if(i == 0)fabricID = mProductId;
-				if(i == 2)bottomBarID = mProductId;
 			}
 		}
-	}
-	}
-}
+	 }
+    }
 	
 	private void addBomDerivedLines(int partProduct_id, String description){
 		if(partProduct_id != 0)
@@ -551,6 +602,42 @@ public class RollerBlind extends MadeToMeasureProduct {
 		}
 		
 	}
+	public int getWaste(int mprodID) {
+		StringBuilder sql = new StringBuilder("SELECT ma.value FROM m_attributeinstance ma");
+		sql.append(" WHERE ma.m_attributesetinstance_id =");
+		sql.append(" (SELECT mp.m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
+		sql.append(mprodID + ")");
+		sql.append(" AND ma.m_attribute_id =");
+		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name LIKE'%aste%')");
+		int waste = 0;
+		waste = DB.getSQLValue(trxName, sql.toString());
+		return waste;
+	}
 	
+	 private String[] getInstanceArray() {
+		 
+		 if(mtmInstanceParts!=null && mtmInstanceParts.toString().contains("_")) 
+		 {
+			//Split the value of the mtm_attribute column, first value id fabric, second is chain, third is bottom bar
+			String[] products = mtmInstanceParts.toString().split("_");
+			return products;
+		 } 
+		 else return null;
 
+	 }
+	 
+	 private void setInstanceFields() {	
+	 
+	 String[] products = getInstanceArray();
+	 if(products != null)
+	 {
+		for(int s = 0; s < products.length; s++)//Set the Productids from the bldmtomlineiem instance_string column
+		{
+			int mProductId = Integer.parseInt(products[s]);
+			if(s == 0)fabricID = mProductId;
+			//if(s == 1)
+			if(s == 2)bottomBarID = mProductId;
+		}
+	}
+	 }
 }

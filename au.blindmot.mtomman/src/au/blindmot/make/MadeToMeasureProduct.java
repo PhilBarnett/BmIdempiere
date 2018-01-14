@@ -40,6 +40,7 @@ protected String trxName;
 	 * Default constructor
 	 * @param product_id
 	 * @param bld_mtom_item_line_id
+	 * @param transactionName
 	 */
 	public MadeToMeasureProduct(int product_id, int bld_mtom_item_line_id, String transactionName) {
 		
