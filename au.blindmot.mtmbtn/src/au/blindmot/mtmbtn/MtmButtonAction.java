@@ -3,7 +3,10 @@
  */
 package au.blindmot.mtmbtn;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,6 +30,7 @@ import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.FDialog;
 import org.compiere.model.GridTab;
 import org.compiere.model.MOrderLine;
+import org.compiere.model.X_M_PartType;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -39,11 +43,13 @@ import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
 import org.zkoss.zk.ui.util.Clients;
 import org.zkoss.zul.Vbox;
+
 import au.blindmot.model.MBLDMtomItemLine;
 
 /**
  * @author phil
- * This should really be done by an extra field in the c_orderline table 'mtmoptions' that stores
+ * This is a dog's regurgitated breakfast and is full of issues.
+ * This could be done by an extra field in the c_orderline table 'mtmoptions' that stores
  * the options and the product_ids like mattributeinstances eg 'chain=1000012_fabric=1000018'
  * and should be entered and validated by an editor.
  * NOTE: If the button is called from a mtmproduction window, any changes to the values are written to the
@@ -61,15 +67,21 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private Listbox fabType = new Listbox();
 	private Listbox controlType = new Listbox();
 	private Listbox chainList = new Listbox();
+	private Listbox bottomBar = new Listbox();
+	private Listbox TubularNCM = new Listbox();
+	private Listbox rollerBracket = new Listbox();
 	private Window 	blindConfig = null;
 	private String fabFamilySelected = null;
 	private String fabColourSelected = null;
 	private String fabTypeSelected = null;
 	private String chainSelected = null;
+	private String bottomBarSelected = null;
 	private int currentFabSelection = 0;
 	private int currentChainSelection = 0;
 	private int currOrderLine = 0;
+	private int currProductId = 0;
 	private int currbldmtomitemlineID = 0;
+	private int currBottomBar = 0;
 	private boolean isChainDriven = false;
 	private boolean isMtmProdWindow = false;
 
@@ -77,7 +89,6 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	/*
 	 * TODO:Add a 'control' ListBox and populate with product from BOM with Part Type = Tubular blind control
 	 * TODO: Modify code in Listbox chainList to add chain options if the 'control' is a chain drive
-	 * TODO:Add a 'control' ListBox and populate with product from BOM with Part Type = Tubular blind control
 	 * TODO:Add a 'non-control' ListBox and populate with product from BOM with Part Type = Tubular non-control mech
 	 * TODO:Add a 'Bracket' ListBox and populate with product from BOM with Part Type = Roller Bracket
 	 * TODO:Add a 'Bottom bar' ListBox and populate with product from BOM with Part Type = Bottom bar
@@ -100,14 +111,18 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		currentChainSelection = 0;
 		currOrderLine = 0;
 		currbldmtomitemlineID = 0;
+		currBottomBar = 0;
 		isChainDriven = false;
 		isMtmProdWindow = false;
+		Object mtmAttribute = null;
+
 		
 		ADWindow window = (ADWindow)target;
 		ADWindowContent content = window.getADWindowContent();
 		tab = content.getActiveGridTab();
 		tab.getAD_Window_ID();
 		panel = content;
+		
 		
 		log.info("MtmButtonAction window title: " + window.getTitle());
 		tab.getAD_Window_ID();
@@ -123,9 +138,19 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 		//Test to see if the current record is a mtm product.
 		//Get the c_orderline_id, find the product_id, check if the product_id is a mtm product
-		Object mtmAttribute;
+		StringBuilder sql_mtm = new StringBuilder("SELECT ismadetomeasure FROM m_product WHERE m_product_id = ?");
+		
+		String isMtm = "Y";
+		if(currProductId!=0)
+		{
+			isMtm = DB.getSQLValueString(null, sql_mtm.toString(), currProductId);
+		}
+		
 		String c_Order_line = Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true);
-		if (c_Order_line ==""){
+		String mtm_Order_line = Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true);
+		
+		if (c_Order_line =="" && mtm_Order_line=="")
+		{
 			FDialog.warn(tab.getWindowNo(), "There's no order line to specify options for.", "Warning");
 		}
 			else if(c_Order_line != "")
@@ -134,20 +159,23 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 				StringBuilder sql = new StringBuilder("SELECT m_product_id FROM c_orderline WHERE c_orderline_id = ");
 				sql.append(c_Order_line);
 				int m_Product = DB.getSQLValue(null, sql.toString());
+				currProductId = m_Product;
+			}
 				
-				StringBuilder sql_mtm = new StringBuilder("SELECT ismadetomeasure FROM m_product WHERE m_product_id = ?");
-				String isMtm = DB.getSQLValueString(null, sql_mtm.toString(), m_Product);
-				if (!isMtm.equals("Y"))
+			
+				if (c_Order_line == "" && isMtm!=null && !isMtm.equals("Y"))
 				{
 					FDialog.warn(tab.getWindowNo(), "There's no made to measure product to specify options for.", "Warning");
 				}
-				else //If not mtmproduction window, do below code - check if attributes already assigned
-				{
+			
+				//If not mtmproduction window, do below code - check if attributes already assigned
+				
 					
 					if(isMtmProdWindow&&currbldmtomitemlineID!=0)
 					{
 						MBLDMtomItemLine thisMtmLine = new MBLDMtomItemLine(Env.getCtx(), currbldmtomitemlineID, null);
 						mtmAttribute = thisMtmLine.getinstance_string();
+						currProductId = thisMtmLine.getM_Product_ID();
 					}
 					else
 					{
@@ -163,33 +191,40 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 					
 					if(mtmAttribute!=null && mtmAttribute.toString().contains("_"))
 					{
-						//Split the value of the mtm_attribute column, first value id fabric, second is chain
+						//Split the value of the mtm_attribute column, first value id fabric, second is chain, third is bottom bar
 						String[] products = mtmAttribute.toString().split("_");
 						
-						Matcher matcher = pattern.matcher(products[0]);
-					    boolean matches = matcher.matches();
-						if(matches)currentFabSelection = Integer.parseInt(products[0]);
-						if(products[0].length() != 7)currentFabSelection = 0;
+						if(products.length > 0)
+						{
+							Matcher matcher = pattern.matcher(products[0]);
+							boolean matches = matcher.matches();
+							if(matches)currentFabSelection = Integer.parseInt(products[0]);
+							if(products[0].length() != 7)currentFabSelection = 0;
+						}
 						
-						Matcher matcher1 = pattern.matcher(products[1]);
-					    boolean matches1 = matcher1.matches();
-						if(matches1)currentChainSelection = Integer.parseInt(products[1]);
-					}
-					
-					show();
-				}
-			}
-		
-		
+						if(products.length > 1)
+						{
+							Matcher matcher1 = pattern.matcher(products[1]);
+							boolean matches1 = matcher1.matches();
+							if(matches1)currentChainSelection = Integer.parseInt(products[1]);
+						}
+						
+						if(products.length > 2)
+						{
+							Matcher matcher2 = pattern.matcher(products[2]);
+							boolean matches2 = matcher2.matches();
+							if(matches2)currBottomBar = Integer.parseInt(products[2]);
+						}
+				}		
+	show();	
+	}
+	
 		/*If this returns "" then it fails the check. Should return 'M_Product_ID =1000010' or similar.
 		 * Possibly should check for just roller blind?
 		 * Maybe create a new category?
 		 *
-		 */
-		
-		
-	}
-	
+		 */		
+
 	public void show(){
 		
 		fabColour.getItems().clear();
@@ -197,6 +232,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabType.getItems().clear();
 		fabType.setEnabled(false);
 		chainList.getItems().clear();
+		bottomBar.getItems().clear();
 		try
 		{
 			chainList.setEnabled(false);
@@ -209,6 +245,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabFamily.setMold("select");
 		fabFamily.getItems().clear();
 		initFabFam();
+		setOptions(currProductId);
 		
 		if (blindConfig != null)blindConfig=null;
 		{	
@@ -272,14 +309,15 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		fabType.addEventListener(Events.ON_SELECT, this);
 		if(currentFabSelection == 0 && fabColourSelected == null)fabType.setVisible(false);//Don't show this Listbox until a fabric colour is selected. 
 		
-		//Add control Listbox
+		//Add bottom bar Listbox
 		Row row3 = new Row();
 		rows.appendChild(row3);
-		row3.appendChild(new Label("Control type:")); 
-		row3.appendChild(controlType);
-		ZKUpdateUtil.setHflex(controlType, "1");
-		controlType.addEventListener(Events.ON_SELECT, this);
-		
+		row3.appendChild(new Label("Bottom bar:")); 
+		row3.appendChild(bottomBar);
+		ZKUpdateUtil.setHflex(bottomBar, "1");
+		bottomBar.setMold("select");
+		bottomBar.addEventListener(Events.ON_SELECT, this);
+		initBottomBar();
 		
 		/*
 		 * Add chainFam Listbox
@@ -296,6 +334,11 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			chainList.addEventListener(Events.ON_SELECT, this);
 			initChains();
 		}
+		else
+		{
+			currentChainSelection = 0;
+			setCurrentSelection();
+		}
 		
 		
 		//Add confirm panel
@@ -309,6 +352,36 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		}
 	}
 	
+	private void initBottomBar() {
+		for(int x=0; x < bottomBar.getItemCount(); x++)
+		{
+			ListItem item = bottomBar.getItemAtIndex(x);
+			if(Integer.parseInt(item.getValue().toString()) == currBottomBar )
+			{
+				bottomBar.setSelectedItem(item);
+				break;
+			}
+		}
+
+	
+		if(currBottomBar == 0)//sets a default for bottom bar
+		{
+			bottomBar.setSelectedIndex(1);
+			ListItem li = bottomBar.getSelectedItem();
+			currBottomBar = Integer.parseInt(li.getValue().toString());
+		}
+			
+		if(bottomBarSelected != null)currBottomBar = Integer.parseInt(bottomBarSelected);	
+		if(currBottomBar != 0)
+		{
+			bottomBar.setSelectedIndex(1);//Sets the list with the value from the DB
+			bottomBarSelected = Integer.toString(currBottomBar);
+		}
+			
+	}
+		
+
+
 	private void loadFabColour(String m_Product_id)
 	{
 		StringBuilder sql = new StringBuilder();
@@ -337,7 +410,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 			if(count  == 1 && addCurrent)fabColour.appendItem(checkFab.getName(), checkFab.getID());//adds the current selection at index 1
 		
-			//Remove duplicfabColourSelectedates
+			//Remove duplicates
 				if (!dupCheck.contains(pair.getName())) fabColour.appendItem(pair.getName(), pair.getID());
 				dupCheck.add(pair.getName());
 				count++;
@@ -427,16 +500,17 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			fabFamilySelected = Integer.toString(currentFabSelection);
 		}
 		StringBuilder sql = new StringBuilder();
-		sql.append("SELECT mp.m_product_id, ma.value ");
+		sql.append("SELECT mp.m_product_id, mai.value ");
 		sql.append("FROM m_product mp ");
-		sql.append("INNER JOIN m_attributeinstance ma ");
-		sql.append("ON mp.m_attributesetinstance_id = ma.m_attributesetinstance_id ");
+		sql.append("JOIN m_attributeinstance mai ON mai.m_attributesetinstance_id = mp.m_attributesetinstance_id ");
+		sql.append("JOIN m_attribute ma ON ma.m_attribute_id = mai.m_attribute_id ");
 		sql.append("AND mp.name = (SELECT name FROM m_product WHERE m_product_id = ");
 		sql.append(fabFamilySelected);
 		sql.append(") ");
 		sql.append("AND mp.description = (SELECT description FROM m_product WHERE m_product_id = ");
 		sql.append(selectedColour);
 		sql.append(")");
+		sql.append("AND ma.name LIKE 'Fabric desc'");
 		
 		fabType.setMold("select");
 		KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql.toString(), true);
@@ -548,7 +622,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		}
 		else 
 		{
-			setCurrentSelection(currentFabSelection,currentChainSelection);
+			setCurrentSelection(currentFabSelection,currentChainSelection, currBottomBar);
 		}
 	}
 	
@@ -635,7 +709,15 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			ListItem li = chainList.getSelectedItem();
 			chainSelected = li.getValue();
 			
-			if (chainSelected != null)currentChainSelection = Integer.parseInt(chainSelected );
+			if(chainSelected != null)currentChainSelection = Integer.parseInt(chainSelected );
+			setOkButton();
+		}
+		else if(event.getTarget() == bottomBar)
+		{
+			bottomBarSelected = null;
+			ListItem li = bottomBar.getSelectedItem();
+			bottomBarSelected = li.getValue().toString();
+			if(bottomBarSelected != null)currBottomBar = Integer.parseInt(bottomBarSelected);
 			setOkButton();
 		}
 		
@@ -682,7 +764,12 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 	}
 	
-	private void setCurrentSelection(final int lastFabric, final int lastChain)
+	private void setCurrentSelection()
+	{
+		setCurrentSelection(currentFabSelection, currentChainSelection, currBottomBar);
+	}
+	
+	private void setCurrentSelection(final int lastFabric, final int lastChain, final int lastBottomBar)
 	{
 		//set the mtm_attribute column, but may need to get current contents then make new. Nah, just overwrite it.
 		//TODO: Modify to allow use in the context of mtmProduction window.
@@ -692,7 +779,8 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	        		StringBuilder replaceValue = new StringBuilder(Integer.toString(lastFabric));
 	        		replaceValue.append("_");
 	        		replaceValue.append(Integer.toString(lastChain));
-	        		String look = replaceValue.toString();
+	        		replaceValue.append("_");
+	        		replaceValue.append(currBottomBar);
 	        		
 	        		if(currbldmtomitemlineID != 0)//It's an mtmproductionline
 	        		{
@@ -707,7 +795,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	        			thisOrderLine.saveEx();
 	        		}
 	        	
-	        		System.out.println(look);
+	        		System.out.println(replaceValue.toString());
 	        
 	            }
 	      
@@ -716,32 +804,132 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	
 
 	
-	private boolean checkChainDrive()//TODO: Modify to suit 
+	private boolean checkChainDrive()
 	{
-		MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
-		int attInsID = thisOrderLine.getM_AttributeSetInstance_ID();
+		String description = null;
 		StringBuilder sql = new StringBuilder("SELECT description ");
 		sql.append("FROM m_attributesetinstance ");
 		sql.append("WHERE m_attributesetinstance_id = ?");
+		if(currOrderLine!=0)
+			{
+				MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
+				int attInsID = thisOrderLine.getM_AttributeSetInstance_ID();
+				//Get instance attribute for this lineitem.
+				description = DB.getSQLValueString(null, sql.toString(), attInsID);
+			}
+		else if(currbldmtomitemlineID!=0)
+			{
+				MBLDMtomItemLine mBLDMtomItemLine = new MBLDMtomItemLine(Env.getCtx(), currbldmtomitemlineID, null);
+				int attInsId = mBLDMtomItemLine.getattributesetinstance_id();
+				//Get instance attribute for this lineitem.
+				description = DB.getSQLValueString(null, sql.toString(), attInsId);
+			}
 		
-		//Get instance attribute for this lineitem.
-		String description = DB.getSQLValueString(null, sql.toString(), attInsID);
-		
-		String word = "chain";
+		String word = "Chain";
 		Boolean found;
 		found = description.contains(word);
 		System.out.println(description + found.toString());
 		
 		return found;
 	}
+	/**
+	 * Note that most of this method is not used; only the bottom bar ListBox is set up with this method.
+	 * Good code though, could be used in other areas.
+	 * @param m_product_id
+	 */
 	
 	private void setOptions(int m_product_id) 
 	{
-		/*DB.getRowSet(sql) or getKeynamePair()?
+		StringBuilder sql = new StringBuilder("SELECT mp.m_parttype_id, mp.m_product_id, mp.name ");
+		sql.append("FROM m_product mp INNER JOIN m_product_bom mpb ");
+		sql.append("ON mp.m_product_id = mpb.m_productbom_id ");
+		sql.append("AND mpb.m_product_id = ");
+		sql.append(m_product_id);
+		sql.append(" ORDER BY mp.m_parttype_id");
+		
+		ResultSet rs = DB.getRowSet(sql.toString());
+		System.out.println(rs.toString());
+			
+		List<String> mpName = new ArrayList<String>();
+		List<Integer> partIDs = new ArrayList<Integer>();
+		List<Integer> prodIDs = new ArrayList<Integer>();
+		
+		    try {
+				while (rs.next()) {
+					partIDs.add(rs.getInt(1));
+					prodIDs.add(rs.getInt(2));
+					mpName.add(rs.getString(3));
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		
+		Integer parts[] = partIDs.toArray(new Integer[(partIDs.size())]);
+		String names[] = mpName.toArray(new String[mpName.size()]);
+		Integer productIDs[] = prodIDs.toArray(new Integer[(prodIDs.size())]);
+		
+		String controlComp = "Tubular blind control";
+		String bBar = "Bottom bar";
+		String TNCM = "TNCM";
+		String rBracket = "Roller bracket";
+	
+		{
+			for(int i = 0; i < parts.length; i++) {
+	
+				X_M_PartType mPartType = new X_M_PartType(null, parts[i], null);
+				String partType = (String) mPartType.get_Value("name");
+				if(partType == null)
+				{
+					break;
+				}
+				else if(partType.equalsIgnoreCase(controlComp))
+				{
+					controlType.appendItem(names[i], productIDs[i]);
+				}
+				else if(partType.equalsIgnoreCase(bBar))
+				{
+					bottomBar.appendItem(names[i], productIDs[i]);
+				}
+				else if(partType.equalsIgnoreCase(TNCM))
+				{
+					TubularNCM.appendItem(names[i], productIDs[i]);
+				}
+				else if(partType.equalsIgnoreCase(rBracket))
+				{
+					rollerBracket.appendItem(names[i], productIDs[i]);
+				}
+				}
+			
+			
+		}
+		
+		
+		/*Get the type part that the 1st partid is.
+		 * 
+		 * Iterate through the 3 arrays while where still on the same partID
+		 * Create a keynamePair from the name and productid.
+		 * Append/make the appropriate ListBox items from the keynamepair
+		 * when the partID changes, repeat from beginning.
+		 * 
+		 * 
+		 * 
+		 * 
+		 * 
+		 * 
+		 * TODO:
+		 * Get Tubular Blind Control components
+		 * Get TNCM
+		 * Get Roller Bracket
+		 * Get Bottom Bar
+		 * 
+		 * 
+		 * DB.getRowSet(sql) or getKeynamePair()?
 		*Get BOM: SELECT mp.m_parttype_id, mp.m_product_id FROM m_product mp INNER JOIN m_product_bom mpb ON mp.m_product_id = mpb.m_productbom_id AND mpb.m_product_id = '1000010';
 		*or SELECT mp.name, mp.m_product_id, mp.m_parttype_id FROM m_product mp INNER JOIN m_product_bom mpb ON mp.m_product_id = mpb.m_productbom_id AND mpb.m_product_id = '1000010';
 		*Figure out which BOM items are: Chain, control, roller bracket, bottom bar, TNCM (tubular non control mech)
 		*/
+	
 	}
 }
 
