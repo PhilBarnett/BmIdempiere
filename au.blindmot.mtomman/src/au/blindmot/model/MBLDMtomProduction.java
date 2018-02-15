@@ -98,6 +98,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		setDescription(mOrder.getDescription());
 		setDatePromised(mOrder.getDatePromised());
 		setIsComplete(false);
+		setAD_Org_ID(mOrder.getAD_Org_ID());
 		mOrder_id = Corder_id;
 	}
 

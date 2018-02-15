@@ -113,6 +113,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		setName(orderLine.getName());
 		setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
 		setattributesetinstance_id(orderLine.getM_AttributeSetInstance_ID());
+		setLine(orderLine.getLine());
 		if(orderLine.get_Value("mtm_attribute")!=null)
 		{
 			setinstance_string(orderLine.get_Value("mtm_attribute").toString());
@@ -582,6 +583,13 @@ return false;
 	}
 	@Override
 	protected boolean beforeSave(boolean newRecord) {
+		if (getLine() == 0)
+		{
+			String sql = "SELECT COALESCE(MAX(Line),0)+10 FROM bld_mtom_item_line WHERE bld_mtom_item_line_id=?";
+			int ii = DB.getSQLValue (get_TrxName(), sql, getbld_mtom_item_line_ID());
+			setLine (ii);
+		}
+		
 		MProduct mProduct = new MProduct(p_ctx, getM_Product_ID(), get_TrxName());
 		if(mProduct.get_ValueAsBoolean("ismadetomeasure") && mProduct.isManufactured()) return true;
 		else return false;
@@ -591,4 +599,5 @@ return false;
 	public BigDecimal getProductionQty() {
 		return BigDecimal.ONE;
 	}
+	
 }

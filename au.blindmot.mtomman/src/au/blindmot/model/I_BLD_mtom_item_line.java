@@ -228,6 +228,19 @@ public interface I_BLD_mtom_item_line
 	/** Get isrework	  */
 	public boolean isrework();
 
+    /** Column name Line */
+    public static final String COLUMNNAME_Line = "Line";
+
+	/** Set Line No.
+	  * Unique line for this document
+	  */
+	public void setLine (int Line);
+
+	/** Get Line No.
+	  * Unique line for this document
+	  */
+	public int getLine();
+
     /** Column name location */
     public static final String COLUMNNAME_location = "location";
 

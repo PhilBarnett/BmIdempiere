@@ -33,12 +33,22 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private ArrayList<KeyNamePair> endCap = new ArrayList<KeyNamePair>();
 	private ArrayList<KeyNamePair> miscItem = new ArrayList<KeyNamePair>();
 	private String blindControlIns = null;
-	private String TNCMIns = null;
+	private String tNCMIns = null;
 	private String rollerBracketIns = null;
 	private String rollerBracketColIns = null;
 	private String mechColIns = null;
 	private String chainSafeIns = null;
 	boolean isChainControl = false;
+	
+	//Part types as must be entered in Product window
+	private static String CONTROL_COMP = "Tubular blind control";
+	private static String BOTTOM_BAR = "Bottom bar";
+	private static String NON_CONTROL_MECH = "TNCM";
+	private static String ROLLER_BRACKET = "Roller bracket";
+	private static String CHAIN_SAFE = "Chain Safe";
+	private static String CHAIN_ACC = "Chain accessory";
+	private static String ROLLER_TUBE = "Roller tube";
+	private static String END_CAP = "End Cap";
 	
 	//Various BOM parts to make the blind
 	private int controlBracketID = 0;
@@ -81,6 +91,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 			mInstance = attributePair[i].getInstance();
 			mInstanceValue = attributePair[i].getInstanceValue();
 			/*
+			 * TODO: Decide if the column 'location' in the mtmitem table will ever be used.
 			if(mInstance.equalsIgnoreCase("Location"))
 			{
 				if(mtmrolleritem.getlocation() == null || mtmrolleritem.getlocation().length()<1)
@@ -98,7 +109,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 			}	
 			else if(mInstance.equalsIgnoreCase("Blind non control mech"))
 			{
-				TNCMIns = mInstanceValue;
+				tNCMIns = mInstanceValue;
 			}
 			else if(mInstance.equalsIgnoreCase("Roller bracket"))
 			{
@@ -117,9 +128,39 @@ public class RollerBlind extends MadeToMeasureProduct {
 				chainSafeIns = mInstanceValue;
 			}
 		}
+		
+		addColoursToBracketsControls();
 		//mtmrolleritem.saveEx();
 	}
 	
+	//Handle colours
+	private void addColoursToBracketsControls() {
+		
+		//Add colour to the non control mech
+		if(mechColIns != null || mechColIns != "")
+		{
+			//Add colour to the non control mech
+			StringBuilder newtNCMIns = new StringBuilder(tNCMIns);
+			newtNCMIns.append(" " + mechColIns);
+			tNCMIns = newtNCMIns.toString();
+		}
+		
+		//Add colour to the brackets
+		if(rollerBracketColIns != null || rollerBracketColIns != "")
+		{
+			StringBuilder newrollerBracketIns = new StringBuilder(rollerBracketIns);
+			newrollerBracketIns.append(" " + rollerBracketColIns);
+			rollerBracketIns = newrollerBracketIns.toString();
+		}
+		
+		//Add colour to any chain control only if it's chain driven
+		if(isChainControl && (mechColIns != null || mechColIns != " "))
+		{
+			StringBuilder newblindControlIns = new StringBuilder(blindControlIns);
+			newblindControlIns.append(" " + mechColIns);
+			blindControlIns = newblindControlIns.toString();
+		}
+	}
 
 	@Override
 	/**
@@ -161,7 +202,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 				qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
 				qty.setScale(4, BigDecimal.ROUND_CEILING);
 				fabricQty = qty;
-				//addMBLDBomDerived(fabricID, qty , "Procesed with waste factor of: " + (qty.multiply(waste)));
+				
 			}
 		if(rollerTubeID !=0 )
 			{
@@ -293,14 +334,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		String names[] = mpName.toArray(new String[mpName.size()]);
 		Integer productIDs[] = prodIDs.toArray(new Integer[(prodIDs.size())]);
 		
-		String controlComp = "Tubular blind control";
-		String bBar = "Bottom bar";
-		String TNCM = "TNCM";
-		String rBracket = "Roller bracket";
-		String cSafe = "Chain Safe";
-		String cAcc = "Chain accessory";
-		String rTube = "Roller tube";
-		String eCap = "End Cap";
+	
 	
 		
 			for(int i = 0; i < parts.length; i++) {
@@ -312,35 +346,35 @@ public class RollerBlind extends MadeToMeasureProduct {
 				{
 					miscItem.add(new KeyNamePair(productIDs[i], names[i]));;
 				}
-				else if(partType.equalsIgnoreCase(controlComp))
+				else if(partType.equalsIgnoreCase(CONTROL_COMP))
 				{
 					controlType.add(new KeyNamePair(productIDs[i], names[i]));
 				}
-				else if(partType.equalsIgnoreCase(bBar))
+				else if(partType.equalsIgnoreCase(BOTTOM_BAR))
 				{
 					bottomBar.add(new KeyNamePair(productIDs[i], names[i]));
 				}
-				else if(partType.equalsIgnoreCase(TNCM))
+				else if(partType.equalsIgnoreCase(NON_CONTROL_MECH))
 				{
 					TubularNCM.add(new KeyNamePair(productIDs[i], names[i]));
 				}
-				else if(partType.equalsIgnoreCase(rBracket))
+				else if(partType.equalsIgnoreCase(ROLLER_BRACKET))
 				{
 					rollerBracket.add(new KeyNamePair(productIDs[i], names[i]));
 				}
-				else if(partType.equalsIgnoreCase(cSafe))
+				else if(partType.equalsIgnoreCase(CHAIN_SAFE))
 				{
 					chainSafe.add(new KeyNamePair(productIDs[i], names[i]));
 				}
-				else if(partType.equalsIgnoreCase(cAcc))
+				else if(partType.equalsIgnoreCase(CHAIN_ACC))
 				{
 					chainAcc.add(new KeyNamePair(productIDs[i], names[i]));
 				}
-				else if(partType.equalsIgnoreCase(rTube))
+				else if(partType.equalsIgnoreCase(ROLLER_TUBE))
 				{
 					rollerTube.add(new KeyNamePair(productIDs[i], names[i]));
 				}
-				else if(partType.equalsIgnoreCase(eCap))
+				else if(partType.equalsIgnoreCase(END_CAP))
 				{
 					endCap.add(new KeyNamePair(productIDs[i], names[i]));
 				}
@@ -416,7 +450,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		//TODO: Protocol must be bracket description contains: control(literal), colour(instance), type(instance) - dual, single extension etc.
 		
 			controlID = resolveComponents(controlType, blindControlIns);//Resolve controlID
-			nonControlID = resolveComponents(TubularNCM, TNCMIns);//Resolve nonControlID
+			nonControlID = resolveComponents(TubularNCM, tNCMIns);//Resolve nonControlID
 			//TODO: May need more logic to determine brackets as below 2 statement assign the same value.
 			nonControlBracketID = resolveComponents(rollerBracket, rollerBracketColIns, rollerBracketIns);//Resolve nonControlBracketID
 			controlBracketID = resolveComponents(rollerBracket, rollerBracketColIns, rollerBracketIns);//
@@ -516,11 +550,13 @@ public class RollerBlind extends MadeToMeasureProduct {
 			part_ID = partPair.getKey();
 			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, trxName);
 			partDescription = productToExamine.getDescription().toLowerCase();
-			
+			//TODO: Handle different colours in brackets and mechs.
 			if(instanceParse!=null)
 			{
+			System.out.println("partDescription.contains: " + partDescription + " contains " + instanceParse.toLowerCase() + " is " + partDescription.contains(instanceParse.toLowerCase()));
 				if(partDescription.contains(instanceParse.toLowerCase()))
 				{
+					System.out.println("----------------Part found description: " + partDescription + " Part_id: " + part_ID + " From the instance parse of: " + instanceParse.toLowerCase());
 					break;//part_ID should now contain the right MProductID
 				}
 			}

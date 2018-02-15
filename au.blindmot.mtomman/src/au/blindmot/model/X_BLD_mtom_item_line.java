@@ -31,7 +31,7 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20180106L;
+	private static final long serialVersionUID = 20180114L;
 
     /** Standard Constructor */
     public X_BLD_mtom_item_line (Properties ctx, int BLD_mtom_item_line_ID, String trxName)
@@ -44,6 +44,7 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 // @bld_mtom_production_ID@
 			setIsCreated (null);
 // N
+			setLine (0);
 			setM_Product_ID (0);
 			setValue (null);
         } */
@@ -330,6 +331,26 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 			return "Y".equals(oo);
 		}
 		return false;
+	}
+
+	/** Set Line No.
+		@param Line 
+		Unique line for this document
+	  */
+	public void setLine (int Line)
+	{
+		set_ValueNoCheck (COLUMNNAME_Line, Integer.valueOf(Line));
+	}
+
+	/** Get Line No.
+		@return Unique line for this document
+	  */
+	public int getLine () 
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_Line);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
 	}
 
 	/** Set Location.
