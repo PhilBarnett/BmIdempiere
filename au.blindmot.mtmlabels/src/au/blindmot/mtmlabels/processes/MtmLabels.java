@@ -1,6 +1,8 @@
 package au.blindmot.mtmlabels.processes;
 
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -18,6 +20,7 @@ import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
+import org.zkoss.zul.Filedownload;
 
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
@@ -55,6 +58,7 @@ public class MtmLabels extends SvrProcess{
 	@Override
 	protected void prepare() {
 		
+		log.warning("----------In prepare () au.blindmot.mtmlabels.processes.MtmLabels");
 		ProcessInfoParameter[] paras = getParameter();
 		for(ProcessInfoParameter para : paras)
 		{
@@ -87,6 +91,8 @@ public class MtmLabels extends SvrProcess{
 
 	@Override
 	protected String doIt() throws Exception {
+		
+		log.warning("----------In doIt() au.blindmot.mtmlabels.processes.MtmLabels");
 		// TODO Auto-generated method stub
 		/*What we want to do is:
 		 * Get the mtmProductionId
@@ -110,7 +116,7 @@ public class MtmLabels extends SvrProcess{
 		
 		MBLDMtomProduction mBLDMtomProduction = new MBLDMtomProduction(getCtx(), bLDMtomProduction_ID, get_TrxName());
 		MBLDMtomItemLine[] lines = mBLDMtomProduction.getLines();
-		StringBuilder outputFile = new StringBuilder();
+		StringBuilder outputStringBuilder = new StringBuilder();
 		StringBuilder label = new StringBuilder();
 		for(int numCopies = 0; numCopies < labelCopies; numCopies++)
 		{
@@ -135,7 +141,7 @@ public class MtmLabels extends SvrProcess{
 				label.append(PRINT_QUALITY);
 				label.append(END_FORMAT);
 				label.append("\n");
-				outputFile.append(label);
+				outputStringBuilder.append(label);
 				
 				if(!finishedItemOnly)
 				{
@@ -164,16 +170,35 @@ public class MtmLabels extends SvrProcess{
 							cutItems.append(PRINT_QUALITY);
 							cutItems.append(END_FORMAT);
 							cutItems.append("\n");
-							outputFile.append(cutItems);
+							outputStringBuilder.append(cutItems);
 						}
 					}
 				}
 			}
 		}
+		
+		String filenameForDownload = mBLDMtomProduction.getDocumentNo() + ".buz";
+		File tempFile = new File(filenameForDownload);
+		FileWriter fw = new FileWriter(tempFile);
+		fw.write(outputStringBuilder.toString());
+		processUI.download(tempFile);
+	
+		tempFile.deleteOnExit();
+		fw.flush();
+		fw.close();
+		
+		
+		
+		//TODO: Show dialog to user 
+		
+		
+		
+		
+		/*
 		BufferedWriter out = null;
 		try {
 			out = new BufferedWriter(new FileWriter(mBLDMtomProduction.getDocumentNo()+".buz"));
-			out.write(outputFile.toString());
+			out.write(outputStringBuilder.toString());
 		}
 		catch (IOException e)
 		{
@@ -183,7 +208,20 @@ public class MtmLabels extends SvrProcess{
 		{
 			out.close();
 		}
+		*/
 		
+		/*******************************************
+		tempFile = File.createTempFile(m_PaymentExport.getFilenamePrefix(), m_PaymentExport.getFilenameSuffix());
+		filenameForDownload = m_PaymentExport.getFilenamePrefix() + m_PaymentExport.getFilenameSuffix();
+		
+		no = m_PaymentExport.exportToFile(m_checks,(Boolean) fDepositBatch.getValue(),PaymentRule, tempFile, err);
+	}
+	
+	if (no >= 0) {
+		Filedownload.save(new FileInputStream(tempFile), m_PaymentExport.getContentType(), filenameForDownload);
+		FDialog.info(m_WindowNo, form, "Saved",
+				Msg.getMsg(Env.getCtx(), "NoOfLines") + "=" + no);
+*********************************************/
 		
 		
 		return null;
