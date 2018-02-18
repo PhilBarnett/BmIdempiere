@@ -137,6 +137,7 @@ public class MtmLabels extends SvrProcess{
 				label.append(addOrderDescription(mBLDMtomProduction.getDescription()));
 				label.append(addFabric(lines[i].getinstance_string()));
 				label.append(addLocation(lines[i]));
+				label.append(addProductname(lines[i].getM_Product_ID()));
 				label.append(addFinshedSize(lines[i]));
 				label.append(PRINT_QUALITY);
 				label.append(END_FORMAT);
@@ -186,44 +187,7 @@ public class MtmLabels extends SvrProcess{
 		tempFile.deleteOnExit();
 		fw.flush();
 		fw.close();
-		
-		
-		
-		//TODO: Show dialog to user 
-		
-		
-		
-		
-		/*
-		BufferedWriter out = null;
-		try {
-			out = new BufferedWriter(new FileWriter(mBLDMtomProduction.getDocumentNo()+".buz"));
-			out.write(outputStringBuilder.toString());
-		}
-		catch (IOException e)
-		{
-			System.out.println("Exception: " + e.getMessage());
-		}
-		finally
-		{
-			out.close();
-		}
-		*/
-		
-		/*******************************************
-		tempFile = File.createTempFile(m_PaymentExport.getFilenamePrefix(), m_PaymentExport.getFilenameSuffix());
-		filenameForDownload = m_PaymentExport.getFilenamePrefix() + m_PaymentExport.getFilenameSuffix();
-		
-		no = m_PaymentExport.exportToFile(m_checks,(Boolean) fDepositBatch.getValue(),PaymentRule, tempFile, err);
-	}
-	
-	if (no >= 0) {
-		Filedownload.save(new FileInputStream(tempFile), m_PaymentExport.getContentType(), filenameForDownload);
-		FDialog.info(m_WindowNo, form, "Saved",
-				Msg.getMsg(Env.getCtx(), "NoOfLines") + "=" + no);
-*********************************************/
-		
-		
+		log.warning("----------Finished au.blindmot.mtmlabels.processes.MtmLabels");
 		return null;
 	}
 	
@@ -287,7 +251,7 @@ public class MtmLabels extends SvrProcess{
 		String smallDesc = "";
 		if(description != null) 
 			{
-				smallDesc = description.substring(0, 12);
+				smallDesc = description.substring(0, 16);//Prevent description from overlapping other field,
 			}
 		StringBuilder desc = new StringBuilder();
 		desc.append(FIELD_ORIGIN + "20,95");
@@ -304,7 +268,7 @@ public class MtmLabels extends SvrProcess{
 		MProduct cutProduct = new MProduct(getCtx(), mProductID, get_TrxName());
 		String cutName =  cutProduct.getName();
 		StringBuilder nameToRet = new StringBuilder();
-		nameToRet.append(FIELD_ORIGIN + "20,135");
+		nameToRet.append(FIELD_ORIGIN + "220,95");
 		nameToRet.append(SCALABLE_FONT_ROTATION + "30,30");
 		nameToRet.append(CHANGE_INTERNAT_FONT + "13");
 		nameToRet.append(FORMAT_DATA);
