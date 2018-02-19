@@ -227,6 +227,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 
 	public void show(){
 		
+		fabColour.setMold("select");
 		fabColour.getItems().clear();
 		fabColour.setEnabled(false);
 		fabType.getItems().clear();

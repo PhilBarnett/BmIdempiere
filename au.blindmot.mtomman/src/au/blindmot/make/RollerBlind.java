@@ -622,7 +622,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		
 	}
 	
-	private void addBldMtomCuts(int mProductID, int width, int length, int height){
+	protected void addBldMtomCuts(int mProductID, int width, int length, int height){
 		BigDecimal bigWidth = new BigDecimal(width);
 		BigDecimal bigLength = new BigDecimal(length);
 		BigDecimal bigHeight = new BigDecimal(height);
@@ -638,17 +638,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		}
 		
 	}
-	public int getWaste(int mprodID) {
-		StringBuilder sql = new StringBuilder("SELECT ma.value FROM m_attributeinstance ma");
-		sql.append(" WHERE ma.m_attributesetinstance_id =");
-		sql.append(" (SELECT mp.m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
-		sql.append(mprodID + ")");
-		sql.append(" AND ma.m_attribute_id =");
-		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name LIKE'%aste%')");
-		int waste = 0;
-		waste = DB.getSQLValue(trxName, sql.toString());
-		return waste;
-	}
+
 	
 	 private String[] getInstanceArray() {
 		 

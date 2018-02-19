@@ -4,8 +4,7 @@ Bundle-Name: Mailbtn
 Bundle-SymbolicName: au.blindmot.mailbtn;singleton:=true
 Bundle-Version: 1.0.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
-Service-Component: OSGI-INF/*.xml,
- au.blindmot.mailbtn.action.mail.xml
+Service-Component: au.blindmot.mailbtn.action.mail.xml
 Import-Package: com.ibm.icu.util,
  com.itextpdf.text,
  javax.mail.internet;version="1.5.0",

@@ -9,6 +9,7 @@ import org.compiere.util.DB;
 import au.blindmot.make.AwningBlind;
 import au.blindmot.make.MadeToMeasureProduct;
 import au.blindmot.make.PanelGlide;
+import au.blindmot.make.Pelmet;
 import au.blindmot.make.RollerBlind;
 
 /**
@@ -42,6 +43,8 @@ public class BLDMtomMakeFactory {
 	      return new AwningBlind(mProduct_ID, mtom_item_line_id, trxnName);
 	    else if ( classification.equals("panel") )
 	      return new PanelGlide(mProduct_ID, mtom_item_line_id, trxnName);
+	    else if ( classification.equals("pelmet") )
+		      return new Pelmet(mProduct_ID, mtom_item_line_id, trxnName);
 
 	    return null;
 	  }

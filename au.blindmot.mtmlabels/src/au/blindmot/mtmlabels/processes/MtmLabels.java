@@ -193,7 +193,7 @@ public class MtmLabels extends SvrProcess{
 	
 	private String addBarcode(String barcode) {
 		StringBuilder bc = new StringBuilder();
-		bc.append(FIELD_ORIGIN + "506,20");
+		bc.append(FIELD_ORIGIN + "546,20");
 		bc.append(BARCODE_I20F5);
 		bc.append(SERIAL_START);
 		if(bc != null)bc.append(barcode);

@@ -1,14 +1,18 @@
 package au.blindmot.make;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import org.compiere.util.CLogger;
+import org.compiere.util.DB;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.util.Env;
+
+import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 
 /**
@@ -108,6 +112,23 @@ protected String trxName;
 	 */
 	public abstract void interpretMattributeSetInstance();
 	
+	protected void addBldMtomCuts(int mProductID, int width, int length, int height){
+		BigDecimal bigWidth = new BigDecimal(width);
+		BigDecimal bigLength = new BigDecimal(length);
+		BigDecimal bigHeight = new BigDecimal(height);
+		if(mProductID != 0)
+		{
+			MBLDMtomCuts cut = new MBLDMtomCuts(Env.getCtx(), 0, trxName);
+			cut.setWidth(bigWidth);
+			cut.setLength(bigLength);
+			cut.setHeight(bigHeight);
+			cut.setM_Product_ID(mProductID);
+			cut.setbld_mtom_item_line_ID(mtom_item_line_id);
+			cut.saveEx();
+		}
+		
+	}
+	
 	public AttributePair[] getMAttributeSetInstance() {
 		int mAttributeSetInstance_ID = mBLDMtomItemLine.getattributesetinstance_id();
 		MAttributeSetInstance mAttributeSetInstance = new MAttributeSetInstance(null, mAttributeSetInstance_ID, null);
@@ -181,6 +202,18 @@ protected String trxName;
 		 */
 		
 		
+	}
+	
+	public int getWaste(int mprodID) {
+		StringBuilder sql = new StringBuilder("SELECT ma.value FROM m_attributeinstance ma");
+		sql.append(" WHERE ma.m_attributesetinstance_id =");
+		sql.append(" (SELECT mp.m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
+		sql.append(mprodID + ")");
+		sql.append(" AND ma.m_attribute_id =");
+		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name LIKE'%aste%')");
+		int waste = 0;
+		waste = DB.getSQLValue(trxName, sql.toString());
+		return waste;
 	}
 	
 	/**

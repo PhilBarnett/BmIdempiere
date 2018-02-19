@@ -45,16 +45,18 @@ public class MtmCallouts implements IColumnCallout {
 				{
 					System.out.println("---------It's MASI column.");
 					BigDecimal l_by_w = hasLengthAndWidth((int)value).setScale(2, BigDecimal.ROUND_HALF_EVEN);
-					if(l_by_w != Env.ZERO)
+					if(l_by_w != Env.ZERO.setScale(2))
 					{
-						GridField[] fields = mTab.getFields();
-						for(int i=0; i<fields.length; i++)
+						setField(l_by_w, mTab);
+						return "";
+					}
+					if(l_by_w == Env.ZERO.setScale(2))//Check if it has length only
+					{
+						BigDecimal length = hasLength((int)value).setScale(2, BigDecimal.ROUND_HALF_EVEN);
+						if(length != Env.ZERO.setScale(2))
 						{
-							if(fields[i].getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_QtyEntered)) 
-								{
-									mTab.setValue(fields[i], l_by_w);
-									return "";
-								}
+							setField(length, mTab);
+							return "";
 						}
 					}
 					
@@ -111,6 +113,52 @@ public class MtmCallouts implements IColumnCallout {
 		}
 		return Env.ZERO;
 		
+	}
+	
+private BigDecimal hasLength(int masi_id) {
+		
+		StringBuilder sql = new StringBuilder("SELECT ma.name, mai.value ");
+		sql.append("FROM m_attribute ma ");
+		sql.append("JOIN m_attributeinstance mai ON mai.m_attribute_id = ma.m_attribute_id ");
+		sql.append("JOIN m_attributesetinstance masi ON masi.m_attributesetinstance_id = mai.m_attributesetinstance_id ");
+		sql.append("WHERE masi.m_attributesetinstance_id = ");
+		sql.append(masi_id);
+		sql.append(" AND (ma.name LIKE 'Width%');");
+		
+		RowSet rowset = DB.getRowSet(sql.toString());
+		int rowCount = 0;
+		int[] rowValues = new int[2];
+		
+		try{
+			while(rowset.next())
+			{
+				rowValues[rowCount] = rowset.getInt(2);
+				rowCount++;
+				
+				if(rowCount == 1 && rowValues[0] != 0)
+				{
+					BigDecimal width = new BigDecimal(rowValues[0]).setScale(2);
+					System.out.println("In MtmCallouts.hasLength, width is: " + width);
+					return width;
+				} 
+				
+			}
+		} catch (SQLException e){
+			log.severe("Could not get values from attributeinstance RowSet for width" + e.getMessage());
+			e.printStackTrace();
+		}
+		return Env.ZERO;
+		
+	}
+	private void setField(BigDecimal amount, GridTab mTab) {
+		GridField[] fields = mTab.getFields();
+		for(int i=0; i<fields.length; i++)
+		{
+			if(fields[i].getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_QtyEntered)) 
+				{
+					mTab.setValue(fields[i], amount);
+				}
+		}
 	}
 
 }

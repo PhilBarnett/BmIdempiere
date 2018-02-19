@@ -23,7 +23,7 @@ public class MtmUtils {
 		// TODO Auto-generated constructor stub
 	}
 
-	public String getBarcode(int table_id, int record_id) {
+	public static String getBarcode(int table_id, int record_id) {
 
 		String prefix = getBarcodePrefix(table_id);
 		if (prefix != null) {
@@ -34,7 +34,7 @@ public class MtmUtils {
 
 	}
 
-	private String getBarcodePrefix(int table_id) {
+	private static String getBarcodePrefix(int table_id) {
 
 		StringBuffer sql = new StringBuffer();
 		sql.append("SELECT name  ");

@@ -9,6 +9,7 @@ import java.util.logging.Level;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
+import org.compiere.process.DocumentEngine;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
@@ -66,18 +67,17 @@ public class MtmCreate extends SvrProcess {
 		//TODO: Show dialog with number of lines created and hyperlink to mtmproduction created.
 		MBLDMtomProduction mBLDMtomProduction = null;
 		if(checkOrderStatus())
+		{
+			if(checkMtmStatus())
 				{
-					if(checkMtmStatus())
-						{
-							mBLDMtomProduction = createNewMtmProduction();
-						}
-					else 
-						{
-							throw new AdempiereUserError("Production with c_order_id: " + C_Order_ID + " exists already");
-						}
-						
+					mBLDMtomProduction = createNewMtmProduction();
 				}
-		
+			else 
+				{
+					throw new AdempiereUserError("Production with c_order_id: " + C_Order_ID + " exists already");
+				}
+		}
+
 		
 		if(mBLDMtomProduction == null)return null;
 		
@@ -139,13 +139,11 @@ public class MtmCreate extends SvrProcess {
 	{
 		MBLDMtomProduction newMtm = new MBLDMtomProduction(getCtx(), null, get_TrxName(), C_Order_ID);
 		newMtm.save();
-		newMtm.prepareIt();
-		newMtm.setIsCreated("Y");
-		newMtm.save();
 		int newMtm_ID = newMtm.get_ID();
+		DocumentEngine engine = new DocumentEngine(newMtm, newMtm.getDocStatus());
+		engine.processIt(DocumentEngine.ACTION_Prepare, engine.getDocAction());
 		
-
-if(newMtm_ID != 0)return newMtm;
+		if(newMtm_ID != 0)return newMtm;
 		else return null;
 	}
 }
