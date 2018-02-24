@@ -13,6 +13,7 @@ import org.compiere.model.I_C_BankAccount;
 import org.compiere.model.I_C_PaySelection;
 import org.compiere.model.MClient;
 import org.compiere.model.MCurrency;
+import org.compiere.model.MOrg;
 import org.compiere.model.MPaySelectionCheck;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
@@ -50,9 +51,8 @@ public class ABAPaymentExport implements PaymentExport {
 	 * @see org.compiere.util.PaymentExport#exportToFile(org.compiere.model.MPaySelectionCheck[], java.io.File, java.lang.StringBuffer)
 	 * 
 	 * Put info from David ABA web here.
-	 * 1. Definitions
-
-
+	 * 
+1. Definitions
 Commonly used terms associated with file formatting and their definitions are as follows:
 
     Left justified - start input in the first character position of that field
@@ -74,26 +74,25 @@ Character Position	Field size	Field description	Specification
 75-80 	6	Date to be processed(i.e. the date transactions are released to all Financial Institutions)	Must be numeric in theformat of DDMMYY. Must be a valid date. Zero filled.
 81-120 	40	Blank	Must be blank filled.
 
-
-
 3. Detail Record ('1' record)
 Character Position	Field size	Field description 	Specification
 1 	1 	Record Type 1 	Must be '1'
-2-8 	7 	Bank/State/Branch Number 	Must be numeric with ahyphen in character position 5. Character positions 2 and 3 must equalvalid Financial Institution number. Character position 4 must equal avalid State number (0-9).
-9-17 	9 	Account number to becredited/debited 	Numeric, hyphens and blanksonly are valid. Must not contain all blanks or zeros. Leading zeros whichare part of a valid account number must be shown, e.g. 00-1234. Westpacrecommends that (except in the above example), ALL hyphens are edited out.Where account number exceeds nine characters, edit out hyphens. Rightjustified, blank filled.
+2-8 	7 	Bank/State/Branch Number 	Must be numeric with a hyphen in character position 5. Character positions 2 and 3 must equalvalid Financial Institution number. Character position 4 must equal avalid State number (0-9).
+9-17 	9 	Account number to be credited/debited 	Numeric, hyphens and blanksonly are valid. Must not contain all blanks or zeros. Leading zeros whichare part of a valid account number must be shown, e.g. 00-1234. Westpacrecommends that (except in the above example), ALL hyphens are edited out.Where account number exceeds nine characters, edit out hyphens. Rightjustified, blank filled.
 18 	1 	Indicator 	"N" -for new or variedBank(FI)/State/Branch number or name details, otherwise blank filled.Withholding Tax Indicators: "W" -dividend paid to a resident of a countrywhere a double tax agreement is in force. "X" -dividend paid to a residentof any other country. "Y" -interest paid to all non-residents The amountof withholding tax is to appear in character positions113-120. Note: Where withholding tax has been deducted the appropriateIndicator as shown above is to be used and will override the normalindicator.
-19-20 	2 	Transaction Code 	Must only be validindustry standard trancodes (see list). Only numeric valid.
+19-20 	2 	Transaction Code 	Must only be valid industry standard trancodes (see list). Only numeric valid.
 21-30 	10 	Amount 	Only numeric valid. Mustbe greater than zero. Shown in cents without punctuations. Rightjustified, zero filled. Unsigned.
 31-62 	32 	Title of Account to be	All coded character setvalid. Must not be all blanks.
 		credited/debited 	Left justified, blankfilled. Desirable format: - surname (period) blank
-			- given names with blankbetween each name
-63-80 	18 	Lodgement Reference 	All coded character setvalid. Reference as submitted by the User indicating details of the originof the entry e.g. Payroll number, invoice, contract number.
-			Left justified, blankfilled. Must not contain all blanks.
-81-96 (81-87) 	16	Trace Record (-BSB Numberin format XXX-XXX) 	Bank(FI)/State/Branch andaccount number of User to enable retracing of the entry to its source ifnecessary. Only numeric and hyphens valid. Character positions 81 & 82must equal a valid Financial Institution number. Character position 83must equal a valid State number (0-9). Character position 84 must be ahyphen.
-(88-96) 	9 	(-Account Number) 	Right justified, blankfilled.
-97-112 	16 	Name of Remitter 	Name of originator of theentry. This may vary from Name of the User. All coded character set valid.Must not contain all blanks. Left justified, blank filled.
-113-	8 	Amount of 	Numeric only valid. Showin cents without punctuation.
-120 		Withholding Tax 	Right justified, zerofilled. Unsigned.
+			- given names with blank between each name
+63-80 	18 	Lodgement Reference 	All coded character set valid. Reference as submitted by the User indicating details of the originof the entry e.g. Payroll number, invoice, contract number.
+			Left justified, blank filled. Must not contain all blanks.
+81-96 (81-87) 	16	Trace Record (-BSB Number in format XXX-XXX) 	Bank(FI)/State/Branch andaccount number of User to enable retracing of the entry to its source ifnecessary. Only numeric and hyphens valid. Character positions 81 & 82must equal a valid Financial Institution number. Character position 83must equal a valid State number (0-9). Character position 84 must be ahyphen.
+(88-96) 	9 	(-Account Number) 	Right justified, blank filled.
+97-112 	16 	Name of Remitter 	Name of originator of the entry. This may vary from Name of the User. All coded character set valid.Must not contain all blanks. Left justified, blank filled.
+
+113-	8 	Amount of 			Numeric only valid. Show in cents without punctuation.
+120 		Withholding Tax 	Right justified, zero filled. Unsigned.
 
 4. File Total Record ‘7’ (Trailer)
 Character Position	Field size	Field description 	Specification
@@ -133,7 +132,7 @@ Character Position	Field size	Field description 	Specification
 			//  Must be a file
 			if (file.isDirectory())
 			{
-				err.append("You can not write, the selected file is a directory - " + file.getAbsolutePath());
+				err.append("Selected file is a directory - can't write" + file.getAbsolutePath());
 				s_log.log(Level.SEVERE, err.toString());
 				return -1;
 			}
@@ -157,12 +156,33 @@ Character Position	Field size	Field description 	Specification
 
 				
 				StringBuilder msg = new StringBuilder();
-		
+				Split bsb for org
 				//StringBuffer msg=null;
 				
 				
 				MClient mClient = new MClient(Env.getCtx(),Env.getAD_Client_ID(Env.getCtx()),null);
-
+				int adOrgID = mClient.getAD_Org_ID();
+				
+				/*TODO:
+				 * Get Org bank details with adOrgID - sql query
+				 * SELECT ... FROM c_bankaccount ... AND paymentexportclass NOT NULL;
+				 * Create String (same for all detail lines) with org bank account name acc bsb for detail record
+				 * Split bsb for org
+				 * iterate through checks , getting BP bank info.
+				 * Split bsb for BP with hyphen in middle.
+				 * Use trans code 53	Pay
+				 * Get value of trans in cents
+				 * Get account name
+				 * Get lodgement ref from BP
+				 * 
+				 * Calculate Debit TotalAmount
+				 * Calculate Credit TotalAmount 
+				 * Calculate net TotalAmount - credit minus debit
+				 * 
+				 * Calculate number of payment records
+				 */
+				
+				
 				//delete from here
 				String MsgId="Message-xxxxx";
 				String CreationDate="2011-12-32T09:30:47.000Z";
@@ -186,6 +206,7 @@ Character Position	Field size	Field description 	Specification
 				MPaySelectionCheck firstCheque = checks[0];
 				I_C_PaySelection paySelection = firstCheque.getC_PaySelection();
 				
+				
 				MsgId = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(paySelection.getCreated());
 				
 				ExecutionDate = new SimpleDateFormat("DDMMYY").format(paySelection.getPayDate());
@@ -198,7 +219,8 @@ Character Position	Field size	Field description 	Specification
 				DbtrAcct_IBAN = cBankAccount.getIBAN();
 				DbtrAcct_BIC = cBankAccount.getC_Bank().getRoutingNo();
 				
-				msg.append(getHeader());
+				msg.append(getHeader(ExecutionDate));
+				
 				msg.append(iSEPA_Document_open());
 				msg.append(iSEPA_CstmrCdtTrfInitn_open());
 					msg.append(iSEPA_GrpHdr_open());
@@ -259,6 +281,7 @@ Character Position	Field size	Field description 	Specification
 						msg=msg.append(iSEPA_PmtInf_close());
 					msg=msg.append(iSEPA_CstmrCdtTrfInitn_close());
 				msg=msg.append(iSEPA_Document_close());
+				
 				// convert everthing to utf-8
 				//String msg_utf8 = new String(msg.toString().getBytes("UTF-8"), "ISO-8859-1");
 				//fw.write(iSEPA_ConvertSign(msg.toString()));
@@ -346,7 +369,7 @@ Character Position	Field size	Field description 	Specification
 	 */
 	private static String[] getBPartnerAccountInfo (int C_BPartner_ID)
 	{
-		String[] ba = new String[2];
+		String[] bankAccount = new String[2];
 /*** as1 changed to simplify account management
 		String sql = "select ba.accountno,b.routingno "
 					+"from c_bp_bankaccount ba,c_bank b "
@@ -369,12 +392,12 @@ Character Position	Field size	Field description 	Specification
 			//
 			if (rs.next())
 			{
-				ba[0] = rs.getString(1);
-				if (ba[0] == null)
-					ba[0] = "";
-				ba[1] = rs.getString(2);
-				if (ba[1] == null)
-					ba[1] = "";
+				bankAccount[0] = rs.getString(1);
+				if (bankAccount[0] == null)
+					bankAccount[0] = "";
+				bankAccount[1] = rs.getString(2);
+				if (bankAccount[1] == null)
+					bankAccount[1] = "";
 			}
 		}
 		catch (SQLException e)
@@ -387,7 +410,7 @@ Character Position	Field size	Field description 	Specification
 			rs = null;
 			pstmt = null;
 		}
-		return ba;
+		return bankAccount;
 	}   //  getBPartnerAccountInfo
 	
 	/**
