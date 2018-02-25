@@ -11,10 +11,11 @@ import java.util.logging.Level;
 
 import org.compiere.model.I_C_BankAccount;
 import org.compiere.model.I_C_PaySelection;
+import org.compiere.model.MBankAccount;
 import org.compiere.model.MClient;
 import org.compiere.model.MCurrency;
-import org.compiere.model.MOrg;
 import org.compiere.model.MPaySelectionCheck;
+import org.compiere.model.PO;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -45,6 +46,15 @@ public class ABAPaymentExport implements PaymentExport {
 	private static final int     BP_COUNTRY = 8;
 	/** BPartner Info Index for Reference No    */
 	private static final int     BP_REFNO = 9;
+	/** Client & BP bank columns					 */
+	private static final String CLIENT_BANK_BSB_COLUMN_NAME = "account_bsb";
+	private static final String BP_BANK_BSB_COLUMN_NAME = "account_bsb";
+	private static final String CLIENT_BANK_ACCOUNT_COLUMN_NAME = "account_name";
+	private static final String CLIENT_FIN_INS_COLUMN_NAME = "financial_institution";
+	private static final String CLIENT_BANK_ACCOUNT_NUMBER = "acount_number";
+	
+	private static final int WIDTH = 120;
+	
 
 	/*
 	 * (non-Javadoc)
@@ -113,20 +123,21 @@ Character Position	Field size	Field description 	Specification
 52	Family Allowance
 53	Pay
 54	Pension
-55	Allotment
+55	AllotmentCLIENT_BANK_BSB_COLUMN_NAME
 56	Dividend
-57	Debenture/Note Intereststring char
+57	Debenture/Note Interest string char
 	 * 
 	 * 
 	 */
 	
 	public int exportToFile (MPaySelectionCheck[] checks, File file, StringBuffer err) {
-		return exportToFile (checks, false, (String)null, file, err);
+		//return exportToFile (checks, false, (String)null, file, err);
+		//Delete above line once found to be unnecessary.
+		
 		
 		//Get client name, bank code, transaction date.
 		
 		
-			int xx=0;
 			if (checks == null || checks.length == 0)
 				return 0;
 			//  Must be a file
@@ -156,7 +167,7 @@ Character Position	Field size	Field description 	Specification
 
 				
 				StringBuilder msg = new StringBuilder();
-				Split bsb for org
+				//Split bsb for org;
 				//StringBuffer msg=null;
 				
 				
@@ -188,12 +199,10 @@ Character Position	Field size	Field description 	Specification
 				String CreationDate="2011-12-32T09:30:47.000Z";
 				int    NumberOfTransactions=0;
 				String InitiatorName=mClient.getName();
-					String PaymentInfoId="Payments";
 				BigDecimal CtrlSum = BigDecimal.valueOf(6554.23);
 				String ExecutionDate = "2011-12-31";
 				String Dbtr_Name = mClient.getName();
-				String DbtrAcct_IBAN = "IBAN_IBAN";
-				String DbtrAcct_BIC = "BICBIC";
+			
 				//To here?
 				
 				CtrlSum=BigDecimal.ZERO;
@@ -203,8 +212,10 @@ Character Position	Field size	Field description 	Specification
 					CtrlSum=CtrlSum.add(mpp.getPayAmt());
 					NumberOfTransactions++;
 				}
+				
 				MPaySelectionCheck firstCheque = checks[0];
 				I_C_PaySelection paySelection = firstCheque.getC_PaySelection();
+				
 				
 				
 				MsgId = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(paySelection.getCreated());
@@ -215,32 +226,16 @@ Character Position	Field size	Field description 	Specification
 									+new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis())
 									+".000Z";
 				
-				I_C_BankAccount cBankAccount =paySelection.getC_BankAccount();
-				DbtrAcct_IBAN = cBankAccount.getIBAN();
-				DbtrAcct_BIC = cBankAccount.getC_Bank().getRoutingNo();
+				I_C_BankAccount cBankAccount = paySelection.getC_BankAccount();
+				MBankAccount mBankAccount = (MBankAccount)cBankAccount;
+				String clientBSB = mBankAccount.get_ValueAsString(CLIENT_BANK_BSB_COLUMN_NAME);
+				String clientAccNum = mBankAccount.get_ValueAsString(CLIENT_BANK_ACCOUNT_NUMBER);
+				String clientBankName = mBankAccount.getName();
+				String clientFinIns = mBankAccount.get_ValueAsString(CLIENT_FIN_INS_COLUMN_NAME);
+						
 				
-				msg.append(getHeader(ExecutionDate));
+				msg.append(getHeader(clientBankName, clientFinIns, ExecutionDate));
 				
-				msg.append(iSEPA_Document_open());
-				msg.append(iSEPA_CstmrCdtTrfInitn_open());
-					msg.append(iSEPA_GrpHdr_open());
-						msg.append(iSEPA_MsgId(iSEPA_ConvertSign(MsgId)));
-						msg.append(iSEPA_CreDtTm(iSEPA_ConvertSign(CreationDate)));
-						msg.append(iSEPA_NbOfTxs(NumberOfTransactions));
-						msg.append(iSEPA_InitgPty(iSEPA_ConvertSign(InitiatorName)));
-					msg.append(iSEPA_GrpHdr_close());
-					msg.append(iSEPA_PmtInf_open());
-						msg.append(iSEPA_PmtInfId(iSEPA_ConvertSign(PaymentInfoId)));
-						msg.append(iSEPA_PmtMtd());
-						msg.append(iSEPA_BtchBookg());
-						msg.append(iSEPA_NbOfTxs(NumberOfTransactions));
-						msg.append(iSEPA_CtrlSum(CtrlSum));
-						msg.append(iSEPA_PmtTpInf());
-						msg.append(iSEPA_ReqdExctnDt(iSEPA_ConvertSign(ExecutionDate)));
-						msg.append(iSEPA_DbtrNm(iSEPA_ConvertSign(Dbtr_Name)));
-						msg.append(iSEPA_DbtrAcctIBAN(iSEPA_ConvertSign(DbtrAcct_IBAN)));
-						msg.append(iSEPA_DbtrAgtFinInstnIdBIC(iSEPA_ConvertSign(DbtrAcct_BIC)));
-						msg.append(iSEPA_ChrgBr());
 						
 						for (int i = 0; i < checks.length; i++)
 						{
@@ -268,19 +263,19 @@ Character Position	Field size	Field description 	Specification
 							CdtrAcct_BIC = ba[1];
 							
 							//trx iteration
-							msg=msg.append(iSEPA_CdtTrfTxInf_open());
+							/*
+							 *msg=msg.append(iSEPA_CdtTrfTxInf_open());
 								msg=msg.append(iSEPA_PmtId(iSEPA_ConvertSign(PmtId)));
 								msg=msg.append(iSEPA_AmtInstdAmt(MCurrency.getISO_Code(Env.getCtx(), mPaySelectionCheck.getParent().getC_Currency_ID()),String.valueOf(mPaySelectionCheck.getPayAmt())));
 								msg=msg.append(iSEPA_CdtrAgtFinInstnIdBIC(iSEPA_ConvertSign(CdtrAcct_BIC)));
 								msg=msg.append(iSEPA_CdtrNm(iSEPA_ConvertSign(CreditorName)));
 								msg=msg.append(iSEPA_CdtrAcctIBAN(iSEPA_ConvertSign(CdtrAcct_IBAN)));
 							msg=msg.append(iSEPA_CdtTrfTxInf_close());
+							*/
 						}
 						
 						
-						msg=msg.append(iSEPA_PmtInf_close());
-					msg=msg.append(iSEPA_CstmrCdtTrfInitn_close());
-				msg=msg.append(iSEPA_Document_close());
+				msg.append(getTrailer(CtrlSum, CtrlSum, BigDecimal.ZERO, NumberOfTransactions));
 				
 				// convert everthing to utf-8
 				//String msg_utf8 = new String(msg.toString().getBytes("UTF-8"), "ISO-8859-1");
@@ -301,9 +296,16 @@ Character Position	Field size	Field description 	Specification
 			return noLines;
 		}   //  exportToFile
 
-	public String getHeader(String bankAccName, String exDate) {
+	/**
+	 * getHeader - first line of ABA file
+	 * @param bankAccName
+	 * @param bankCode
+	 * @param exDate
+	 * @return
+	 */
+	public String getHeader(String bankAccName, String bankCode, String exDate) {
 		StringBuilder header = new StringBuilder();
-		header.setLength(120);
+		header.setLength(WIDTH);
 		header.insert(0, "0");
 		
 		//blank fill 2-18
@@ -316,7 +318,7 @@ Character Position	Field size	Field description 	Specification
 		header.insert(18, "01");
 		
 		//TODO: create DB column for bank code
-		header.insert(18, "01");
+		header.insert(18, bankCode);
 		
 		//blank fill 24-30
 		for(int i = 23; i < 29; i++)
@@ -345,17 +347,157 @@ Character Position	Field size	Field description 	Specification
 		
 		//insert execution date DDMMYY
 		header.insert(74, exDate);
-		for(int i = 80; i < 120; i++)
+		for(int i = 80; i < WIDTH; i++)
 		{
 			header.insert(i, " ");
 		}
-		header.insert(120, "\n");
+		header.insert(WIDTH, "\n");
 		
 		return header.toString();
 		
 		
 	}
+	
+	public String getdetailRecord
+	(		String bpBSB,
+			String bpAccountNum,
+			BigDecimal amount,
+			String bpAccountName,
+			String lodgementRef) {
+		StringBuilder detail = new StringBuilder();
+		detail.setLength(WIDTH);
+		detail.insert(0, "1");	
+		
+		detail.insert(1, bpBSB);//Note: BSB to preformatted to 999-999
+		
+		StringBuilder accountNum = new StringBuilder(bpAccountNum);
+		int length = accountNum.length();
+		int insertPos = 17 - length;
+		detail.insert(insertPos, accountNum.toString());
+		for(int i = 8; i < insertPos; i++)
+		{
+			detail.insert(i, " ");
+		}
+		
+		detail.insert(17, " ");
+		detail.insert(18, "53");
+		
+		//Amount. Rightjustified, zero filled. Unsigned. 
+		BigDecimal amountInCents = amount.divide(Env.ONEHUNDRED);
+		StringBuilder newAmount = new StringBuilder(amountInCents.toString());
+		int amLength = newAmount.length();
+		int insertPos1 = 30 - amLength;
+		detail.insert(insertPos1, newAmount.toString());
+		for(int i = 20; i < insertPos1; i++)
+		{
+			detail.insert(i, "0");
+		}
+		
+		//Account name. Left justified, blank filled.
+		int bpaccNameLen = bpAccountName.length();
+		if(bpaccNameLen > 32)//Chop if larger than 32
+		{
+			bpAccountName = bpAccountName.substring(0, 31);
+		}
+		detail.insert(30, bpAccountName);
+		for(int j = (30+bpAccountName.length()); j < 62; j++)
+		{
+			detail.insert(j, " ");
+		}
+		 //Lodgement reference, Left justified, blankfilled.
+		int lodgeRefLen = lodgementRef.length();
+		if(lodgeRefLen > 18)//Chop if larger than 32
+		{
+			lodgementRef = lodgementRef.substring(0, 17);
+		}
+		detail.insert(62, lodgementRef);
+		for(int j = (62+lodgementRef.length()); j < 80; j++)
+		{
+			detail.insert(j, " ");
+		}
+		
+		//Next part looks like 062-318 104287015TH PLANET PTY L00000000
+		//TODO: Add trace record
+		//TODO: Add client acc no
+		//TODO; Add client account name
+		//TODO: add 'L00000000'
+		
+		return null;
+		
+	}
+	
 
+	/**
+	 * getTrailer - the last line of ABA file
+	 * @param netTotal
+	 * @param crTotal
+	 * @param dbTotal
+	 * @param count
+	 * @return
+	 */
+	public String getTrailer(BigDecimal netTotal, BigDecimal crTotal, BigDecimal dbTotal, int count) {
+		StringBuilder trailer = new StringBuilder();
+		trailer.setLength(WIDTH);
+		
+		trailer.insert(0, "7999-999");
+		
+		for(int i = 8; i < 20; i++)
+		{
+			trailer.insert(i, " ");
+		}
+		
+		//Net total. Show in cents without punctuation. Right justified, zero filled. Unsigned.
+		//TODO: get netTotal in cents. Is it int? BigDecimal?
+		StringBuilder nTotal = new StringBuilder (netTotal.toString());
+		int length = nTotal.length();
+		int insertPos = 30 - length;
+		trailer.insert(insertPos, nTotal.toString());
+		for(int i = 20; i < insertPos; i++)
+		{
+			trailer.insert(i, " ");
+		}
+		
+		//Credit total. Mustequal the accumulated total of credit Detail Record amounts.
+		StringBuilder cTotal = new StringBuilder (crTotal.toString());
+		int length1 = cTotal.length();
+		int insertPos1 = 40 - length1;
+		trailer.insert(insertPos1, cTotal.toString());
+		for(int i = 30; i < insertPos1; i++)
+		{
+			trailer.insert(i, "0");
+		}
+		
+		//Debit total. Numeric only valid. Mustequal the accumulated total of debit Detail Record amounts.
+		StringBuilder dTotal = new StringBuilder (dbTotal.toString());
+		int length2 = dTotal.length();
+		int insertPos2 = 50 - length2;
+		trailer.insert(insertPos2, dTotal.toString());
+		for(int i = 40; i < insertPos1; i++)
+		{
+			trailer.insert(i, "0");
+		}
+		
+		for(int i = 50; i < 74; i++)
+		{
+			trailer.insert(i, "0");
+		}
+		
+		StringBuilder reCount = new StringBuilder(count);
+		int length3 = reCount.length();
+		int insertPos3 = 80 - length3;
+		trailer.insert(insertPos3, reCount.toString());
+		for(int i = 75; i < insertPos3; i++)
+		{
+			trailer.insert(i, "0");
+		}
+		
+		for(int i = 81; i < WIDTH; i++)
+		{
+			trailer.insert(i, " ");
+		}
+		
+		return trailer.toString();
+	}
 
 	public String getFilenameSuffix() {
 		return ".aba";
