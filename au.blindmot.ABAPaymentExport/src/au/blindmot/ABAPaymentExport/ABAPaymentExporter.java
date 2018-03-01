@@ -15,16 +15,16 @@ import org.compiere.model.MBankAccount;
 import org.compiere.model.MClient;
 import org.compiere.model.MCurrency;
 import org.compiere.model.MPaySelectionCheck;
-import org.compiere.model.PO;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.PaymentExport;
 
-public class ABAPaymentExport implements PaymentExport {
+public class ABAPaymentExporter implements PaymentExport {
 	
 	/** Logger								*/
-	static private CLogger	s_log = CLogger.getCLogger (ABAPaymentExport.class);
+	static private CLogger	s_log = CLogger.getCLogger (ABAPaymentExporter.class);
 	
 	/** BPartner Info Index for Value       */
 	private static final int     BP_VALUE = 0;
@@ -48,7 +48,8 @@ public class ABAPaymentExport implements PaymentExport {
 	private static final int     BP_REFNO = 9;
 	/** Client & BP bank columns					 */
 	private static final String CLIENT_BANK_BSB_COLUMN_NAME = "account_bsb";
-	private static final String BP_BANK_BSB_COLUMN_NAME = "account_bsb";
+	private static final String BP_BANK_BSB_COLUMN_NAME = "accountbsb";
+	private static final String BP_BANK_LODGE_REF = "lodgement_reference";
 	private static final String CLIENT_BANK_ACCOUNT_COLUMN_NAME = "account_name";
 	private static final String CLIENT_FIN_INS_COLUMN_NAME = "financial_institution";
 	private static final String CLIENT_BANK_ACCOUNT_NUMBER = "acount_number";
@@ -135,7 +136,7 @@ Character Position	Field size	Field description 	Specification
 		//Delete above line once found to be unnecessary.
 		
 		
-		//Get client name, bank code, transaction date.
+		//Get client name, bank code, trCLIENT_BANK_BSB_COLUMN_NAMEansaction date.
 		
 		
 			if (checks == null || checks.length == 0)
@@ -216,8 +217,6 @@ Character Position	Field size	Field description 	Specification
 				MPaySelectionCheck firstCheque = checks[0];
 				I_C_PaySelection paySelection = firstCheque.getC_PaySelection();
 				
-				
-				
 				MsgId = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(paySelection.getCreated());
 				
 				ExecutionDate = new SimpleDateFormat("DDMMYY").format(paySelection.getPayDate());
@@ -239,47 +238,53 @@ Character Position	Field size	Field description 	Specification
 						
 						for (int i = 0; i < checks.length; i++)
 						{
+							String bpBSB = null;
+							String bpAccountNum = null;
+							BigDecimal amount = null;
+							String bpAccountName = null;
+							String lodgementRef = null;
 							MPaySelectionCheck mPaySelectionCheck = checks[i];
 
 							if (mPaySelectionCheck == null)
 								continue;
-							mPaySelectionCheck.getC_BPartner_ID();
-							mPaySelectionCheck.getDocumentNo();
-							mPaySelectionCheck.isProcessed();
 							String PmtId=String.valueOf(mClient.getAD_Client_ID())+"-"+String.valueOf(mPaySelectionCheck.get_ID());
 							//"OriginatorID1235";
-							String Ccy="EUR";
 							BigDecimal Amount=BigDecimal.ZERO;
 							String AmountAsString ="";
-							AmountAsString = String.valueOf(Amount);
-							String CreditorName="aaaaaaaaa";
-							String CdtrAcct_BIC="cdtr bic";
-							String CdtrAcct_IBAN="cdtr iban";
+					
 							
 							String bp[] = getBPartnerInfo(mPaySelectionCheck.getC_BPartner_ID());
-							CreditorName = bp[BP_NAME];
 							String ba[] = getBPartnerAccountInfo(mPaySelectionCheck.getC_BPartner_ID());
-							CdtrAcct_IBAN = ba[0];
-							CdtrAcct_BIC = ba[1];
+							//[0]=accnum,[1]=bsb,[2]=lodge ref,[3]=accname
+							bpAccountNum = ba[0];
+							bpBSB = ba[1];
+							lodgementRef = ba[2];
+							bpAccountName = ba[3];
 							
-							//trx iteration
-							/*
-							 *msg=msg.append(iSEPA_CdtTrfTxInf_open());
-								msg=msg.append(iSEPA_PmtId(iSEPA_ConvertSign(PmtId)));
-								msg=msg.append(iSEPA_AmtInstdAmt(MCurrency.getISO_Code(Env.getCtx(), mPaySelectionCheck.getParent().getC_Currency_ID()),String.valueOf(mPaySelectionCheck.getPayAmt())));
-								msg=msg.append(iSEPA_CdtrAgtFinInstnIdBIC(iSEPA_ConvertSign(CdtrAcct_BIC)));
-								msg=msg.append(iSEPA_CdtrNm(iSEPA_ConvertSign(CreditorName)));
-								msg=msg.append(iSEPA_CdtrAcctIBAN(iSEPA_ConvertSign(CdtrAcct_IBAN)));
-							msg=msg.append(iSEPA_CdtTrfTxInf_close());
-							*/
-						}
+							Amount = mPaySelectionCheck.getPayAmt();
+							AmountAsString = String.valueOf(Amount);
+							
+							String currency = MCurrency.getISO_Code(Env.getCtx(), mPaySelectionCheck.getParent().getC_Currency_ID());
+							System.out.println("Currency is: " + currency);
+							//if(currency != "AUD") throw new AdempiereUserError("ERROR! Currency must be $AU");
+							
+							
+							msg.append(getdetailRecord
+							(		splitBSB(bpBSB),
+									bpAccountNum,
+									Amount,
+									bpAccountName,
+									lodgementRef,
+									splitBSB(clientBSB),
+									clientAccNum,
+									clientBankName
+							));
+		
+						} 
 						
 						
 				msg.append(getTrailer(CtrlSum, CtrlSum, BigDecimal.ZERO, NumberOfTransactions));
 				
-				// convert everthing to utf-8
-				//String msg_utf8 = new String(msg.toString().getBytes("UTF-8"), "ISO-8859-1");
-				//fw.write(iSEPA_ConvertSign(msg.toString()));
 				fw.write(msg.toString());
 
 				fw.flush();
@@ -363,7 +368,10 @@ Character Position	Field size	Field description 	Specification
 			String bpAccountNum,
 			BigDecimal amount,
 			String bpAccountName,
-			String lodgementRef) {
+			String lodgementRef,
+			String clientBSB,
+			String clientAccNum,
+			String clientAccName) {
 		StringBuilder detail = new StringBuilder();
 		detail.setLength(WIDTH);
 		detail.insert(0, "1");	
@@ -404,6 +412,7 @@ Character Position	Field size	Field description 	Specification
 		{
 			detail.insert(j, " ");
 		}
+		
 		 //Lodgement reference, Left justified, blankfilled.
 		int lodgeRefLen = lodgementRef.length();
 		if(lodgeRefLen > 18)//Chop if larger than 32
@@ -416,13 +425,31 @@ Character Position	Field size	Field description 	Specification
 			detail.insert(j, " ");
 		}
 		
-		//Next part looks like 062-318 104287015TH PLANET PTY L00000000
-		//TODO: Add trace record
-		//TODO: Add client acc no
-		//TODO; Add client account name
-		//TODO: add 'L00000000'
+		//Note: BSB to preformatted to 999-999
+		detail.insert(80, clientBSB);
 		
-		return null;
+		int clientAccNumLen = clientAccNum.length();
+		int insertpos = 95 - clientAccNumLen;
+		detail.insert(insertpos, clientAccNum);
+		for(int j = (88 +insertpos); j < 62; j++)
+		{
+			detail.insert(j, " ");
+		}
+		
+		int clientaccNameLen = clientAccName.length();
+		if(clientaccNameLen > 32)//Chop if larger than 32
+		{
+			clientAccName = clientAccName.substring(0, 31);
+		}
+		int insertpos1 = 112 - clientAccName.length();
+		detail.insert(insertpos1, clientAccName);
+		for(int j = 96; j < 112 - insertpos1; j++)
+		{
+			detail.insert(j, " ");
+		}
+		
+		detail.insert(87, "L00000000");
+		return detail.toString();
 		
 	}
 	
@@ -506,12 +533,12 @@ Character Position	Field size	Field description 	Specification
 	/**
 	 *  Get Vendor/Customer Bank Account Information
 	 *  Based on BP_ static variables
-	 *  @param C_BPartner_ID BPartner
+	 *  @param C_BPartner_ID BPartnersplitBSB(String bsb
 	 *  @return info array
 	 */
 	private static String[] getBPartnerAccountInfo (int C_BPartner_ID)
 	{
-		String[] bankAccount = new String[2];
+		String[] bankAccount = new String[4];
 /*** as1 changed to simplify account management
 		String sql = "select ba.accountno,b.routingno "
 					+"from c_bp_bankaccount ba,c_bank b "
@@ -519,16 +546,19 @@ Character Position	Field size	Field description 	Specification
 					+"and ba.c_bank_id = b.c_bank_id " 
 					;
 ****/	
-		String sql = "select ba.accountno,ba.routingno "
-				+"from c_bp_bankaccount ba "
-				+"where ba.c_bpartner_id=? "
-				;
+		//[0]=accnum,[1]=bsb,[2]=lodge ref,[3]=accname
+		StringBuilder sql = new StringBuilder ("select ba.accountno, ");
+			sql.append("ba." + BP_BANK_BSB_COLUMN_NAME + ", ");
+			sql.append("ba." + BP_BANK_LODGE_REF + ", ");
+			sql.append("ba.a_name, ");
+			sql.append("from c_bp_bankaccount ba ");
+			sql.append("where ba.c_bpartner_id=? ");
 		
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try
 		{
-			pstmt = DB.prepareStatement(sql, null);
+			pstmt = DB.prepareStatement(sql.toString(), null);
 			pstmt.setInt(1, C_BPartner_ID);
 			rs = pstmt.executeQuery();
 			//
@@ -540,11 +570,17 @@ Character Position	Field size	Field description 	Specification
 				bankAccount[1] = rs.getString(2);
 				if (bankAccount[1] == null)
 					bankAccount[1] = "";
+				bankAccount[2] = rs.getString(3);
+				if (bankAccount[2] == null)
+					bankAccount[2] = "";
+				bankAccount[3] = rs.getString(4);
+				if (bankAccount[3] == null)
+					bankAccount[3] = "";
 			}
 		}
 		catch (SQLException e)
 		{
-			s_log.log(Level.SEVERE, sql, e);
+			s_log.log(Level.SEVERE, sql.toString(), e);
 		}
 		finally
 		{
@@ -630,4 +666,10 @@ Character Position	Field size	Field description 	Specification
 		}
 		return bp;
 	}   //  getBPartnerInfo
+	
+	public String splitBSB(String bsb) {
+		StringBuilder splitBSB = new StringBuilder(bsb);
+		splitBSB.insert(2, "-");
+		return splitBSB.toString();
+	}
 }
