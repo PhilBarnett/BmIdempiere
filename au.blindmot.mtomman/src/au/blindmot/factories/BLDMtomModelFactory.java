@@ -11,7 +11,6 @@ import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
-import au.blindmot.model.MProductionLine_BldMtoM;
 
 public class BLDMtomModelFactory implements IModelFactory {
 
