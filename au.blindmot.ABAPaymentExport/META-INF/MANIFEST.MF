@@ -6,6 +6,7 @@ Bundle-Version: 1.0.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Require-Bundle: org.adempiere.plugin.utils;bundle-version="4.1.0",
  org.adempiere.base;bundle-version="4.1.0"
-Service-Component: abapaymentexporterfactory.xml,
- OSGI-INF/abapaymentexporterfactory.xml
+Service-Component: OSGI-INF/abapaymentexporterfactory.xml
 Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
+Export-Package: au.blindmot.ABAPaymentExport,
+ au.blindmot.ABAPaymentExportFactory
