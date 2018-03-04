@@ -24,13 +24,12 @@ import org.compiere.model.MWindow;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.Env;
+import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 
 import za.co.ntier.common.NTierStringUtils;
 import za.co.ntier.model.MMatchSetup;
 import za.co.ntier.nbsm.NBSM_Common;
-import org.zkoss.zk.ui.event.Event;
-
 
 /**
  */
