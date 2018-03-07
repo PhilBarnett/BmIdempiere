@@ -22,13 +22,9 @@ public class MtmCallouts implements IColumnCallout {
 	
 	@Override
 	public String start(Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value, Object oldValue) {
-		
-		//TODO: check for nulls
+	
 		log.warning("----------In MtmCallouts.start(): " + mField.getColumnName());
 		if(value == null || oldValue == null) return"";
-		//log.warning("New value: "+ value.toString());
-		//log.warning("Old value: "+ oldValue.toString());
-		
 		if(mTab == null) return "";
 		
 		int mProductID = (int) mTab.getValue(MOrderLine.COLUMNNAME_M_Product_ID);
@@ -64,16 +60,9 @@ public class MtmCallouts implements IColumnCallout {
 			}
 		}
 		
-		
-	
 		//If it has length and width
-		
 		//Then calculate the m^2 and 
-		
-		//Check if the field exists then set the quantity field with the result.
-		
-		
-		
+		//Check if the field exists then set the quantity field with the result.'Made to measure' check box in the 
 		return "";
 	}
 	
