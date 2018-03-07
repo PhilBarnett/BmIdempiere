@@ -352,13 +352,7 @@ public class ABAPaymentExporter implements PaymentExport {
 	private static String[] getBPartnerAccountInfo (int C_BPartner_ID)
 	{
 		String[] bankAccount = new String[4];
-/*** as1 changed to simplify account management
-		String sql = "select ba.accountno,b.routingno "
-					+"from c_bp_bankaccount ba,c_bank b "
-					+"where ba.c_bpartner_id=? "
-					+"and ba.c_bank_id = b.c_bank_id " 
-					;
-****/	
+
 		//[0]=accnum,[1]=bsb,[2]=lodge ref,[3]=accname
 		StringBuilder sql = new StringBuilder ("select ba.accountno, ");
 			sql.append("ba." + BP_BANK_BSB_COLUMN_NAME + ", ");
