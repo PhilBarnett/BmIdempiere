@@ -3,7 +3,6 @@ package au.blindmot.factories;
 import java.sql.ResultSet;
 
 import org.adempiere.base.IModelFactory;
-import org.compiere.model.MProductionLine;
 import org.compiere.model.PO;
 import org.compiere.util.Env;
 

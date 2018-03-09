@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Mtomman
-Bundle-SymbolicName: au.blindmot.mtomman
+Bundle-SymbolicName: au.blindmot.mtomman;singleton:=true
 Bundle-Version: 1.0.0.qualifier
 Bundle-Vendor: Blindmotion
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
@@ -20,5 +20,6 @@ Service-Component: OSGI-INF/ModelFactory.xml,OSGI-INF/DocFactory.xml,
  OSGI-INF/EventHandler.xml
 Export-Package: au.blindmot.model,
  au.blindmot.utils
+Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 
 
