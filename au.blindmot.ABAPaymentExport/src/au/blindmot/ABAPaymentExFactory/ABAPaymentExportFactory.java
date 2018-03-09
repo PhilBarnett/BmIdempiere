@@ -1,4 +1,4 @@
-package au.blindmot.ABAPaymentExportFactory;
+package au.blindmot.ABAPaymentExFactory;
 
 import org.adempiere.base.IPaymentExporterFactory;
 import org.compiere.util.CLogger;
