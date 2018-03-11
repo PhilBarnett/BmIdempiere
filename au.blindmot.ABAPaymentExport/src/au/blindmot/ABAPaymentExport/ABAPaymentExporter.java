@@ -48,6 +48,8 @@ public class ABAPaymentExporter implements PaymentExport {
 	
 	public int exportToFile (MPaySelectionCheck[] checks, File file, StringBuffer err) {
 		
+		System.out.println("ABAPaymentExporter: au.blindmot.ABAPaymentExport.ABAPaymentExporter has been found.");
+		
 		//Get client name, bank code, trCLIENT_BANK_BSB_COLUMN_NAMEansaction date.
 			if (checks == null || checks.length == 0)
 				return 0;
@@ -78,7 +80,7 @@ public class ABAPaymentExporter implements PaymentExport {
 			
 				int    NumberOfTransactions=0;
 				BigDecimal CtrlSum = BigDecimal.valueOf(6554.23);
-				String ExecutionDate = "2011-12-31";
+				String ExecutionDate = "2017-12-31";
 			
 				CtrlSum=BigDecimal.ZERO;
 				for (int i = 0; i < checks.length; i++)
