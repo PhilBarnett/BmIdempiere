@@ -27,6 +27,7 @@ import org.compiere.process.DocAction;
 import org.compiere.process.DocOptions;
 import org.compiere.process.DocumentEngine;
 import org.compiere.util.AdempiereUserError;
+import org.compiere.util.DB;
 import org.compiere.util.Env;
 //import org.compiere.util.Trx;
 //import org.compiere.util.TrxRunnable;
@@ -555,9 +556,13 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	protected boolean beforeSave(boolean newRecord)
 	{
 		
+		StringBuilder sql = new StringBuilder("SELECT c_doctype_id ");
+		sql.append("FROM c_doctype ");
+		sql.append("WHERE name = 'Made to Measure'");
+		int docId = DB.getSQLValue(get_TrxName(), sql.toString());
+		
 		int docTypeTarget_id = getC_DocTypeTarget_ID();
-		if(docTypeTarget_id < 1)docTypeTarget_id = 1000000;//TODO: Hard coded may have unexpected results, use sql something like
-		//SELECT c_doctyoetarget_id from c_doctype WHERE name = 'Made to Measure';
+		if(docTypeTarget_id < 1)docTypeTarget_id = docId;
 		setC_DocTypeTarget_ID(docTypeTarget_id);
 
 		int docType_id = getC_DocTypeTarget_ID();
