@@ -1,4 +1,4 @@
-package remittance;
+package au.blindmot.remittance.factory;
 
 import org.adempiere.base.IProcessFactory;
 import org.compiere.process.ProcessCall;
