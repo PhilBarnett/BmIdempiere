@@ -19,10 +19,9 @@ import org.compiere.util.Env;
 
 public class Remittance extends SvrProcess {
 	private int c_PaySelection_ID = 0;
-	private boolean includePaid = false;
 	private int check_ID = 0;
 	private StringBuilder mailText;
-	private StringBuilder mailSubject;
+	private StringBuilder mailSubject = new StringBuilder();
 	private StringBuilder mailResult = new StringBuilder();
 	private static String REMITTANCE_HEADER = "Our ref" + "\t" + "Your ref" + "\t" + "Amount";
 	private int count = 0;
@@ -37,8 +36,6 @@ public class Remittance extends SvrProcess {
 			String paraName = para.getParameterName();
 			if(paraName.equalsIgnoreCase("C_PaySelection_ID"))
 				c_PaySelection_ID = para.getParameterAsInt();
-			else if(paraName.equalsIgnoreCase("check_box"))
-				includePaid = para.getParameterAsBoolean(); 
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + paraName);
 		}
@@ -91,7 +88,7 @@ public class Remittance extends SvrProcess {
 			count = 0;
 			MOrg mOrg = new MOrg(getCtx(), Env.getAD_Org_ID(getCtx()), get_TrxName());
 			MOrgInfo orgInfo = mOrg.getInfo();
-			String to = getInvBPEmail(invoiceID);
+			String to = getInvBPEmail(invoiceID);//TODO: Handle no email adress found.
 			EMail email = new EMail(client, orgInfo.getEMail(), to, mailSubject.toString(), mailText.toString());
 			if(!email.send().equalsIgnoreCase("OK)"))//try twice then write error
 				{
