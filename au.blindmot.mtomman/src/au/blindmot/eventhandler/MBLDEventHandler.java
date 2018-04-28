@@ -31,6 +31,7 @@ import org.osgi.service.event.Event;
 
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
+import au.blindmot.utils.MtmUtils;
 
 public class MBLDEventHandler extends AbstractEventHandler {
 
@@ -48,6 +49,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MProductionLine.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSECORRECT, MBLDMtomProduction.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MBLDMtomProduction.Table_Name);
+				registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
 				}
@@ -76,21 +78,57 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		log.warning("---------MOrderLine event triggered");
 		log.warning("---------event: " + event);
 		String trxName = po.get_TrxName();
-		orderLine = (MOrderLine)po;//The new OrderLine to copy the atrribute instances to.
-		MProduct mProduct = new MProduct(Env.getCtx(), orderLine.getM_Product_ID(), trxName);
-		if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
-			{
-				
-				
-			MOrderLine copyFromOrderLine = copyAttributeInstance(orderLine, mProduct, event);
-			if(copyFromOrderLine != null)
+		System.out.println(Env.getCtx().toString());
+		orderLine = (MOrderLine)po;//The new OrderLine to copy the attribute instances to.
+		if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW))
+		{
+			
+			MProduct mProduct = new MProduct(Env.getCtx(), orderLine.getM_Product_ID(), trxName);
+			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
 				{
 					
-				System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
-				orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
-				orderLine.saveEx();
+					
+				MOrderLine copyFromOrderLine = copyAttributeInstance(orderLine, mProduct);
+				if(copyFromOrderLine != null)//Then it's a new record, not a copied record.
+					{
+						
+					System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
+					orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
+					orderLine.saveEx();
+					}
+					else
+					{
+						//Set qty field 
+						int mAttributeInstanceID = orderLine.getM_AttributeSetInstance_ID();
+						System.out.println("orderLine M_AttributeSetInstance_ID: " + mAttributeInstanceID);
+						if(mAttributeInstanceID > 0)
+							{
+							
+							BigDecimal l_by_w = MtmUtils.hasLengthAndWidth((int)mAttributeInstanceID).setScale(2, BigDecimal.ROUND_HALF_EVEN);
+							if(l_by_w != Env.ZERO.setScale(2))
+								{
+									orderLine.setQtyEntered(l_by_w);	
+								}
+							
+							if(l_by_w == Env.ZERO.setScale(2))//Check if it has length only
+								{
+									BigDecimal length = MtmUtils.hasLength((int)mAttributeInstanceID).setScale(2, BigDecimal.ROUND_HALF_EVEN);
+									if(length != Env.ZERO.setScale(2))
+										{
+											orderLine.setQtyEntered(length);
+										}
+									}
+								}
+						}
 				}
-			}
+			
+			
+			orderLine.set_ValueOfColumn("reference_id", orderLine.get_ID());
+			System.out.println("orderLine.get_ID: " + orderLine.get_ID());
+			orderLine.save(trxName);
+			return;
+		}
+		
 	}
 	
 }
@@ -177,52 +215,14 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		return mProductionLine.get_ValueAsInt("bld_mtom_item_line_id");
 	}
 	
-	private MOrderLine copyAttributeInstance(X_C_OrderLine toOrderLine, MProduct mProduct, Event theEvent) {
+	private MOrderLine copyAttributeInstance(X_C_OrderLine toOrderLine, MProduct mProduct) {
 		
 		X_C_OrderLine fromOrderLine = null;
 		int fromOrderLineID = 0;
 		String trxName = toOrderLine.get_TrxName();
 		int toMproductID = mProduct.getM_Product_ID();
-			
-		   Timestamp timeStamp = null;
-		   
-		   StringBuilder sql = new StringBuilder("SELECT MAX(updated) as maxupdate ");
-		   sql.append("FROM c_orderline ");
-		   sql.append("WHERE updatedby = ? ");
-		   sql.append("AND m_product_id = ?");
-		   sql.append("AND c_orderline_id < ?");
-		  
-		   List<Object> params = new  ArrayList<Object>();
-		   params.add(new Integer(Env.getAD_User_ID(Env.getCtx())));
-		   params.add(new Integer(mProduct.getM_Product_ID()));
-		   params.add(new Integer(toOrderLine.getC_OrderLine_ID()));
-		   
-		   try
-			{
-			   timeStamp = DB.getSQLValueTSEx(trxName, sql.toString(), params);
-			}
-			catch(Exception e)
-			{
-				log.warning("Could not get C_OrderLine_ID to copy attributes, error: " + e.getMessage() );
-			}
-		   
-		   
-		   if(timeStamp != null)
-		   {
-			   StringBuilder sql1 = new StringBuilder("SELECT co.c_orderline_id ");
-				sql1.append("FROM c_orderline co ");
-				sql1.append("WHERE co.updated = ");
-				sql1.append("'" + timeStamp + "'");
-				
-				try
-				{
-					fromOrderLineID = DB.getSQLValue(trxName, sql1.toString());
-				}
-				catch(Exception e)
-				{
-					log.warning("Could not get C_OrderLine_ID to copy attributes, error: " + e.getMessage() );
-				}
-		   }
+		
+			fromOrderLineID = toOrderLine.get_ValueAsInt("reference_id");
 		  
 		   if(fromOrderLineID != 0)
 			{
@@ -233,8 +233,6 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					fromOrderLine = null;
 					return (MOrderLine)fromOrderLine;//Wrong product, don't copy MAI.
 				}
-		   
-		   
 		
 		MAttributeSetInstance fromMAttributeSetInstance = MAttributeSetInstance.get(Env.getCtx(), fromOrderLine.getM_AttributeSetInstance_ID(), mProduct.getM_Product_ID());
 		MAttributeSetInstance toMAttributeSetInstance = new MAttributeSetInstance(Env.getCtx(),0,toOrderLine.get_TrxName());

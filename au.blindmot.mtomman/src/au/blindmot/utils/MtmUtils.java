@@ -1,8 +1,14 @@
 package au.blindmot.utils;
 
+import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.util.ArrayList;
 
+import javax.sql.RowSet;
+
+import org.compiere.util.CLogger;
 import org.compiere.util.DB;
+import org.compiere.util.Env;
 
 public class MtmUtils {
 
@@ -18,6 +24,7 @@ public class MtmUtils {
 	public static final String MTM_FABRIC_DEDUCTION = "Fabric deduction";
 	public static final String MTM_FABRIC_ADDITION = "Fabric length addition";
 	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar deduction";
+	private static CLogger log = CLogger.getCLogger(MtmUtils.class);
 	
 	public MtmUtils() {
 		// TODO Auto-generated constructor stub
@@ -55,7 +62,7 @@ public class MtmUtils {
 		return prefix;
 	}
 
-	public int getBendingMoment(int length, int fabricProductId, int basebarProductId) {
+	public static int getBendingMoment(int length, int fabricProductId, int basebarProductId) {
 		// TODO: get the weight in kg/m^2 of the fabric
 		// TODO: get the weight of the base bar
 		/*
@@ -98,4 +105,78 @@ public class MtmUtils {
 	return deduction;
 	}
 
+
+public static BigDecimal hasLengthAndWidth(int masi_id) {
+	
+	StringBuilder sql = new StringBuilder("SELECT ma.name, mai.value ");
+	sql.append("FROM m_attribute ma ");
+	sql.append("JOIN m_attributeinstance mai ON mai.m_attribute_id = ma.m_attribute_id ");
+	sql.append("JOIN m_attributesetinstance masi ON masi.m_attributesetinstance_id = mai.m_attributesetinstance_id ");
+	sql.append("WHERE masi.m_attributesetinstance_id = ");
+	sql.append(masi_id);
+	sql.append(" AND (ma.name LIKE 'Drop' OR ma.name LIKE 'Width');");
+	
+	RowSet rowset = DB.getRowSet(sql.toString());
+	int rowCount = 0;
+	int[] rowValues = new int[2];
+	
+	try{
+		while(rowset.next())
+		{
+			rowValues[rowCount] = rowset.getInt(2);
+			rowCount++;
+			
+			if(rowCount == 2 && rowValues[0] != 0 && rowValues[1] != 0)
+			{
+				BigDecimal area = new BigDecimal((rowValues[0] * rowValues[1])).setScale(2);
+				System.out.println(area);
+				BigDecimal divisor = new BigDecimal(1000000);
+				BigDecimal result = area.divide(divisor, BigDecimal.ROUND_CEILING);
+				return result;
+			} 
+			
+		}
+	} catch (SQLException e){
+		log.severe("Could not get values from attributeinstance RowSet for width and drop " + e.getMessage());
+		e.printStackTrace();
+	}
+	return Env.ZERO;
+	
+}
+
+public static BigDecimal hasLength(int masi_id) {
+	
+	StringBuilder sql = new StringBuilder("SELECT ma.name, mai.value ");
+	sql.append("FROM m_attribute ma ");
+	sql.append("JOIN m_attributeinstance mai ON mai.m_attribute_id = ma.m_attribute_id ");
+	sql.append("JOIN m_attributesetinstance masi ON masi.m_attributesetinstance_id = mai.m_attributesetinstance_id ");
+	sql.append("WHERE masi.m_attributesetinstance_id = ");
+	sql.append(masi_id);
+	sql.append(" AND (ma.name LIKE 'Width%');");
+	
+	RowSet rowset = DB.getRowSet(sql.toString());
+	int rowCount = 0;
+	int[] rowValues = new int[2];
+	
+	try{
+		while(rowset.next())
+		{
+			rowValues[rowCount] = rowset.getInt(2);
+			rowCount++;
+			
+			if(rowCount == 1 && rowValues[0] != 0)
+			{
+				BigDecimal width = new BigDecimal(rowValues[0]).setScale(2);
+				System.out.println("In MtmCallouts.hasLength, width is: " + width);
+				return width;
+			} 
+			
+		}
+	} catch (SQLException e){
+		log.severe("Could not get values from attributeinstance RowSet for width" + e.getMessage());
+		e.printStackTrace();
+	}
+	return Env.ZERO;
+	
+}
 }
