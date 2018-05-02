@@ -170,8 +170,6 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		
 		if(lines.length != 0)//Add BOM derived, Cuts & production lines if not already added.
 		{
-			
-			
 		
 			for(int i = 0; i < lines.length; i++)
 			{
@@ -182,7 +180,14 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 				//Add new lines only if there are no child records
 				if(cuts.length==0 && prodLines.length==0 && bomLines.length==0)
 				{
-					lines[i].processMtmLineItem(getDocAction());
+					if(cuts.length==0 && prodLines.length==0 || bomLines.length==0)
+					{
+						if(lines[i].addBomDerived())
+						{
+							System.out.println("Successfully added BOM derived for: " + lines[i].get_ID());
+						}
+						lines[i].saveEx();
+					}
 					lines[i].saveEx();
 				}
 			}
@@ -207,7 +212,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	}
 
 	@Override
-	public String completeIt() {
+	public String completeIt() {//Add cuts & productionlines, process production.
 		log.warning("---------------In MBLDMtomProduction.completeIt()");
 		
 		// Re-Check
@@ -238,6 +243,24 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 							m_processMsg = "@NoLines@";
 							return DocAction.STATUS_Invalid;
 						}
+						
+						for(int v = 0; v < mBldItemLines.length; v++)
+						{
+							
+								MBLDMtomCuts[] cuts = mBldItemLines[v].getCutLines(p_ctx, mBldItemLines[v].get_ID());
+								MProductionLine[] prodLines = mBldItemLines[v].getLines(p_ctx, mBldItemLines[v].get_ID());
+								MBLDBomDerived[] bomLines = mBldItemLines[v].getBomDerivedLines(p_ctx, mBldItemLines[v].get_ID());
+								
+								//Add new lines only if there are no child records
+								if(cuts.length==0 && prodLines.length==0 || bomLines.length==0)
+								{
+									mBldItemLines[v].processMtmLineItem(getDocAction());
+									mBldItemLines[v].saveEx();
+								}
+							
+							
+						}
+						
 						for(int i = 0; i < mBldItemLines.length; i++)
 						{
 							errors.append(mBldItemLines[i].processProductionLines(mBldItemLines[i].getbld_mtom_item_line_ID()));

@@ -252,6 +252,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				
 			    int m_attribute_id = fromAttributeInstances.getInt(1);
 			    String value = fromAttributeInstances.getString(2);
+			    int mAttributeValueID = fromAttributeInstances.getInt(3);
 			    
 			    MAttribute mAttribute = new MAttribute(Env.getCtx(), m_attribute_id, toOrderLine.get_TrxName());
 			    String attributeType = mAttribute.getAttributeValueType();
@@ -260,7 +261,9 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			    {
 			    	//Constructor for numeric attributes
 			    	MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(), m_attribute_id, 
-			    	toAttributeSetInstanceId, new BigDecimal(value), toOrderLine.get_TrxName());
+			    	toAttributeSetInstanceId, new BigDecimal(value).setScale(1), toOrderLine.get_TrxName());
+			    	toMAttributeInstance.setM_AttributeValue_ID(mAttributeValueID);
+			    	//toMAttributeInstance.setValueNumber(new BigDecimal(value));
 			    	toMAttributeInstance.saveEx();
 			    }
 			    else	
@@ -268,6 +271,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				    //Constructor for String attributes
 				    MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(),
 				    m_attribute_id, toAttributeSetInstanceId, value, toOrderLine.get_TrxName());
+				    toMAttributeInstance.setM_AttributeValue_ID(mAttributeValueID);
 				    toMAttributeInstance.saveEx();
 			    }
    }
@@ -289,7 +293,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	
 	private RowSet getmAttributeInstances(int mAttributeSetinstanceID)
 	{
-		StringBuilder sql = new StringBuilder("SELECT m_attribute_id, value ");
+		StringBuilder sql = new StringBuilder("SELECT m_attribute_id, value, m_attributevalue_id ");
 		sql.append("FROM m_attributeinstance mai ");
 		sql.append(" WHERE mai.m_attributesetinstance_id = ");
 		sql.append(mAttributeSetinstanceID);

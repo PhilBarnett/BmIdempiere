@@ -8,6 +8,12 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.sql.RowSet;
+
+import org.compiere.model.I_M_PartType;
+import org.compiere.model.MAttribute;
+import org.compiere.model.MAttributeInstance;
+import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductBOM;
 import org.compiere.model.X_M_PartType;
@@ -49,6 +55,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private static String CHAIN_ACC = "Chain accessory";
 	private static String ROLLER_TUBE = "Roller tube";
 	private static String END_CAP = "End Cap";
+	private static String FABRIC_LENGTH_ADDITION = "Fabric length addition";
 	
 	//Various BOM parts to make the blind
 	private int controlBracketID = 0;
@@ -60,21 +67,15 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private int fabricID = 0;
 	private int endCapID = 0;
 	private int bottomBarID = 0;
-	private BigDecimal bottomBarQty = BigDecimal.ZERO;
-	private BigDecimal fabricQty = BigDecimal.ZERO;
-	private BigDecimal rollerTubeQty = BigDecimal.ZERO;
-	
-	//Cuts for cut to size items.
-	private int rollerTubeCut = 0;
-	private int bottomBarCut = 0;
-	private int fabricWidth = 0;
-	private int fabricDrop = 0;
 	String patternString = null;
     Pattern pattern = null;
+    BigDecimal oneHundred = new BigDecimal("100");
+	BigDecimal oneThousand = new BigDecimal("1000");
 
 
 	public RollerBlind (int product_id, int bld_mtom_item_line_id, String trxn) {
 		super(product_id, bld_mtom_item_line_id, trxn);
+		interpretMattributeSetInstance();
 	}
 	
 	
@@ -170,57 +171,66 @@ public class RollerBlind extends MadeToMeasureProduct {
 	 */
 	public boolean getCuts() {
 		
-		interpretMattributeSetInstance();//
+		//TODO: get the fabricID, rollerTubeID, bottomBarID from BOM lines in case they've been edited by user.
 		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
 	    pattern = Pattern.compile(patternString);
 	    setInstanceFields();//Sets instance fields from the instance_string column
 		populatePartTypes(m_product_id);//Gets the ArrayLists of parts
 		setValueProductID();//Interprets the attribute instances and picks parts from ArrayLists to match, also creates BOM lines for chain driven blinds.
 		
-		//Get a value for field rollerTubeCut
-		ArrayList <Integer> headRailComps = new ArrayList <Integer>();
-		headRailComps.add(nonControlBracketID);
-		headRailComps.add(controlBracketID);
-		headRailComps.add(controlID);
-		headRailComps.add(nonControlID);
-		
-		rollerTubeCut = wide - MBLDMtomCuts.getDeductions(headRailComps, MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName);
-		
 		//Get a value for field fabricWidth & fabricDrop
-		fabricWidth = rollerTubeCut - MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName);
-		fabricDrop = high + MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName);
-		bottomBarCut = fabricWidth - MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName);
-		BigDecimal oneHundred = new BigDecimal("100");
-		BigDecimal oneThousand = new BigDecimal("1000");
-		if(fabricID !=0 )
+		int fabricWidth = getFabricWidth();
+		int fabricDrop = getFabricDrop();
+		int bottomBarCut = getBottomBarCut();
+		int fabricLengthAddition = getFabricLengthAddition(m_product_id);
+		
+		int fabId = getBomProductID("Fabric");
+		int fabIdToUse = 0;
+		if(fabId > 0)
 			{
-				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);
-				BigDecimal fwidth = new BigDecimal(fabricWidth).divide(oneThousand);
-				BigDecimal fdrop = new BigDecimal(fabricDrop).divide(oneThousand);
-				BigDecimal qty = fwidth.multiply(fdrop);
-				BigDecimal waste = new BigDecimal(getWaste(fabricID));
-				qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
-				qty.setScale(4, BigDecimal.ROUND_CEILING);
-				fabricQty = qty;
-				
+				fabIdToUse = fabId;
 			}
-		if(rollerTubeID !=0 )
+		else
 			{
-				addBldMtomCuts(rollerTubeID,0,rollerTubeCut,0);
-				BigDecimal qty = new BigDecimal(rollerTubeCut);
-				BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
-				qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
-				rollerTubeQty = qty;
-				//Create bom derived for this item
-				addMBLDBomDerived(rollerTubeID, qty , "Procesed with waste factor of: " + (qty.multiply(waste)));
+				fabIdToUse = fabricID;
 			}
-		if(bottomBarID !=0 )
+		if(fabIdToUse !=0 )
+
 			{
-				addBldMtomCuts(bottomBarID,0,bottomBarCut ,0);
-				BigDecimal qty = new BigDecimal(bottomBarCut);
-				BigDecimal waste = new BigDecimal(getWaste(bottomBarID));
-				qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
-				bottomBarQty = qty;
+				addBldMtomCuts(fabIdToUse, fabricWidth, fabricDrop + fabricLengthAddition, 0);	
+			}
+		
+		int rollerTID = getBomProductID(ROLLER_TUBE);
+		int rollerIDToUse = 0;
+		if(rollerTID > 0)
+		{
+			rollerIDToUse = rollerTID;
+		}
+		else
+		{
+			rollerIDToUse = rollerTubeID;
+		}
+		
+		if(rollerIDToUse !=0 )
+			{
+				addBldMtomCuts(rollerIDToUse,0,getRollerTubeCut(wide),0);			
+			}
+		
+		int bottombarIDToUse = 0;
+		int bottombID = getBomProductID(BOTTOM_BAR);
+		if(bottombID > 0)
+		{
+			bottombarIDToUse = bottombID;
+		}
+		else
+		{
+			bottombarIDToUse = bottomBarID;
+		}
+		
+		if(bottombarIDToUse !=0 )
+
+			{
+				addBldMtomCuts(bottombarIDToUse,0,bottomBarCut ,0);
 			}
 		
 		return true;
@@ -237,6 +247,38 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 */
 		
 	}
+
+	private int getFabricLengthAddition(int m_product_id) {
+
+		MProduct mProduct = new MProduct(Env.getCtx(), m_product_id, trxName);
+		int maid = mProduct.getM_AttributeSetInstance_ID();
+		MAttributeSetInstance fromMAttributeSetInstance = MAttributeSetInstance.get(Env.getCtx(), maid, m_product_id);
+		//int fablengthAddition = mAttributeInstance.get
+		int value = 0;
+	
+		RowSet fromAttributeInstances = getmAttributeInstances(fromMAttributeSetInstance.getM_AttributeSetInstance_ID());
+		
+	    try {
+			while (fromAttributeInstances.next()) {  
+			
+				int m_attribute_id = fromAttributeInstances.getInt(1);
+				MAttribute mAttribute = new MAttribute(Env.getCtx(), m_attribute_id, trxName);
+				String name = mAttribute.getName();
+				String attributeType = mAttribute.getAttributeValueType();
+				if(attributeType.equalsIgnoreCase("N"))
+		    		{
+		    			value = fromAttributeInstances.getInt(2);
+		    		}
+			    
+			    if(name.equalsIgnoreCase(FABRIC_LENGTH_ADDITION))return value;
+			}
+	    }catch (SQLException e) {
+				log.severe("Could not get values from attributeinstance RowSet " + e.getMessage());
+				e.printStackTrace();
+			}   
+			   return value;
+	}
+
 
 	@Override
 	public boolean createBomDerived() {
@@ -255,6 +297,10 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 * etc
 		 * From the AttributePair[]
 		 */
+		//Get fields setup
+		populatePartTypes(m_product_id) ;
+		setValueProductID();//Chain accessory BOM lines are added here.
+		setInstanceFields();
 		addMtmInstancePartsToBomDerived();//Creates BOM lines from the products in the 'instance_string' column.
 		addBomDerivedLines(controlID, null);
 		addBomDerivedLines(nonControlID, null);
@@ -263,6 +309,19 @@ public class RollerBlind extends MadeToMeasureProduct {
 		addBomDerivedLines(chainSafeID, null);
 		//addBomDerivedLines(rollerTubeID, null) was added through getCuts();
 		addBomDerivedLines(endCapID, null);
+		
+		//BOM derived rollertube
+		BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
+		BigDecimal rollerTubeQty = getRollerTubeQty();
+		addMBLDBomDerived(rollerTubeID, rollerTubeQty, "Procesed with waste factor of: " + (rollerTubeQty.multiply(waste)));
+		
+		//TODO: The fabricQty Bom derived fabric/
+		/*
+		BigDecimal waste1 = new BigDecimal(getWaste(fabricID));
+		BigDecimal fabricQty = getFabricQty();
+		addMBLDBomDerived(fabricID, fabricQty, "Procesed with waste factor of: " + (fabricQty.multiply(waste1)));
+		*/
+		
 		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
 		//Tube selection: create static utility method in MtmUtils? Need to determine bending moment in tube centre.
 		
@@ -489,7 +548,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		BigDecimal qty = BigDecimal.ZERO;
 		if(mProductBomid == rollerTubeID)
 			{
-				qty = rollerTubeQty;
+				qty = getRollerTubeQty();
 				if(qty != BigDecimal.ZERO)
 				{
 					return qty;
@@ -497,14 +556,14 @@ public class RollerBlind extends MadeToMeasureProduct {
 				
 			} else if(mProductBomid == fabricID)
 			{
-				qty = fabricQty;
+				qty = getFabricQty();//TODO: Change fabricQty to getFabricQty() as fabricQty is set in getCuts() which is poor coding.
 				if(qty != BigDecimal.ZERO)
 				{
 					return qty;
 				}
 			} else if(mProductBomid == bottomBarID)
 			{
-				qty = bottomBarQty;
+				qty = getBottomBarQty();
 				if(qty != BigDecimal.ZERO)
 				{
 					return qty;
@@ -595,7 +654,9 @@ public class RollerBlind extends MadeToMeasureProduct {
 	
 	
 	private void addMtmInstancePartsToBomDerived(){
-	if(mtmInstanceParts != null)//Add the parts stored in the bldmtomlineiem instance_string column
+		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
+	    pattern = Pattern.compile(patternString);
+		if(mtmInstanceParts != null)//Add the parts stored in the bldmtomlineiem instance_string column
 	{
 		String[] products = getInstanceArray();
 		 if(products != null)
@@ -666,4 +727,88 @@ public class RollerBlind extends MadeToMeasureProduct {
 		}
 	}
 	 }
+	 
+	 public ArrayList <Integer> getHeadRailComps() {
+	 ArrayList <Integer> headRailComps = new ArrayList <Integer>();
+		headRailComps.add(nonControlBracketID);
+		headRailComps.add(controlBracketID);
+		headRailComps.add(controlID);
+		headRailComps.add(nonControlID);
+		return headRailComps;
+	 }
+	 
+	 public int getRollerTubeCut(int width) {
+		return width - MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName);
+	 }
+	 
+	 public int getBottomBarCut() {
+		 return getFabricWidth() - MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName);
+	 }
+	 
+	 public int getFabricWidth() {
+		 return getRollerTubeCut(wide)- MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName);
+	 }	
+
+	 public int getFabricDrop() {
+		 return high + MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName);
+	 }
+	 
+	 public BigDecimal getFabricQty() {
+		 	BigDecimal fwidth = new BigDecimal(getFabricWidth()).divide(oneThousand);
+			BigDecimal fdrop = new BigDecimal(getFabricDrop()).divide(oneThousand);
+			BigDecimal qty = fwidth.multiply(fdrop);
+			BigDecimal waste = new BigDecimal(getWaste(fabricID));
+			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
+			qty.setScale(4, BigDecimal.ROUND_CEILING);
+			return qty;
+	 }
+	 
+	 public BigDecimal getRollerTubeQty() {
+		 	BigDecimal qty = new BigDecimal(getRollerTubeCut(wide));
+			BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
+			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
+			return qty;
+	 }
+	 
+	 public BigDecimal getBottomBarQty() {
+		 	BigDecimal qty = new BigDecimal(getBottomBarCut());
+			BigDecimal waste = new BigDecimal(getWaste(bottomBarID));
+			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
+			return qty;
+	 }
+	 
+	 /**
+	  * This method gets the BOM line product IDs and was part of a refactor 
+	  * to allow the user to change BOM line product types.
+	  * @param partType
+	  * @return
+	  */
+	 public int getBomProductID(String partType) {
+		 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
+		
+		 for(int p = 0; p < bomDerived.length; p++)
+		 {
+			 int productID = bomDerived[p].getM_Product_ID();
+			 MProduct mProduct = new MProduct(Env.getCtx(), productID, trxName);
+			 int mPartTypeID = mProduct.getM_PartType_ID();
+			 StringBuilder sql = new StringBuilder("SELECT name FROM m_parttype ");
+			 sql.append(" WHERE m_parttype_id = ?");
+			 String partName = DB.getSQLValueString(trxName, sql.toString(), mPartTypeID);
+		//TODO Handle NPE below.
+			 if(partName.equalsIgnoreCase(partType)) return productID;
+		 }
+		 return 0;
+	 }
+	 
+	 private RowSet getmAttributeInstances(int mAttributeSetinstanceID)
+		{
+			StringBuilder sql = new StringBuilder("SELECT m_attribute_id, value, m_attributevalue_id ");
+			sql.append("FROM m_attributeinstance mai ");
+			sql.append(" WHERE mai.m_attributesetinstance_id = ");
+			sql.append(mAttributeSetinstanceID);
+			
+			RowSet rowset = DB.getRowSet(sql.toString());
+			return rowset;
+		}
+		
 }
