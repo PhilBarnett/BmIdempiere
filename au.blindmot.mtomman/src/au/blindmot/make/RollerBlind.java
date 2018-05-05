@@ -307,20 +307,12 @@ public class RollerBlind extends MadeToMeasureProduct {
 		addBomDerivedLines(nonControlBracketID, null);
 		addBomDerivedLines(controlBracketID, null);
 		addBomDerivedLines(chainSafeID, null);
-		//addBomDerivedLines(rollerTubeID, null) was added through getCuts();
 		addBomDerivedLines(endCapID, null);
 		
 		//BOM derived rollertube
 		BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
 		BigDecimal rollerTubeQty = getRollerTubeQty();
 		addMBLDBomDerived(rollerTubeID, rollerTubeQty, "Procesed with waste factor of: " + (rollerTubeQty.multiply(waste)));
-		
-		//TODO: The fabricQty Bom derived fabric/
-		/*
-		BigDecimal waste1 = new BigDecimal(getWaste(fabricID));
-		BigDecimal fabricQty = getFabricQty();
-		addMBLDBomDerived(fabricID, fabricQty, "Procesed with waste factor of: " + (fabricQty.multiply(waste1)));
-		*/
 		
 		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
 		//Tube selection: create static utility method in MtmUtils? Need to determine bending moment in tube centre.

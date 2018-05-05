@@ -28,6 +28,7 @@ public class MtmCreate extends SvrProcess {
 
 	private int C_Order_ID = 0;
 	private boolean ignoreExistingmtmProd = true;
+	private boolean allowNonCheckMeasured = false;
 
 	@Override
 	protected void prepare() {
@@ -41,6 +42,8 @@ public class MtmCreate extends SvrProcess {
 				C_Order_ID = para.getParameterAsInt();
 			else if(paraName.equalsIgnoreCase("check_box"))
 				ignoreExistingmtmProd = para.getParameterAsBoolean(); 
+			else if(paraName.equalsIgnoreCase("allow_overwrite"))
+				allowNonCheckMeasured = para.getParameterAsBoolean(); 
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + paraName);
 		}
@@ -63,6 +66,10 @@ public class MtmCreate extends SvrProcess {
 	@Override
 	protected String doIt() throws Exception {
 		MBLDMtomProduction mBLDMtomProduction = null;
+		if(hasAnyUncheckMeasuredItems()) 
+		{
+			throw new AdempiereUserError ("Order " + C_Order_ID + " contains items not check measured.");
+		}
 		if(checkOrderStatus())
 		{
 			if(checkMtmStatus())
@@ -94,7 +101,7 @@ public class MtmCreate extends SvrProcess {
 				
 			}
 		MOrderLine[] lines = thisOrder.getLines();
-		boolean pass = true;
+		boolean pass = false;
 		for(MOrderLine line : lines)
 		{
 			int mProduct = line.get_ValueAsInt("m_product_id");
@@ -142,5 +149,22 @@ public class MtmCreate extends SvrProcess {
 		
 		if(newMtm_ID != 0)return newMtm;
 		else return null;
+	}
+	
+	private boolean hasAnyUncheckMeasuredItems() {
+		if(allowNonCheckMeasured) return false;
+		MOrder thisOrder = new MOrder(Env.getCtx(), C_Order_ID, null);
+		MOrderLine[] lines = thisOrder.getLines();
+		boolean fail = false;
+		for(MOrderLine line : lines)
+		{
+			boolean checkMeasured = line.get_ValueAsBoolean("ischeckmeasured");
+			if(!checkMeasured)
+			{
+				fail = true;
+				break;
+			}
+		}
+		return fail;
 	}
 }

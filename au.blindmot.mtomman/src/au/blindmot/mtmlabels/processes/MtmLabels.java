@@ -112,11 +112,12 @@ public class MtmLabels extends SvrProcess{
 		MBLDMtomProduction mBLDMtomProduction = new MBLDMtomProduction(getCtx(), bLDMtomProduction_ID, get_TrxName());
 		MBLDMtomItemLine[] lines = mBLDMtomProduction.getLines();
 		StringBuilder outputStringBuilder = new StringBuilder();
-		StringBuilder label = new StringBuilder();
+		
 		for(int numCopies = 0; numCopies < labelCopies; numCopies++)
 		{
 			for(int i = 0; i < lines.length; i++)
 			{
+				StringBuilder label = new StringBuilder();
 				label.append(START_FORMAT);
 				label.append(LABEL_HOME);
 				label.append(PRINT_RATE);
@@ -130,46 +131,39 @@ public class MtmLabels extends SvrProcess{
 				label.append(addOrderInfo(lines[i].getLine(),mBLDMtomProduction.getDocumentNo()));
 				label.append(addClientName(mBLDMtomProduction));
 				label.append(addOrderDescription(mBLDMtomProduction.getDescription()));
-				label.append(addFabric(lines[i].getinstance_string()));
+				label.append(addFabric(lines[i].getinstance_string(), lines[i].getLine()));
 				label.append(addLocation(lines[i]));
-				label.append(addProductname(lines[i].getM_Product_ID()));
+				label.append(addProductname(lines[i].getM_Product_ID(), true));
 				label.append(addFinshedSize(lines[i]));
 				label.append(PRINT_QUALITY);
 				label.append(END_FORMAT);
 				label.append("\n");
 				outputStringBuilder.append(label);
 				
-				if(!finishedItemOnly)
-				{
+				/*
+				 *Do fabric label no matter what
+				 *Do other items only if finishedItemOnly is false
+				 */
+				
 					MBLDMtomCuts[] cuts = lines[i].getCutLines(getCtx(), lines[i].getbld_mtom_item_line_ID());
-					StringBuilder cutItems = new StringBuilder();
+					boolean fabricHasBeenCut = false;
 					
 					for(int x =0; x < cuts.length; x++)
 					{
-						if(isNotFabric(cuts[x].getM_Product_ID()))//If it's fabric skip - already created.
+						boolean isItFabric = isFabric(cuts[x].getM_Product_ID());
+						if(isItFabric && !fabricHasBeenCut)//If it's fabric skip if already cut.
 						{
-							cutItems.append(START_FORMAT);
-							cutItems.append(LABEL_HOME);
-							cutItems.append(PRINT_RATE);
-							cutItems.append(MEDIA_DARKNESS);
-							cutItems.append(DOTS_PER_MM);
-							cutItems.append(FIELD_SEPARATOR);
-							cutItems.append(BARCODE_DEFAULTS);
-							
-							cutItems.append(addBarcode(MtmUtils.getBarcode(cuts[x].get_Table_ID(), cuts[x].getBLD_mtom_cuts_ID())));
-							cutItems.append(addProductionDate(lines[i]));
-							cutItems.append(addOrderInfo(lines[i].getLine(),mBLDMtomProduction.getDocumentNo()));
-							cutItems.append(addClientName(mBLDMtomProduction));
-							cutItems.append(addOrderDescription(mBLDMtomProduction.getDescription()));
-							cutItems.append(addProductname(cuts[x].getM_Product_ID()));
-							cutItems.append(addCutLength(cuts[x]));
-							cutItems.append(PRINT_QUALITY);
-							cutItems.append(END_FORMAT);
-							cutItems.append("\n");
-							outputStringBuilder.append(cutItems);
+							StringBuilder fabric = addCuts(cuts[x], lines[i], mBLDMtomProduction, true);
+							outputStringBuilder.append(fabric);
+							fabricHasBeenCut = true;
+						}
+						if(!finishedItemOnly)
+						{
+							StringBuilder otherCut = addCuts(cuts[x], lines[i], mBLDMtomProduction, false);
+							outputStringBuilder.append(otherCut);
 						}
 					}
-				}
+				
 			}
 		}
 		
@@ -259,11 +253,13 @@ public class MtmLabels extends SvrProcess{
 		
 	}
 	
-	private String addProductname(int mProductID) {
+	private String addProductname(int mProductID, boolean isEndProd) {
 		MProduct cutProduct = new MProduct(getCtx(), mProductID, get_TrxName());
 		String cutName =  cutProduct.getName();
 		StringBuilder nameToRet = new StringBuilder();
-		nameToRet.append(FIELD_ORIGIN + "220,95");
+		String fieldOrigin = "20,135";
+		if(isEndProd) fieldOrigin ="220,95";
+		nameToRet.append(FIELD_ORIGIN + fieldOrigin);
 		nameToRet.append(SCALABLE_FONT_ROTATION + "30,30");
 		nameToRet.append(CHANGE_INTERNAT_FONT + "13");
 		nameToRet.append(FORMAT_DATA);
@@ -277,17 +273,35 @@ public class MtmLabels extends SvrProcess{
 		BigDecimal cutLength =  cut.getLength();
 		String length = cutLength.toString();
 		StringBuilder cutToRet = new StringBuilder();
-		cutToRet.append(FIELD_ORIGIN + "300,175");
+		cutToRet.append(FIELD_ORIGIN + "230,175");
 		cutToRet.append(SCALABLE_FONT_ROTATION + "30,30");
 		cutToRet.append(CHANGE_INTERNAT_FONT + "13");
 		cutToRet.append(FORMAT_DATA);
-		if(length != null) cutToRet.append(length + "mm");
+		if(length != null) cutToRet.append("Cut length: " + length + "mm");
 		cutToRet.append(FIELD_SEPARATOR);
 		
 		return cutToRet.toString();
 	}
+	private String addCutWidth(MBLDMtomCuts cut)
+	{
+		BigDecimal cutWidth =  cut.getWidth();
+		String width = cutWidth.toString();
+		StringBuilder cutToRet = new StringBuilder();
+		cutToRet.append(FIELD_ORIGIN + "20,175");
+		cutToRet.append(SCALABLE_FONT_ROTATION + "30,30");
+		cutToRet.append(CHANGE_INTERNAT_FONT + "13");
+		cutToRet.append(FORMAT_DATA);
+		if(width != null) cutToRet.append("Cut width: " + width + "mm");
+		cutToRet.append(FIELD_SEPARATOR);
+		return cutToRet.toString();
+	}
 	
-	private String addFabric(String instanceString) {
+	
+	private String addFabric(String instanceString, int lineNum) {
+		if(instanceString.equalsIgnoreCase("0_0_0"))
+			{
+				throw new AdempiereUserError("There is no fabric/bottom bar specified for: " + lineNum);
+			}
 		String fabric = instanceString.substring(0, 7);
 		Integer fabID = new Integer(fabric);
 		MProduct mProduct = new MProduct(getCtx(), fabID, get_TrxName());
@@ -378,7 +392,7 @@ public class MtmLabels extends SvrProcess{
 		
 	}
 	
-	private boolean isNotFabric(int mProductID) {
+	private boolean isFabric(int mProductID) {
 		StringBuilder sql = new StringBuilder();
 		sql.append("SELECT name ");
 		sql.append("FROM m_parttype ");
@@ -386,10 +400,46 @@ public class MtmLabels extends SvrProcess{
 		sql.append(")");
 		
 		String partType = DB.getSQLValueString(get_TrxName(), sql.toString(), mProductID);
-		if(partType.equalsIgnoreCase("Fabric"))return false;
-		return true;
+		if(partType == null) return false;
+		if(partType.equalsIgnoreCase("Fabric"))return true;
+		return false;
 		
 	}
+	
+	private StringBuilder addCuts(MBLDMtomCuts cut, MBLDMtomItemLine line, MBLDMtomProduction mBLDMtomProduction, boolean isFabric) {
+	
+			StringBuilder cutItems = new StringBuilder();
+			cutItems.append(START_FORMAT);
+			cutItems.append(LABEL_HOME);
+			cutItems.append(PRINT_RATE);
+			cutItems.append(MEDIA_DARKNESS);
+			cutItems.append(DOTS_PER_MM);
+			cutItems.append(FIELD_SEPARATOR);
+			cutItems.append(BARCODE_DEFAULTS);
+			
+			cutItems.append(addBarcode(MtmUtils.getBarcode(cut.get_Table_ID(), cut.getBLD_mtom_cuts_ID())));
+			cutItems.append(addProductionDate(line));
+			cutItems.append(addOrderInfo(line.getLine(),mBLDMtomProduction.getDocumentNo()));
+			cutItems.append(addClientName(mBLDMtomProduction));
+			cutItems.append(addOrderDescription(mBLDMtomProduction.getDescription()));
+			boolean isEndProduct = false;
+			if(cut.getM_Product_ID() == line.getM_Product_ID()) isEndProduct = true;//Redundant, should always be false here
+			if(isFabric(cut.getM_Product_ID()))
+			{
+				cutItems.append(addFabric(line.getinstance_string(), line.getLine()));
+				cutItems.append(addCutWidth(cut));
+			}
+			else
+			{
+				cutItems.append(addProductname(cut.getM_Product_ID(), isEndProduct));
+			}
+			cutItems.append(addCutLength(cut));
+			cutItems.append(PRINT_QUALITY);
+			cutItems.append(END_FORMAT);
+			cutItems.append("\n");
+			return cutItems; 
+		
+}
 	
 
 }
