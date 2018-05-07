@@ -77,6 +77,55 @@ public class MtmUtils {
 		return moment;
 
 	}
+	
+	/**
+	 * 
+	 * @param fabricProductId
+	 * @return fabric weight in kg/m^2
+	 */
+	public static int getfabricWeight(int fabricProductId) {
+		//TODO: write method like getBaseBarWeight(int basebarProductId, String trxName)
+		//TODO: Better: use attribute weight for all products that require it and use the same method.
+		return 0;
+	}
+	
+	
+	/**
+	 * 
+	 * @param basebarProductId
+	 * @return basebar weight in kg per metre
+	 */
+	public static int getBaseBarWeight(int basebarProductId, String trxName) {
+		//TODO: modify to handle any product with 'weight' attribute.
+		int weight = 0;
+		StringBuilder sql = new StringBuilder	("	SELECT value FROM m_attributeinstance ma ");
+		sql.append("WHERE ma.m_attributesetinstance_id = ");
+		sql.append("(SELECT m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
+		sql.append(basebarProductId);
+		sql.append(") ");
+		sql.append("AND ma.m_attribute_id = ");
+		sql.append("(SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name = ");
+		sql.append("LIKE '%Basebar weight'");
+		sql.append("')");
+				
+		weight = DB.getSQLValueEx(trxName, sql.toString());
+		
+		return weight;
+	}
+	
+	/**
+	 * 
+	 * @param length in mm
+	 * @param fabricProductId
+	 * @param basebarProductId
+	 * @return
+	 */
+	public static int getHangingMass(int width, int length, int fabricProductId, int basebarProductId, String trxName) {
+		//hanging mass = fabric weight + basebar weight
+		
+		
+		return 0;
+	}
 
 	public int getDeductions(ArrayList<Integer> components, String deductionType) {
 
