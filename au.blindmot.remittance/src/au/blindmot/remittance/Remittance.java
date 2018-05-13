@@ -8,7 +8,6 @@ import javax.sql.RowSet;
 
 import org.compiere.model.MBPartner;
 import org.compiere.model.MClient;
-import org.compiere.model.MInvoice;
 import org.compiere.model.MMailText;
 import org.compiere.model.MPaySelection;
 import org.compiere.model.MUser;
@@ -21,7 +20,6 @@ import org.compiere.util.Env;
 
 public class Remittance extends SvrProcess {
 	private int c_PaySelection_ID = 0;
-	private int invoiceGlobal = 0; 
 	private StringBuilder mailText = new StringBuilder();
 	private StringBuilder mailSubject = new StringBuilder();
 	private StringBuilder mailResult = new StringBuilder();
@@ -31,8 +29,6 @@ public class Remittance extends SvrProcess {
 	private String subject = null;
 	private StringBuilder  mailBody = new StringBuilder();
 	private StringBuilder mailHeader = new StringBuilder();
-	private int count = 0;
-	private boolean headerAdded = false;
 	private MClient client = null;
 	private int mMailTextID = 0;
 
@@ -159,17 +155,6 @@ public class Remittance extends SvrProcess {
 		return bpid;
 	
 }
-	private String getInvPO(int invoiceID) {
-		MInvoice invoice = new MInvoice(getCtx(), invoiceID, get_TrxName());
-		return invoice.getPOReference();
-		
-	}
-	private boolean isInvoicePaid(int invoiceID) {
-		MInvoice invoice = new MInvoice(getCtx(), invoiceID, get_TrxName());
-		return invoice.isPaid();
-		
-	}
-	
 	private String getBPEmail(int bp_ID) {
 	
 		MBPartner bp = new MBPartner(getCtx(),bp_ID, get_TrxName());
