@@ -22,6 +22,9 @@ public class Pelmet extends MadeToMeasureProduct {
 	
 	public Pelmet(int product_id, int bld_mtom_item_line_id, String trxn) {
 		super(product_id, bld_mtom_item_line_id, trxn);
+		interpretMattributeSetInstance();
+		setPelmetSize();
+		
 	}
 
 	@Override
@@ -31,14 +34,8 @@ public class Pelmet extends MadeToMeasureProduct {
 	 * 
 	 */
 	public boolean getCuts() {
-		interpretMattributeSetInstance();
-		
-		//get MProductID of angle to make pelmet from.
-		
-		if(pelmetSize != null && pelmetColIns !=null)
-		{
-			productToCut = getcutItemID(pelmetColIns, pelmetSize);
-		}
+		//TODO:Uncomment below if required, otherwise delete.
+		//interpretMattributeSetInstance();
 		
 		if(productToCut != 0)
 		{
@@ -73,6 +70,7 @@ public class Pelmet extends MadeToMeasureProduct {
 	@Override
 	public boolean createBomDerived() {
 		BigDecimal pelwidth = new BigDecimal(wide);
+		System.out.println("wide: " + wide + " deep: " + deep + " high: " + high );
 		BigDecimal waste = new BigDecimal(getWaste(productToCut));
 		if(waste.compareTo(Env.ZERO) < 0)
 		{
@@ -158,6 +156,16 @@ public class Pelmet extends MadeToMeasureProduct {
 		mBomDerived.setQty(qty);
 		if(description != null)mBomDerived.setDescription(description);
 		mBomDerived.saveEx();
+	}
+	
+	/**
+	 * set MProductID of angle to make pelmet from.
+	 */
+	private void setPelmetSize() {
+		if(pelmetSize != null && pelmetColIns !=null)
+		{
+			productToCut = getcutItemID(pelmetColIns, pelmetSize);
+		}
 	}
 
 }

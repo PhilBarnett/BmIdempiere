@@ -35,7 +35,14 @@ public class MtmCallouts implements IColumnCallout {
 	public String start(Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value, Object oldValue) {
 	
 		log.warning("----------In MtmCallouts.start(): " + mField.getColumnName());
-		if(value == null || oldValue == null) return"";
+		if(value == null && oldValue != null)
+			{
+				value = oldValue;
+			}
+			if(value == null && oldValue == null)
+		{
+			return"";
+		}
 		if(mTab == null) 
 		{
 			return "";

@@ -38,12 +38,15 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private ArrayList<KeyNamePair> rollerTube = new ArrayList<KeyNamePair>();
 	private ArrayList<KeyNamePair> endCap = new ArrayList<KeyNamePair>();
 	private ArrayList<KeyNamePair> miscItem = new ArrayList<KeyNamePair>();
+	private ArrayList<KeyNamePair> liftSpring = new ArrayList<KeyNamePair>();
 	private String blindControlIns = null;
 	private String tNCMIns = null;
 	private String rollerBracketIns = null;
 	private String rollerBracketColIns = null;
 	private String mechColIns = null;
 	private String chainSafeIns = null;
+	private String rollTypeIns = null;
+	private String controlSide = null;
 	boolean isChainControl = false;
 	
 	//Part types as must be entered in Product window
@@ -54,7 +57,10 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private static String CHAIN_SAFE = "Chain Safe";
 	private static String CHAIN_ACC = "Chain accessory";
 	private static String ROLLER_TUBE = "Roller tube";
+	private static String LIFT_SPRING = "Lift spring";
 	private static String END_CAP = "End Cap";
+	
+	//
 	private static String FABRIC_LENGTH_ADDITION = "Fabric length addition";
 	
 	//Various BOM parts to make the blind
@@ -71,6 +77,7 @@ public class RollerBlind extends MadeToMeasureProduct {
     Pattern pattern = null;
     BigDecimal oneHundred = new BigDecimal("100");
 	BigDecimal oneThousand = new BigDecimal("1000");
+	
 
 
 	public RollerBlind (int product_id, int bld_mtom_item_line_id, String trxn) {
@@ -99,7 +106,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 				mtmrolleritem.setlocation(mInstanceValue);
 			}
 			
-			else*/ if(mInstance.equalsIgnoreCase("Blind control"))
+			else*/ 
+			if(mInstance.equalsIgnoreCase("Blind control"))
 			{	
 				blindControlIns = mInstanceValue;
 				if(mInstanceValue.equalsIgnoreCase("Chain control"))
@@ -127,6 +135,14 @@ public class RollerBlind extends MadeToMeasureProduct {
 			else if(mInstance.equalsIgnoreCase("Chain safe"))
 			{
 				chainSafeIns = mInstanceValue;
+			}
+			else if(mInstance.equalsIgnoreCase("Roll type"))
+			{
+				rollTypeIns = mInstanceValue;
+			}
+			else if(mInstance.equalsIgnoreCase("Blind control side"))
+			{
+				controlSide = mInstanceValue;
 			}
 		}
 		
@@ -308,6 +324,12 @@ public class RollerBlind extends MadeToMeasureProduct {
 		addBomDerivedLines(controlBracketID, null);
 		addBomDerivedLines(chainSafeID, null);
 		addBomDerivedLines(endCapID, null);
+		if(isChainControl) 
+			{
+				int liftID = getLiftSpring();
+				if(liftID  > 0)addBomDerivedLines(liftID, null);
+				
+			}
 		
 		//BOM derived rollertube
 		BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
@@ -428,6 +450,10 @@ public class RollerBlind extends MadeToMeasureProduct {
 				else if(partType.equalsIgnoreCase(END_CAP))
 				{
 					endCap.add(new KeyNamePair(productIDs[i], names[i]));
+				}
+				else if(partType.equalsIgnoreCase(LIFT_SPRING))
+				{
+					liftSpring.add(new KeyNamePair(productIDs[i], names[i]));
 				}
 				
 			}
@@ -802,5 +828,47 @@ public class RollerBlind extends MadeToMeasureProduct {
 			RowSet rowset = DB.getRowSet(sql.toString());
 			return rowset;
 		}
+	 
+	 private int getLiftSpring() {
+		/*
+		 * How heavy is the blind?
+		 * What is its rotation?
+		 * Check liftSpring array - is it empty? If not, then loop through array and find the lightest spring that
+		 * will do the job.
+		 * Only specify a spring if the BOM has one that has a range that he blind weight falls into,
+		 * IE no spring unless blind is heavy enough for the available springs
+		 */
+		 BigDecimal weight = MtmUtils.getHangingMass(wide, high, fabricID, bottomBarID, trxName);
+		 String rotation = MtmUtils.getRotation(rollTypeIns, controlSide);
+		 if(rotation == null || rotation == "")
+			 {
+			 	log.warning("Could not determine rotation of ID: " + mtom_item_line_id + ", check control side.");
+			 	return 0;
+			 }
+		 
+		 if(liftSpring.isEmpty())return 0;
+		 for(KeyNamePair spring : liftSpring) 
+		 {
+			 int springID = spring.getKey();
+			 String lowerLimit = (String) MtmUtils.getMattributeInstanceValue(springID, "Lift Spring capacity lower", trxName);
+			 String upperLimit = (String) MtmUtils.getMattributeInstanceValue(springID, "Lift Spring capacity upper", trxName);
+			 String springRotation = (String) MtmUtils.getMattributeInstanceValue(springID, "Lift Spring rotation", trxName);
+		     BigDecimal lower = new  BigDecimal(lowerLimit); 
+		     BigDecimal upper = new  BigDecimal(upperLimit);
+		     int retval = weight.compareTo(lower);
+		     int retval2 = weight.compareTo(upper);
+		     if(retval > 0 && retval2 <0)//The blind weight is in the correct range of the spring
+		     {
+		    	 if(springRotation.equalsIgnoreCase(rotation))
+		    	 {
+		    		return springID; 
+		    	 }
+		    	 
+		     }
+		 }
+		 
+		 return 0;
+		 
+	 }
 		
 }

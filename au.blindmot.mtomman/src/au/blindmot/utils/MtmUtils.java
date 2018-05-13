@@ -3,9 +3,12 @@ package au.blindmot.utils;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.sql.RowSet;
 
+import org.compiere.model.MProduct;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -24,6 +27,8 @@ public class MtmUtils {
 	public static final String MTM_FABRIC_DEDUCTION = "Fabric deduction";
 	public static final String MTM_FABRIC_ADDITION = "Fabric length addition";
 	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar deduction";
+	public static final String MTM_CLOCKWISE = "Clockwise";
+	public static final String MTM_ANTI_CLOCKWISE = "Anti clockwise";
 	private static CLogger log = CLogger.getCLogger(MtmUtils.class);
 	
 	public MtmUtils() {
@@ -40,14 +45,13 @@ public class MtmUtils {
 			return null;
 
 	}
-
+//TODO: Add transactions to this method
 	private static String getBarcodePrefix(int table_id) {
 
 		StringBuffer sql = new StringBuffer();
 		sql.append("SELECT name  ");
 		sql.append("FROM ad_table ");
 		sql.append("WHERE ad_table_id = ?");
-
 		String tableName = DB.getSQLValueStringEx(null, sql.toString(), table_id);
 		String prefix = null;
 
@@ -62,56 +66,85 @@ public class MtmUtils {
 		return prefix;
 	}
 
-	public static int getBendingMoment(int length, int fabricProductId, int basebarProductId) {
-		// TODO: get the weight in kg/m^2 of the fabric
-		// TODO: get the weight of the base bar
+	public static BigDecimal getBendingMoment(int length, int width, int fabricProductId, int basebarProductId, String trxName) {
+		BigDecimal hangingMass = getHangingMass(width, length, fabricProductId, basebarProductId, trxName);
+		BigDecimal moment = Env.ZERO;
+		BigDecimal bigWidth = new BigDecimal(width);
+		moment = ((hangingMass.divide(bigWidth).multiply(bigWidth).pow(2).divide(new BigDecimal(8))));
 		/*
 		 * The bending moment is max in the centre of the beam (blind). The
-		 * formula is: wl^2 Mmax = ------- 8 Where: w = kg per lineal metre =
+		 * formula is: Mmax = wl^2/8 Where: w = kg per lineal metre =
 		 * total weight of basebar and fabric divided by length l = length of
 		 * tube Mmax will be in kg-metres
 		 * 
 		 * See: http://www.totalconstructionhelp.com/deflection.html
 		 */
-		int moment = 0;
+		if(moment.compareTo(Env.ZERO) > 0) return moment;
 		return moment;
 
 	}
 	
 	/**
 	 * 
-	 * @param fabricProductId
-	 * @return fabric weight in kg/m^2
+	 * @param length
+	 * @param width
+	 * @param fabricID
+	 * @param trxname
+	 * @return
 	 */
-	public static int getfabricWeight(int fabricProductId) {
-		//TODO: write method like getBaseBarWeight(int basebarProductId, String trxName)
-		//TODO: Better: use attribute weight for all products that require it and use the same method.
-		return 0;
+	public static BigDecimal getFabWeight(int length, int width, int fabricID, String trxname) {
+		MProduct mProduct = new MProduct(Env.getCtx(), fabricID, trxname);
+		BigDecimal  fabweightsqm = mProduct.getWeight();
+		if(fabweightsqm.equals(Env.ZERO))
+		{
+			throw new AdempiereUserError("No Weight for product: " + mProduct.getName() + " " + mProduct.getDescription());
+		}
+		return new BigDecimal((length/1000) * (width/1000)).multiply(fabweightsqm);
 	}
-	
 	
 	/**
 	 * 
+	 * @param length
+	 * @param productID
+	 * @param trxname
+	 * @return
+	 */
+	public static BigDecimal getLengthWeight(int length, int productID, String trxname) {
+		MProduct mProduct = new MProduct(Env.getCtx(), productID, trxname);
+		BigDecimal  prodWeight = mProduct.getWeight();
+		
+		if(prodWeight.equals(Env.ZERO))
+		{
+			throw new AdempiereUserError("No Weight for product: " + mProduct.getName() + " " + mProduct.getDescription());
+		}
+		return new BigDecimal(length/1000).multiply(prodWeight);
+	}
+	
+	/**
+	 * deprecate, refactor delete: 
 	 * @param basebarProductId
 	 * @return basebar weight in kg per metre
 	 */
-	public static int getBaseBarWeight(int basebarProductId, String trxName) {
+	/*public static int getWeight(int productId, String trxName) {
 		//TODO: modify to handle any product with 'weight' attribute.
+		
 		int weight = 0;
+		if(!(productId > 0))return weight;
 		StringBuilder sql = new StringBuilder	("	SELECT value FROM m_attributeinstance ma ");
 		sql.append("WHERE ma.m_attributesetinstance_id = ");
 		sql.append("(SELECT m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
-		sql.append(basebarProductId);
+		sql.append(productId);
 		sql.append(") ");
 		sql.append("AND ma.m_attribute_id = ");
-		sql.append("(SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name = ");
-		sql.append("LIKE '%Basebar weight'");
-		sql.append("')");
+		sql.append("(SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name ");
+		sql.append("LIKE '%eight'");
+		sql.append(")");
 				
 		weight = DB.getSQLValueEx(trxName, sql.toString());
 		
 		return weight;
 	}
+	*/
 	
 	/**
 	 * 
@@ -120,11 +153,21 @@ public class MtmUtils {
 	 * @param basebarProductId
 	 * @return
 	 */
-	public static int getHangingMass(int width, int length, int fabricProductId, int basebarProductId, String trxName) {
+	public static BigDecimal getHangingMass(int width, int length, int fabricProductId, int basebarProductId, String trxName) {
 		//hanging mass = fabric weight + basebar weight
+		BigDecimal fabWeight = getFabWeight(length, width, fabricProductId, trxName);
+		BigDecimal baseBarWeight = getLengthWeight(length, basebarProductId, trxName);
+		return fabWeight.add(baseBarWeight);
 		
-		
-		return 0;
+	}
+	
+	public static String getRotation(String rollTypeIns, String controlSide) {
+		if(rollTypeIns==null || controlSide==null)return "";
+		if(rollTypeIns.equalsIgnoreCase("NR")||controlSide.equalsIgnoreCase("Left")) return MTM_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("RR")||controlSide.equalsIgnoreCase("Left")) return MTM_ANTI_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("NR")||controlSide.equalsIgnoreCase("Right")) return MTM_ANTI_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("RR")||controlSide.equalsIgnoreCase("Right"))return MTM_CLOCKWISE;
+		return "";
 	}
 
 	public int getDeductions(ArrayList<Integer> components, String deductionType) {
@@ -227,5 +270,42 @@ public static BigDecimal hasLength(int masi_id) {
 	}
 	return Env.ZERO;
 	
+}
+
+public static Object getMattributeInstanceValue(int mProductID, String mAttributeName, String trxName) {
+	
+	List<Object> params = new ArrayList<Object>();
+	params.add(mProductID);
+	params.add(mAttributeName);
+	StringBuilder sql = new StringBuilder("SELECT mai.value ");
+	sql.append("FROM m_product mp ");
+	sql.append("JOIN m_attributesetinstance masi ON masi.m_attributesetinstance_id = mp.m_attributesetinstance_id ");
+	sql.append("JOIN m_attributeset mas ON mas.m_attributeset_id = masi.m_attributeset_id ");
+	sql.append("JOIN m_attributeinstance mai ON mai.m_attributesetinstance_id = masi.m_attributesetinstance_id ");
+	sql.append("JOIN m_attribute ma ON ma.m_attribute_id = mai.m_attribute_id ");
+	//sql.append("JOIN m_attributevalue mav ON mav.m_attributevalue_id = mai.m_attributevalue_id ");
+	sql.append("WHERE mp.m_product_id = ? AND ma.name LIKE ?");
+ 
+ Object object = DB.getSQLValueStringEx(trxName, sql.toString(), params);
+ return object;
+	}
+
+public static int getattributeWeight(int productId, String trxName) {
+	//TODO: modify to handle any product with 'weight' attribute.
+	int weight = 0;
+	if(!(productId > 0))return weight;
+	StringBuilder sql = new StringBuilder	("	SELECT value FROM m_attributeinstance ma ");
+	sql.append("WHERE ma.m_attributesetinstance_id = ");
+	sql.append("(SELECT m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
+	sql.append(productId);
+	sql.append(") ");
+	sql.append("AND ma.m_attribute_id = ");
+	sql.append("(SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name ");
+	sql.append("LIKE '%eight'");
+	sql.append(")");
+			
+	weight = DB.getSQLValueEx(trxName, sql.toString());
+	
+	return weight;
 }
 }
