@@ -17,6 +17,8 @@ import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
+import org.compiere.util.Env;
+
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
@@ -131,7 +133,10 @@ public class MtmLabels extends SvrProcess{
 				label.append(addOrderInfo(lines[i].getLine(),mBLDMtomProduction.getDocumentNo()));
 				label.append(addClientName(mBLDMtomProduction));
 				label.append(addOrderDescription(mBLDMtomProduction.getDescription()));
-				label.append(addFabric(lines[i].getinstance_string(), lines[i].getLine()));
+				if(isRollerBlind(lines[i].getM_Product_ID()))
+				{
+					label.append(addFabric(lines[i].getinstance_string(), lines[i].getLine()));
+				}
 				label.append(addLocation(lines[i]));
 				label.append(addProductname(lines[i].getM_Product_ID(), true));
 				label.append(addFinshedSize(lines[i]));
@@ -298,7 +303,7 @@ public class MtmLabels extends SvrProcess{
 	
 	
 	private String addFabric(String instanceString, int lineNum) {
-		if(instanceString.equalsIgnoreCase("0_0_0"))
+		if(instanceString.equalsIgnoreCase("0_0_0"))//TODO: Need to test that product is also a roller.
 			{
 				throw new AdempiereUserError("There is no fabric/bottom bar specified for: " + lineNum);
 			}
@@ -440,6 +445,13 @@ public class MtmLabels extends SvrProcess{
 			return cutItems; 
 		
 }
+	
+	private boolean isRollerBlind(int mProductID) {
+		MProduct theProduct = new MProduct(Env.getCtx(), mProductID, get_TrxName());
+		String name = theProduct.getName();
+		if(name.contains("roller") || name.contains("Roller"))return true;
+		return false;
+	}
 	
 
 }

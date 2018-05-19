@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Mtomman
-Bundle-Version: 1.0.2.qualifier
+Bundle-Version: 1.0.4.qualifier
 Bundle-SymbolicName: au.blindmot.mtomman;singleton:=true
 Import-Package: org.adempiere.webui,
  org.adempiere.webui.action,
@@ -27,7 +27,15 @@ Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-IN
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Export-Package: action.images,
+ au.blindmot.calloutfactory,
+ au.blindmot.eventhandler,
+ au.blindmot.factories,
+ au.blindmot.make,
  au.blindmot.model,
- au.blindmot.mtmbtn
+ au.blindmot.mtmbtn,
+ au.blindmot.mtmcallouts,
+ au.blindmot.mtmlabels.processes,
+ au.blindmot.processes.mtmcreate,
+ au.blindmot.utils
 Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 
