@@ -10,7 +10,6 @@
 			<arguments>
 			</arguments>
 		</buildCommand>
-
 		<buildCommand>
 			<name>org.eclipse.pde.ManifestBuilder</name>
 			<arguments>
@@ -21,7 +20,7 @@
 			<arguments>
 			</arguments>
 		</buildCommand>
-			<buildCommand>
+		<buildCommand>
 			<name>org.eclipse.pde.ds.core.builder</name>
 			<arguments>
 			</arguments>
