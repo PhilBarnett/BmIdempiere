@@ -1,7 +1,6 @@
 package au.blindmot.eventhandler;
 
-import au.blindmot.model.MBLDMtomItemLine;
-import au.blindmot.model.MBLDMtomProduction;
+
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -30,6 +29,9 @@ import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.osgi.service.event.Event;
 
+import au.blindmot.model.MBLDMtomItemLine;
+import au.blindmot.model.MBLDMtomProduction;
+
 public class MBLDEventHandler extends AbstractEventHandler {
 
 	private CLogger log = CLogger.getCLogger(MBLDEventHandler.class);
@@ -47,6 +49,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSECORRECT, MBLDMtomProduction.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MBLDMtomProduction.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
+				registerTableEvent(IEventTopics.PO_POST_CREATE, MOrderLine.Table_Name);
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
 				}
 	
@@ -101,7 +104,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	 */
 	private void handleMProductionLineEvent(PO pobj) {
 		
-		log.warning("---------- In handleMProductionLineEvent");
+		log.warning("---------- In handle MProductionLineEvent");
 		String isEndProduct = "N";
 		BigDecimal movementQty = BigDecimal.ZERO;
 		if(!(getmBLDMtomItemLineID() > 0))//It's not an MTMProduction
