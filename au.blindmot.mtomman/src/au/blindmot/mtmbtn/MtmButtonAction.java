@@ -130,8 +130,8 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		tab.getAD_Tab_ID();
 		if(window.getTitle().toString().equalsIgnoreCase("Production - made to measure"))isMtmProdWindow = true;
 		
-		System.out.println("Attempting to parse c_order_line: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true));
-		System.out.println("Attempting to parse bld_mtom_item_line_ID: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
+		log.info("Attempting to parse c_order_line: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true));
+		log.info("Attempting to parse bld_mtom_item_line_ID: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
 		if(Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true).length()!=0)
 			{
 				currbldmtomitemlineID = Integer.parseInt(Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
@@ -366,9 +366,9 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		}
 
 	
-		if(currBottomBar == 0)//sets a default for bottom bar
+		if(currBottomBar == 0 && bottomBar.getItemCount()>0)//sets a default for bottom bar
 		{
-			bottomBar.setSelectedIndex(1);
+			bottomBar.setSelectedIndex(0);
 			ListItem li = bottomBar.getSelectedItem();
 			currBottomBar = Integer.parseInt(li.getValue().toString());
 		}
@@ -376,7 +376,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		if(bottomBarSelected != null)currBottomBar = Integer.parseInt(bottomBarSelected);	
 		if(currBottomBar != 0)
 		{
-			bottomBar.setSelectedIndex(1);//Sets the list with the value from the DB
+			bottomBar.setSelectedIndex(0);//Sets the list with the value from the DB
 			bottomBarSelected = Integer.toString(currBottomBar);
 		}
 			
@@ -421,7 +421,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 		if (currentFabSelection !=0)
 		{
-			fabColour.setSelectedIndex(1);//Initializes the list with the value from the DB
+			fabColour.setSelectedIndex(0);//Initializes the list with the value from the DB
 			fabColour.setEnabled(true);
 			fabColour.setVisible(true);
 			loadFabType(Integer.toString(currentFabSelection));
@@ -486,7 +486,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			
 			if(currentFabSelection != 0)
 				{
-				fabFamily.setSelectedIndex(1);//Sets the list with the value from the DB
+				fabFamily.setSelectedIndex(0);//Sets the list with the value from the DB
 				loadFabColour(Integer.toString(currentFabSelection));
 				fabFamilySelected = Integer.toString(currentFabSelection);
 				}
@@ -541,7 +541,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 		if (currentFabSelection !=0)
 		{
-			fabType.setSelectedIndex(1);//Initializes the list with the value from the DB
+			fabType.setSelectedIndex(0);//Initializes the list with the value from the DB
 			fabType.setEnabled(true);
 			fabType.setVisible(true);
 			
@@ -551,7 +551,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		if(fabTypeItemCount <3)fabType.setEnabled(false);//If only one item, select it and set box unable
 			if (fabTypeItemCount >1 && fabTypeItemCount <3)
 			{
-				fabType.setSelectedIndex(1);
+				fabType.setSelectedIndex(0);
 				fabTypeSelected = selectedColour;
 			}
 			if (fabTypeItemCount <=1)FDialog.warn(tab.getWindowNo(), "Fabric type not determined, check product setup.", "Warning");
@@ -597,7 +597,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		
 		if (currentChainSelection !=0)
 		{
-			chainList.setSelectedIndex(1);//Initializes the list with the value from the DB
+			chainList.setSelectedIndex(0);//Initializes the list with the value from the DB
 		}
 		
 		chainList.setEnabled(true);
@@ -828,9 +828,9 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			}
 		
 		String word = "Chain";
-		Boolean found;
-		found = description.contains(word);
-		System.out.println(description + found.toString());
+		Boolean found = false;
+		if(description != null)found = description.contains(word);
+		log.info(description + found.toString());
 		
 		return found;
 	}
@@ -845,6 +845,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		StringBuilder sql = new StringBuilder("SELECT mp.m_parttype_id, mp.m_product_id, mp.name ");
 		sql.append("FROM m_product mp INNER JOIN m_product_bom mpb ");
 		sql.append("ON mp.m_product_id = mpb.m_productbom_id ");
+		sql.append("AND mpb.isactive  ='Y' ");
 		sql.append("AND mpb.m_product_id = ");
 		sql.append(m_product_id);
 		sql.append(" ORDER BY mp.m_parttype_id");

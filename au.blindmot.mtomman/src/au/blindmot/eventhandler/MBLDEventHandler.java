@@ -299,7 +299,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		toMAttributeSetInstance.saveEx();
 		}
 		   log.warning("--------- line 296");
-		   fromOrderLine.saveEx();
+		   if(fromOrderLine != null)fromOrderLine.saveEx();
 		   return (MOrderLine)fromOrderLine;
 	}
 	
