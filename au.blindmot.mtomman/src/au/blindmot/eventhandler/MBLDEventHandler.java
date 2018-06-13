@@ -88,7 +88,15 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			log.warning("---------Line 88");
 			log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
 			
-			if(orderLine.getM_AttributeSetInstance_ID() > 0) return;
+			if(orderLine.get_Value("reference_id") == null)//It's a new record.
+				{
+					orderLine.set_ValueNoCheck("reference_id", orderLine.get_ID());
+					orderLine.saveEx(trxName);
+				}
+			
+			int refID = orderLine.get_ValueAsInt("reference_id");
+			int orderLineID = orderLine.get_ID();
+			if(orderLine.getM_AttributeSetInstance_ID() > 0 && refID == orderLineID) return;//Everything is OK.
 			
 			log.warning("---------Line 93");
 			MProduct mProduct = new MProduct(Env.getCtx(), orderLine.getM_Product_ID(), trxName);

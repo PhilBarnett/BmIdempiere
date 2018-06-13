@@ -1,6 +1,7 @@
 package au.blindmot.mtmcallouts;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.Properties;
 import java.util.logging.Level;
 
@@ -8,10 +9,11 @@ import org.adempiere.base.Core;
 import org.adempiere.base.IColumnCallout;
 import org.adempiere.base.IProductPricing;
 import org.adempiere.model.GridTabWrapper;
-import org.compiere.model.CalloutOrder;
+import org.adempiere.webui.window.FDialog;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
 import org.compiere.model.I_C_OrderLine;
+import org.compiere.model.MInvoice;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
 import org.compiere.model.MProduct;
@@ -55,13 +57,11 @@ public class MtmCallouts implements IColumnCallout {
 		windowNum = WindowNo;
 		gridField = mField;
 		
-		int mProductID = (int) mTab.getValue(MOrderLine.COLUMNNAME_M_Product_ID);
-		log.warning("----------MProductID: " + mProductID);
-		
 		if(mTab.getAD_Table_ID() == MOrderLine.Table_ID)
 		{
 			//If it's an mtm product
 			int mProduct_ID = (int) mTab.getValue(MOrderLine.COLUMNNAME_M_Product_ID);
+			log.warning("----------MProductID: " + mProduct_ID);
 			MProduct mProduct = new MProduct(ctx, mProduct_ID, null);
 			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
 			{
@@ -82,6 +82,8 @@ public class MtmCallouts implements IColumnCallout {
 						{
 							log.warning("--------MtmCallouts setting field with: " + length);
 							setField(length, mTab);
+							//GridFieldVO vo = new GridFieldVO(ctx, mProduct_ID, mProduct_ID, mProduct_ID, mProduct_ID, false);
+							//GridField qtyField = new GridField(null);
 							amt(Env.getCtx(), windowNum, tab, gridField, length);
 						}
 					}//public String org.compiere.model.CalloutOrder.amt (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
@@ -93,6 +95,16 @@ public class MtmCallouts implements IColumnCallout {
 		//If it has length and width
 		//Then calculate the m^2 and 
 		//Check if the field exists then set the quantity field with the result.'Made to measure' check box in the 
+		if(mTab.getAD_Table_ID() == MInvoice.Table_ID)
+		{
+			Timestamp dateEntered = (Timestamp) mTab.getValue(MInvoice.COLUMNNAME_DateInvoiced);
+			Timestamp now = new Timestamp(System.currentTimeMillis());
+			if(dateEntered.after(now))
+			{
+				FDialog.warn(WindowNo, "Date invoiced is after current date and may be in error.");
+			}
+			
+		}
 		return "";
 	}
 	
@@ -166,6 +178,7 @@ public class MtmCallouts implements IColumnCallout {
 		else if ((mField.getColumnName().equals("QtyOrdered")
 			|| mField.getColumnName().equals("QtyEntered")
 			|| mField.getColumnName().equals("C_UOM_ID")
+			|| mField.getColumnName().equals("M_AttributeSetInstance_ID")
 			|| mField.getColumnName().equals("M_Product_ID"))
 			&& !"N".equals(Env.getContext(ctx, WindowNo, "DiscountSchema")))
 		{

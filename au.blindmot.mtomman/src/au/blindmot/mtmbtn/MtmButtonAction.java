@@ -284,7 +284,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		//Add the fabFam list
 		Row row = new Row();
 		rows.appendChild(row);
-		row.appendChild(new Label("Fabric Family:"));
+		row.appendChild(new Label("Material Family:"));
 		row.appendChild(fabFamily);
 		ZKUpdateUtil.setHflex(fabFamily, "1");
 		fabFamily.addEventListener(Events.ON_SELECT, this);
@@ -293,7 +293,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		//Add the fabColour Listbox
 		Row row1 = new Row();
 		rows.appendChild(row1);
-		row1.appendChild(new Label("Fabric Colour:")); 
+		row1.appendChild(new Label("Material Colour:")); 
 		row1.appendChild(fabColour);
 		ZKUpdateUtil.setHflex(fabColour, "1");
 		if(currentFabSelection == 0 && fabFamilySelected == null)
@@ -305,13 +305,19 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		//Add the fabType Listbox
 		Row row2 = new Row();
 		rows.appendChild(row2);
-		row2.appendChild(new Label("Fabric Type:")); 
+		row2.appendChild(new Label("Material Type:")); 
 		row2.appendChild(fabType);
 		ZKUpdateUtil.setHflex(fabType, "1");
 		fabType.addEventListener(Events.ON_SELECT, this);
-		if(currentFabSelection == 0 && fabColourSelected == null)fabType.setVisible(false);//Don't show this Listbox until a fabric colour is selected. 
+		if((currentFabSelection == 0 && fabColourSelected == null) || fabType.getItemCount() == 0)
+			{
+				fabType.setVisible(false);//Don't show this Listbox until a fabric colour is selected. 
+			}
 		
 		//Add bottom bar Listbox
+		
+		if(bottomBar.getItemCount() != 0)
+		{
 		Row row3 = new Row();
 		rows.appendChild(row3);
 		row3.appendChild(new Label("Bottom bar:")); 
@@ -320,7 +326,9 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		bottomBar.setMold("select");
 		bottomBar.addEventListener(Events.ON_SELECT, this);
 		initBottomBar();
-		
+		bottomBar.setVisible(true);
+			
+		}
 		/*
 		 * Add chainFam Listbox
 		 * Check if it's chain driven
@@ -361,12 +369,13 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			if(Integer.parseInt(item.getValue().toString()) == currBottomBar )
 			{
 				bottomBar.setSelectedItem(item);
+				bottomBar.setSelectedIndex(x);
 				break;
 			}
 		}
 
 	
-		if(currBottomBar == 0 && bottomBar.getItemCount()>0)//sets a default for bottom bar
+		if(currBottomBar == 0 && bottomBar.getItemCount()>0)//sets a default for bottom bar if no current selection
 		{
 			bottomBar.setSelectedIndex(0);
 			ListItem li = bottomBar.getSelectedItem();
@@ -374,11 +383,14 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		}
 			
 		if(bottomBarSelected != null)currBottomBar = Integer.parseInt(bottomBarSelected);	
-		if(currBottomBar != 0)
+		
+		/*
+		if(currBottomBar != 0 && bottomBar.getItemCount() > 0)
 		{
 			bottomBar.setSelectedIndex(0);//Sets the list with the value from the DB
 			bottomBarSelected = Integer.toString(currBottomBar);
 		}
+		*/
 			
 	}
 		
@@ -419,9 +431,9 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		}
 		
 		
-		if (currentFabSelection !=0)
+		if (currentFabSelection !=0 && fabColour.getItemCount() > 0)
 		{
-			fabColour.setSelectedIndex(0);//Initializes the list with the value from the DB
+			fabColour.setSelectedIndex(1);//Initializes the list with the value from the DB
 			fabColour.setEnabled(true);
 			fabColour.setVisible(true);
 			loadFabType(Integer.toString(currentFabSelection));
@@ -454,14 +466,18 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private void initFabFam() {
 		
 		   //Get the values for the fabric list box.
+		//TODO: These should only come from the BOM for the product.
 		
-		String sql = "SELECT m_product_id, name"
-				+ " FROM m_product as mp"
-				+ " WHERE mp.m_parttype_id ="
-				+ " (SELECT m_parttype_id FROM m_parttype WHERE m_parttype.name = 'Fabric')";
+		StringBuilder sql = new StringBuilder("SELECT mp.m_product_id, mp.name ");
+		sql.append("FROM m_product_bom mpb ");
+		sql.append("JOIN m_product mp ON mp.m_product_id = mpb.m_productbom_id ");
+		sql.append("WHERE mpb.m_product_id = ");
+		sql.append(currProductId);
+		sql.append(" AND mp.m_parttype_id = ");
+		sql.append("(SELECT m_parttype_id FROM m_parttype WHERE m_parttype.name = 'Fabric')");
 				
 		fabFamily.setMold("select");
-			KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql, true);
+			KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql.toString(), true);
 			ArrayList<String> dupCheck = new ArrayList<String>();
 			boolean addCurrent = false;
 			int count = 0;
@@ -484,9 +500,9 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 					count++;
 			}
 			
-			if(currentFabSelection != 0)
+			if(currentFabSelection != 0 && fabFamily.getItemCount() > 0)
 				{
-				fabFamily.setSelectedIndex(0);//Sets the list with the value from the DB
+				fabFamily.setSelectedIndex(1);//Sets the list with the value from the DB
 				loadFabColour(Integer.toString(currentFabSelection));
 				fabFamilySelected = Integer.toString(currentFabSelection);
 				}
@@ -509,7 +525,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		sql.append("AND mp.name = (SELECT name FROM m_product WHERE m_product_id = ");
 		sql.append(fabFamilySelected);
 		sql.append(") ");
-		sql.append("AND mp.description = (SELECT description FROM m_product WHERE m_product_id = ");
+		sql.append(" AND mp.description = (SELECT description FROM m_product WHERE m_product_id = ");
 		sql.append(selectedColour);
 		sql.append(")");
 		sql.append("AND ma.name LIKE 'Fabric desc'");
@@ -538,10 +554,10 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			dupCheck.add(pair.getName());
 			count++;
 		}
-		
-		if (currentFabSelection !=0)
+		System.out.println("fabType.getItemCount(): " + fabType.getItemCount());
+		if (currentFabSelection !=0 && fabType.getItemCount() > 1)
 		{
-			fabType.setSelectedIndex(0);//Initializes the list with the value from the DB
+			fabType.setSelectedIndex(1);//Initializes the list with the value from the DB
 			fabType.setEnabled(true);
 			fabType.setVisible(true);
 			
@@ -554,7 +570,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 				fabType.setSelectedIndex(0);
 				fabTypeSelected = selectedColour;
 			}
-			if (fabTypeItemCount <=1)FDialog.warn(tab.getWindowNo(), "Fabric type not determined, check product setup.", "Warning");
+			//if (fabTypeItemCount <=1)FDialog.warn(tab.getWindowNo(), "Fabric type not determined, check product setup.", "Warning");
 			
 	}
 	
@@ -565,9 +581,12 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			chainSelected = Integer.toString(currentChainSelection);
 		}
 		
-		StringBuilder sql = new StringBuilder("SELECT m_product_id, CONCAT(name, ' ', description) AS Summary ");
-		sql.append("FROM m_product mp ");
-		sql.append("WHERE mp.m_parttype_id = ");
+		StringBuilder sql = new StringBuilder("SELECT mp.m_product_id, mp.name ");
+		sql.append("FROM m_product_bom mpb ");
+		sql.append("JOIN m_product mp ON mp.m_product_id = mpb.m_productbom_id ");
+		sql.append("WHERE mpb.m_product_id = ");
+		sql.append(currProductId);
+		sql.append("AND mp.m_parttype_id = ");
 		sql.append("(SELECT m_parttype_id FROM m_parttype WHERE m_parttype.name = 'Chain');");
 		
 		chainList.setMold("select");
@@ -595,9 +614,9 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			count++;
 		}
 		
-		if (currentChainSelection !=0)
+		if (currentChainSelection !=0 && chainList.getItemCount() > 0)
 		{
-			chainList.setSelectedIndex(0);//Initializes the list with the value from the DB
+			chainList.setSelectedIndex(1);//Initializes the list with the value from the DB
 		}
 		
 		chainList.setEnabled(true);
@@ -744,9 +763,23 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	{
 		confirmPanel.setEnabled("Ok", true);
 		ListItem li = fabType.getSelectedItem();
-		if(li != null)fabTypeSelected = li.getValue();
+		if(li != null)
+		{
+			if(li.getValue() != null)
+			{
+				fabTypeSelected = li.getValue();
+			}
+		}
 		
-		if(fabTypeSelected == null||li == null)
+		ListItem li1 = fabColour.getSelectedItem();
+		
+				if(li1 != null)
+				{
+					fabTypeSelected = li1.getValue();
+				}
+		
+		
+		if(fabTypeSelected == null)
 		{
 			confirmPanel.setEnabled("Ok", false);
 		}
@@ -906,32 +939,6 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			
 			
 		}
-		
-		
-		/*Get the type part that the 1st partid is.
-		 * 
-		 * Iterate through the 3 arrays while where still on the same partID
-		 * Create a keynamePair from the name and productid.
-		 * Append/make the appropriate ListBox items from the keynamepair
-		 * when the partID changes, repeat from beginning.
-		 * 
-		 * 
-		 * 
-		 * 
-		 * 
-		 * 
-		 * TODO:
-		 * Get Tubular Blind Control components
-		 * Get TNCM
-		 * Get Roller Bracket
-		 * Get Bottom Bar
-		 * 
-		 * 
-		 * DB.getRowSet(sql) or getKeynamePair()?
-		*Get BOM: SELECT mp.m_parttype_id, mp.m_product_id FROM m_product mp INNER JOIN m_product_bom mpb ON mp.m_product_id = mpb.m_productbom_id AND mpb.m_product_id = '1000010';
-		*or SELECT mp.name, mp.m_product_id, mp.m_parttype_id FROM m_product mp INNER JOIN m_product_bom mpb ON mp.m_product_id = mpb.m_productbom_id AND mpb.m_product_id = '1000010';
-		*Figure out which BOM items are: Chain, control, roller bracket, bottom bar, TNCM (tubular non control mech)
-		*/
 	
 	}
 }

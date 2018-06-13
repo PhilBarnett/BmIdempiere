@@ -1,10 +1,12 @@
 package au.blindmot.model;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Properties;
 
 import org.compiere.util.DB;
+import org.compiere.util.Env;
 
 
 public class MBLDMtomCuts extends X_BLD_mtom_cuts{
@@ -29,18 +31,18 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts{
 		// TODO Auto-generated constructor stub
 	}
 	
-	public static int getDeductions(ArrayList<Integer> components, String deductionType, String trxName) {
+	public static BigDecimal getDeductions(ArrayList<Integer> components, String deductionType, String trxName) {
 
-		int totalDeduction = 0;
+		BigDecimal totalDeduction = Env.ZERO;
 		for (Integer productId : components) {
-			totalDeduction = totalDeduction + getDeduction(productId.intValue(), deductionType, trxName);
+			totalDeduction.add(getDeduction(productId.intValue(), deductionType, trxName));
 		}
 
 		return totalDeduction;
 	}
 
-	public static int getDeduction (int mProductID, String deductionType, String trxName) {
-		
+	public static BigDecimal getDeduction (int mProductID, String deductionType, String trxName) {
+
 	StringBuffer sql = new StringBuffer	("	SELECT value FROM m_attributeinstance ma ");
 	sql.append("WHERE ma.m_attributesetinstance_id = ");
 	sql.append("(SELECT m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
@@ -51,7 +53,7 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts{
 	sql.append(deductionType);
 	sql.append("')");
 			
-	int deduction = DB.getSQLValueEx(trxName, sql.toString());
+	BigDecimal deduction = new BigDecimal(DB.getSQLValueEx(trxName, sql.toString()));
 	
 	return deduction;
 	}

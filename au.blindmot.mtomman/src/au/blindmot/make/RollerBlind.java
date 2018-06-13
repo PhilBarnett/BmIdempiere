@@ -195,9 +195,9 @@ public class RollerBlind extends MadeToMeasureProduct {
 		setValueProductID();//Interprets the attribute instances and picks parts from ArrayLists to match, also creates BOM lines for chain driven blinds.
 		
 		//Get a value for field fabricWidth & fabricDrop
-		int fabricWidth = getFabricWidth();
-		int fabricDrop = getFabricDrop();
-		int bottomBarCut = getBottomBarCut();
+		BigDecimal fabricWidth = getFabricWidth();
+		BigDecimal fabricDrop = getFabricDrop();
+		BigDecimal bottomBarCut = getBottomBarCut();
 		int fabricLengthAddition = getFabricLengthAddition(m_product_id);
 		
 		int fabId = getBomProductID("Fabric");
@@ -213,7 +213,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		if(fabIdToUse !=0 )
 
 			{
-				addBldMtomCuts(fabIdToUse, fabricWidth, fabricDrop + fabricLengthAddition, 0);	
+				addBldMtomCuts(fabIdToUse, fabricWidth, fabricDrop.add(new BigDecimal(fabricLengthAddition)), 0);	
 			}
 		
 		int rollerTID = getBomProductID(ROLLER_TUBE);
@@ -229,7 +229,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		
 		if(rollerIDToUse !=0 )
 			{
-				addBldMtomCuts(rollerIDToUse,0,getRollerTubeCut(wide),0);			
+				addBldMtomCuts(rollerIDToUse,Env.ZERO,getRollerTubeCut(wide),0);			
 			}
 		
 		int bottombarIDToUse = 0;
@@ -246,7 +246,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		if(bottombarIDToUse !=0 )
 
 			{
-				addBldMtomCuts(bottombarIDToUse,0,bottomBarCut ,0);
+				addBldMtomCuts(bottombarIDToUse,Env.ZERO,bottomBarCut ,0);
 			}
 		
 		return true;
@@ -701,9 +701,9 @@ public class RollerBlind extends MadeToMeasureProduct {
 		
 	}
 	
-	protected void addBldMtomCuts(int mProductID, int width, int length, int height){
-		BigDecimal bigWidth = new BigDecimal(width);
-		BigDecimal bigLength = new BigDecimal(length);
+	protected void addBldMtomCuts(int mProductID, BigDecimal width, BigDecimal length, int height){
+		BigDecimal bigWidth = width;
+		BigDecimal bigLength = length;
 		BigDecimal bigHeight = new BigDecimal(height);
 		if(mProductID != 0)
 		{
@@ -752,28 +752,39 @@ public class RollerBlind extends MadeToMeasureProduct {
 		headRailComps.add(controlBracketID);
 		headRailComps.add(controlID);
 		headRailComps.add(nonControlID);
+		log.warning("--------In RollerBlind.getHeadRailComps.");
+		log.warning("--------Headrail comps are: " + headRailComps.toString());
 		return headRailComps;
 	 }
 	 
-	 public int getRollerTubeCut(int width) {
-		return width - MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName);
+	 public BigDecimal getRollerTubeCut(int width) {
+		 BigDecimal bigWidth = new BigDecimal(width);
+		 log.warning("---------In RollerBlind.getRollerTubeCut");
+		 log.warning("About to call static method MBLDMtomCuts.getDeductions with deduction type: " + MtmUtils.MTM_HEAD_RAIL_DEDUCTION +" and Headrail comps");
+		return bigWidth.subtract(MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName));
 	 }
 	 
-	 public int getBottomBarCut() {
-		 return getFabricWidth() - MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName);
+	 public BigDecimal getBottomBarCut() {
+		 BigDecimal fabricWidth = getFabricWidth();
+		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
+		 return fabricWidth.subtract(MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName));
 	 }
 	 
-	 public int getFabricWidth() {
-		 return getRollerTubeCut(wide)- MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName);
+	 public BigDecimal getFabricWidth() {
+		 BigDecimal tubeCut = getRollerTubeCut(wide);
+		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_FABRIC_DEDUCTION);
+		 return tubeCut.subtract(MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName));
 	 }	
 
-	 public int getFabricDrop() {
-		 return high + MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName);
+	 public BigDecimal getFabricDrop() {
+		 BigDecimal bigHigh = new BigDecimal(high);
+		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_FABRIC_ADDITION);
+		 return bigHigh.add(MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName));
 	 }
 	 
 	 public BigDecimal getFabricQty() {
-		 	BigDecimal fwidth = new BigDecimal(getFabricWidth()).divide(oneThousand);
-			BigDecimal fdrop = new BigDecimal(getFabricDrop()).divide(oneThousand);
+		 	BigDecimal fwidth = getFabricWidth().divide(oneThousand);
+			BigDecimal fdrop = getFabricDrop().divide(oneThousand);
 			BigDecimal qty = fwidth.multiply(fdrop);
 			BigDecimal waste = new BigDecimal(getWaste(fabricID));
 			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
@@ -782,14 +793,14 @@ public class RollerBlind extends MadeToMeasureProduct {
 	 }
 	 
 	 public BigDecimal getRollerTubeQty() {
-		 	BigDecimal qty = new BigDecimal(getRollerTubeCut(wide));
+		 	BigDecimal qty = getRollerTubeCut(wide);
 			BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
 			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
 			return qty;
 	 }
 	 
 	 public BigDecimal getBottomBarQty() {
-		 	BigDecimal qty = new BigDecimal(getBottomBarCut());
+		 	BigDecimal qty = getBottomBarCut();
 			BigDecimal waste = new BigDecimal(getWaste(bottomBarID));
 			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
 			return qty;
@@ -812,8 +823,16 @@ public class RollerBlind extends MadeToMeasureProduct {
 			 StringBuilder sql = new StringBuilder("SELECT name FROM m_parttype ");
 			 sql.append(" WHERE m_parttype_id = ?");
 			 String partName = DB.getSQLValueString(trxName, sql.toString(), mPartTypeID);
-		//TODO Handle NPE below.
-			 if(partName.equalsIgnoreCase(partType)) return productID;
+		
+			 if(partName != null)
+			 {
+				if(partName.equalsIgnoreCase(partType)) return productID; 
+			 }
+			 else
+			 {
+				 log.warning("Could not get a part name for partType: " + partType);
+			 }
+			 
 		 }
 		 return 0;
 	 }

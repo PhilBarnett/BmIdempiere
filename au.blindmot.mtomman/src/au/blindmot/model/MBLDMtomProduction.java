@@ -99,6 +99,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		setDescription(mOrder.getDescription());
 		setDatePromised(mOrder.getDatePromised());
 		setIsComplete(false);
+		setIsApproved(true);
 		setAD_Org_ID(mOrder.getAD_Org_ID());
 		mOrder_id = Corder_id;
 	}
@@ -600,10 +601,18 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		}
 		setDateAcct (new Timestamp( System.currentTimeMillis() ));
 		
+		log.warning("Currency ID: " + getC_Currency_ID());
 		if(getC_Currency_ID() == 0)
 		{
 			MPriceList plDefault = MPriceList.getDefault(getCtx(), true); 
-			setC_Currency_ID(plDefault.getC_Currency().getC_Currency_ID());
+			
+			if(plDefault!=null)
+			{
+				log.warning("Default price list: " + plDefault.toString());
+				log.warning("Currency: "+ plDefault.getC_Currency().getCurSymbol());
+				setC_Currency_ID(plDefault.getC_Currency().getC_Currency_ID());
+			}
+			
 		}
 		
 		if(getAD_User_ID() == 0)
