@@ -57,9 +57,9 @@ import au.blindmot.model.MBLDMtomItemLine;
  * mbldtmtomlineitem. The instance variables are still read from the c_orderline.
  *
  */
-public class MtmButtonAction implements IAction, EventListener<Event> {
+public class MtmButtonActionWindow implements EventListener<Event> {
 
-	private static CLogger log = CLogger.getCLogger(MtmButtonAction.class);
+	private static CLogger log = CLogger.getCLogger(MtmButtonActionWindow.class);
 	private AbstractADWindowContent panel;
 	private ConfirmPanel 	confirmPanel = new ConfirmPanel(true);
 	private GridTab 		tab = null;
@@ -85,6 +85,7 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	private int currBottomBar = 0;
 	private boolean isChainDriven = false;
 	private boolean isMtmProdWindow = false;
+	private ADWindow window;
 
 	
 	/*
@@ -98,127 +99,13 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 	/**
 	 * <div>Icons made by <a href="https://www.flaticon.com/authors/smashicons" title="Smashicons">Smashicons</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a></div>
 	 */
-	public MtmButtonAction() {
+	public MtmButtonActionWindow(AbstractADWindowContent panel, ADWindow window) {
+		this.panel = panel;	
+		this.window = window;
+		prepare();
 	
 	}
 
-	@Override
-	public void execute(Object target) {
-		fabFamilySelected = null;
-		fabColourSelected = null;
-		fabTypeSelected = null;
-		chainSelected = null;
-		currentFabSelection = 0;
-		currentChainSelection = 0;
-		currOrderLine = 0;
-		currbldmtomitemlineID = 0;
-		currBottomBar = 0;
-		isChainDriven = false;
-		isMtmProdWindow = false;
-		Object mtmAttribute = null;
-
-		
-		ADWindow window = (ADWindow)target;
-		ADWindowContent content = window.getADWindowContent();
-		tab = content.getActiveGridTab();
-		tab.getAD_Window_ID();
-		panel = content;
-		
-		
-		log.info("MtmButtonAction window title: " + window.getTitle());
-		tab.getAD_Window_ID();
-		tab.getAD_Tab_ID();
-		if(window.getTitle().toString().equalsIgnoreCase("Production - made to measure"))isMtmProdWindow = true;
-		
-		log.info("Attempting to parse c_order_line: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true));
-		log.info("Attempting to parse bld_mtom_item_line_ID: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
-		if(Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true).length()!=0)
-			{
-				currbldmtomitemlineID = Integer.parseInt(Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
-			}
-		
-		//Test to see if the current record is a mtm product.
-		//Get the c_orderline_id, find the product_id, check if the product_id is a mtm product
-		StringBuilder sql_mtm = new StringBuilder("SELECT ismadetomeasure FROM m_product WHERE m_product_id = ?");
-		
-		String isMtm = "Y";
-		if(currProductId!=0)
-		{
-			isMtm = DB.getSQLValueString(null, sql_mtm.toString(), currProductId);
-		}
-		
-		String c_Order_line = Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true);
-		String mtm_Order_line = Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true);
-		
-		if (c_Order_line =="" && mtm_Order_line=="")
-		{
-			FDialog.warn(tab.getWindowNo(), "There's no order line to specify options for.", "Warning");
-		}
-			else if(c_Order_line != "")
-			{
-				currOrderLine = Integer.parseInt(c_Order_line);
-				StringBuilder sql = new StringBuilder("SELECT m_product_id FROM c_orderline WHERE c_orderline_id = ");
-				sql.append(c_Order_line);
-				int m_Product = DB.getSQLValue(null, sql.toString());
-				currProductId = m_Product;
-			}
-				
-			
-				if (c_Order_line == "" && isMtm!=null && !isMtm.equals("Y"))
-				{
-					FDialog.warn(tab.getWindowNo(), "There's no made to measure product to specify options for.", "Warning");
-				}
-			
-				//If not mtmproduction window, do below code - check if attributes already assigned
-				
-					
-					if(isMtmProdWindow&&currbldmtomitemlineID!=0)
-					{
-						MBLDMtomItemLine thisMtmLine = new MBLDMtomItemLine(Env.getCtx(), currbldmtomitemlineID, null);
-						mtmAttribute = thisMtmLine.getinstance_string();
-						currProductId = thisMtmLine.getM_Product_ID();
-					}
-					else
-					{
-						MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
-						mtmAttribute = thisOrderLine.get_Value("mtm_attribute");
-					}
-					  	
-					
-					//Check if this order line already has attributes assigned.
-					
-					String patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
-				    Pattern pattern = Pattern.compile(patternString);
-					
-					if(mtmAttribute!=null && mtmAttribute.toString().contains("_"))
-					{
-						//Split the value of the mtm_attribute column, first value id fabric, second is chain, third is bottom bar
-						String[] products = mtmAttribute.toString().split("_");
-						
-						if(products.length > 0)
-						{
-							Matcher matcher = pattern.matcher(products[0]);
-							boolean matches = matcher.matches();
-							if(matches)currentFabSelection = Integer.parseInt(products[0]);
-							if(products[0].length() != 7)currentFabSelection = 0;
-						}
-						
-						if(products.length > 1)
-						{
-							Matcher matcher1 = pattern.matcher(products[1]);
-							boolean matches1 = matcher1.matches();
-							if(matches1)currentChainSelection = Integer.parseInt(products[1]);
-						}
-						
-						if(products.length > 2)
-						{
-							Matcher matcher2 = pattern.matcher(products[2]);
-							boolean matches2 = matcher2.matches();
-							if(matches2)currBottomBar = Integer.parseInt(products[2]);
-						}
-				}		
-	show();	
-	}
 	
 		/*If this returns "" then it fails the check. Should return 'M_Product_ID =1000010' or similar.
 		 * Possibly should check for just roller blind?
@@ -227,6 +114,11 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		 */		
 
 	public void show(){
+		
+		int AD_Table_ID=panel.getActiveGridTab().getAD_Table_ID();
+		if (blindConfig == null)
+		{	
+		blindConfig = new Window();
 		
 		fabColour.setMold("select");
 		fabColour.getItems().clear();
@@ -249,9 +141,9 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 		initFabFam();
 		setOptions(currProductId);
 		
-		if (blindConfig != null)blindConfig=null;
-		{	
-		blindConfig = new Window();
+		
+		
+		
 		ZKUpdateUtil.setWidth(blindConfig, "650px");
 		blindConfig.setClosable(true);
 		blindConfig.setBorder("normal");
@@ -940,6 +832,125 @@ public class MtmButtonAction implements IAction, EventListener<Event> {
 			
 		}
 	
+	}
+
+	
+	public void prepare() {
+		fabFamilySelected = null;
+		fabColourSelected = null;
+		fabTypeSelected = null;
+		chainSelected = null;
+		currentFabSelection = 0;
+		currentChainSelection = 0;
+		currOrderLine = 0;
+		currbldmtomitemlineID = 0;
+		currBottomBar = 0;
+		isChainDriven = false;
+		isMtmProdWindow = false;
+		Object mtmAttribute = null;
+
+		/*TODO: Ensure the ADWindow windowobject doesn't cause access issues.
+		 * 
+		 */
+		
+		ADWindowContent content = window.getADWindowContent();
+		tab = content.getActiveGridTab();
+		tab.getAD_Window_ID();
+		//panel = content; 
+		
+		
+		log.info("MtmButtonAction window title: " + window.getTitle());
+		tab.getAD_Window_ID();
+		tab.getAD_Tab_ID();
+		if(window.getTitle().toString().equalsIgnoreCase("Production - made to measure"))isMtmProdWindow = true;
+		
+		log.info("Attempting to parse c_order_line: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true));
+		log.info("Attempting to parse bld_mtom_item_line_ID: " + Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
+		if(Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true).length()!=0)
+			{
+				currbldmtomitemlineID = Integer.parseInt(Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true));
+			}
+		
+		//Test to see if the current record is a mtm product.
+		//Get the c_orderline_id, find the product_id, check if the product_id is a mtm product
+		StringBuilder sql_mtm = new StringBuilder("SELECT ismadetomeasure FROM m_product WHERE m_product_id = ?");
+		
+		String isMtm = "Y";
+		if(currProductId!=0)
+		{
+			isMtm = DB.getSQLValueString(null, sql_mtm.toString(), currProductId);
+		}
+		
+		String c_Order_line = Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@C_OrderLine_ID@", true);
+		String mtm_Order_line = Env.parseContext(Env.getCtx(), tab.getWindowNo(), "@bld_mtom_item_line_ID@", true);
+		
+		if (c_Order_line =="" && mtm_Order_line=="")
+		{
+			FDialog.warn(tab.getWindowNo(), "There's no order line to specify options for.", "Warning");
+		}
+			else if(c_Order_line != "")
+			{
+				currOrderLine = Integer.parseInt(c_Order_line);
+				StringBuilder sql = new StringBuilder("SELECT m_product_id FROM c_orderline WHERE c_orderline_id = ");
+				sql.append(c_Order_line);
+				int m_Product = DB.getSQLValue(null, sql.toString());
+				currProductId = m_Product;
+			}
+				
+			
+				if (c_Order_line == "" && isMtm!=null && !isMtm.equals("Y"))
+				{
+					FDialog.warn(tab.getWindowNo(), "There's no made to measure product to specify options for.", "Warning");
+				}
+			
+				//If not mtmproduction window, do below code - check if attributes already assigned
+				
+					
+					if(isMtmProdWindow&&currbldmtomitemlineID!=0)
+					{
+						MBLDMtomItemLine thisMtmLine = new MBLDMtomItemLine(Env.getCtx(), currbldmtomitemlineID, null);
+						mtmAttribute = thisMtmLine.getinstance_string();
+						currProductId = thisMtmLine.getM_Product_ID();
+					}
+					else
+					{
+						MOrderLine thisOrderLine = new MOrderLine(Env.getCtx(), currOrderLine, null);
+						mtmAttribute = thisOrderLine.get_Value("mtm_attribute");
+					}
+					  	
+					
+					//Check if this order line already has attributes assigned.
+					
+					String patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
+				    Pattern pattern = Pattern.compile(patternString);
+					
+					if(mtmAttribute!=null && mtmAttribute.toString().contains("_"))
+					{
+						//Split the value of the mtm_attribute column, first value id fabric, second is chain, third is bottom bar
+						String[] products = mtmAttribute.toString().split("_");
+						
+						if(products.length > 0)
+						{
+							Matcher matcher = pattern.matcher(products[0]);
+							boolean matches = matcher.matches();
+							if(matches)currentFabSelection = Integer.parseInt(products[0]);
+							if(products[0].length() != 7)currentFabSelection = 0;
+						}
+						
+						if(products.length > 1)
+						{
+							Matcher matcher1 = pattern.matcher(products[1]);
+							boolean matches1 = matcher1.matches();
+							if(matches1)currentChainSelection = Integer.parseInt(products[1]);
+						}
+						
+						if(products.length > 2)
+						{
+							Matcher matcher2 = pattern.matcher(products[2]);
+							boolean matches2 = matcher2.matches();
+							if(matches2)currBottomBar = Integer.parseInt(products[2]);
+						}
+				}		
 	}
 }
 

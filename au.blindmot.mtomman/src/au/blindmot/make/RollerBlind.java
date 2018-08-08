@@ -10,20 +10,18 @@ import java.util.regex.Pattern;
 
 import javax.sql.RowSet;
 
-import org.compiere.model.I_M_PartType;
 import org.compiere.model.MAttribute;
-import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductBOM;
 import org.compiere.model.X_M_PartType;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDMtomCuts;
-import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.utils.MtmUtils;
 
 
@@ -760,24 +758,29 @@ public class RollerBlind extends MadeToMeasureProduct {
 	 public BigDecimal getRollerTubeCut(int width) {
 		 BigDecimal bigWidth = new BigDecimal(width);
 		 log.warning("---------In RollerBlind.getRollerTubeCut");
+		 deductionPreCheck(MtmUtils.MTM_HEAD_RAIL_DEDUCTION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeductions with deduction type: " + MtmUtils.MTM_HEAD_RAIL_DEDUCTION +" and Headrail comps");
-		return bigWidth.subtract(MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName));
+		
+		 return bigWidth.subtract(MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName));
 	 }
 	 
 	 public BigDecimal getBottomBarCut() {
 		 BigDecimal fabricWidth = getFabricWidth();
+		 deductionPreCheck(MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
 		 return fabricWidth.subtract(MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName));
 	 }
 	 
 	 public BigDecimal getFabricWidth() {
 		 BigDecimal tubeCut = getRollerTubeCut(wide);
+		 deductionPreCheck(MtmUtils.MTM_FABRIC_DEDUCTION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_FABRIC_DEDUCTION);
 		 return tubeCut.subtract(MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName));
 	 }	
 
 	 public BigDecimal getFabricDrop() {
 		 BigDecimal bigHigh = new BigDecimal(high);
+		 deductionPreCheck(MtmUtils.MTM_FABRIC_ADDITION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_FABRIC_ADDITION);
 		 return bigHigh.add(MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName));
 	 }
@@ -888,6 +891,42 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 
 		 return 0;
 		 
+	 }
+	 private void deductionPreCheck(String deductionType) {
+		 StringBuilder sql = new StringBuilder();
+		 sql.append("SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name = '");
+		 sql.append(deductionType);
+		 sql.append("'");
+		 
+		 if(getRowCount(sql.toString()) > 1)
+			 {
+			 StringBuilder msg = new StringBuilder("There is more than one Attribute for the deduction type: ");
+			 msg.append(deductionType);
+			 msg.append(". Check the Attributes that match or are close to ");
+			 msg.append(deductionType);
+			 msg.append(" and reconfigure.");
+			 throw new AdempiereUserError(msg.toString());
+			 }
+		 
+		
+	 }
+	 
+	 private int getRowCount(String sql) {
+		 RowSet rowset = DB.getRowSet(sql.toString());
+		 int rowCount = 0;
+		 try
+		 {
+			 while(rowset.next() )
+				{
+				 rowCount++;
+				}
+		 }
+		 catch (SQLException e)
+		 {
+			 log.severe("Could not get values for query" + e.getMessage());
+				e.printStackTrace();
+		 } 
+		 return rowCount;
 	 }
 		
 }
