@@ -31,6 +31,7 @@ public class Remittance extends SvrProcess {
 	private StringBuilder mailHeader = new StringBuilder();
 	private MClient client = null;
 	private int mMailTextID = 0;
+	private int c_PaySelectionLine_ID = 0;
 
 	@Override
 	protected void prepare() {
@@ -40,7 +41,14 @@ public class Remittance extends SvrProcess {
 		{
 			String paraName = para.getParameterName();
 			if(paraName.equalsIgnoreCase("C_PaySelection_ID"))
+			{
 				c_PaySelection_ID = para.getParameterAsInt();
+			}
+				
+			else if(paraName.equalsIgnoreCase("C_PaySelectionLine_ID"))
+			{
+				c_PaySelectionLine_ID  = para.getParameterAsInt();
+			}
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + paraName);
 		}
@@ -73,16 +81,28 @@ public class Remittance extends SvrProcess {
 		mailSubject.append(" " + client.getName());
 		
 		/*
-		 *TODO: wrong approach. Refactor
-		 *
+		 * If c_PaySelection_ID != 0//It's a paymentselection - send email to all
+		 * If c_PaySelectionLine_ID != 0//It's a payselection line - send email to one line only.
+		 * 
+		 * TODO: The process gets both parameters if it's called from a Payment Selection Line
+		 * This results in sql1 getting set twice, the second time it simply sends email to the first selection line
+		 * Fix by checking if the 2 paqrras have values, if they do only send to c_PaySelectionLine_ID, if they don't 
+		 * sed to all  with c_PaySelection_ID 
 		 */
+		StringBuilder sql1 = new StringBuilder();
+		
+		if(c_PaySelection_ID != 0)//
+		{
+			sql1 = getSqlPaySelection(c_PaySelection_ID);
+		}
+		
+		if(c_PaySelectionLine_ID != 0)
+		{
+			sql1 = getSqlPaySelectionLine(c_PaySelectionLine_ID);
+		}
 		
 		//Get result set of checkIDs
-		StringBuilder sql1 = new StringBuilder("SELECT cpsc.c_payselectioncheck_id, cpsc.processed, cpsc.payamt ");
-		sql1.append("FROM c_payselectioncheck cpsc ");
-		sql1.append("JOIN c_payselection cp ON cp.c_payselection_id = cpsc.c_payselection_id ");
-		sql1.append("WHERE cp.c_payselection_id = ");
-		sql1.append(c_PaySelection_ID);
+		
 		
 		RowSet rowSet = DB.getRowSet(sql1.toString());
 	
@@ -102,6 +122,24 @@ public class Remittance extends SvrProcess {
 		
 	}
 	
+	private StringBuilder getSqlPaySelectionLine(int c_PaySelectionLine_ID3) {
+		StringBuilder sql = new StringBuilder("SELECT cpsc.c_payselectioncheck_id, cpsc.processed, cpsc.payamt ");
+		sql.append("FROM c_payselectioncheck cpsc ");
+		sql.append("JOIN c_payselectionline cpl ON cpl.c_payselectioncheck_id = cpsc.c_payselectioncheck_id ");
+		sql.append("WHERE cpl.c_payselectionline_id =  ");
+		sql.append(c_PaySelectionLine_ID3);
+		return sql;
+	}
+
+	private StringBuilder getSqlPaySelection(int c_PaySelection_ID2) {
+		StringBuilder sql = new StringBuilder("SELECT cpsc.c_payselectioncheck_id, cpsc.processed, cpsc.payamt ");
+		sql.append("FROM c_payselectioncheck cpsc ");
+		sql.append("JOIN c_payselection cp ON cp.c_payselection_id = cpsc.c_payselection_id ");
+		sql.append("WHERE cp.c_payselection_id = ");
+		sql.append(c_PaySelection_ID2);
+		return sql;
+	}
+
 	private int prepareEmail(int checkID, String processed, BigDecimal payamt) {
 	
 		int bpid = 0;
