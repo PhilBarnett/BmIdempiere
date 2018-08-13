@@ -31,6 +31,7 @@ import org.compiere.model.MBankAccount;
 import org.compiere.model.MClient;
 import org.compiere.model.MCurrency;
 import org.compiere.model.MPaySelectionCheck;
+import org.compiere.model.X_C_BPartner;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
@@ -143,11 +144,11 @@ public class ABAPaymentExporter implements PaymentExport {
 							String currency = MCurrency.getISO_Code(Env.getCtx(), mPaySelectionCheck.getParent().getC_Currency_ID());
 							System.out.println("Currency is: " + currency);
 							//if(currency != "AUD") throw new AdempiereUserError("ERROR! Currency must be $AU");
-							
+							X_C_BPartner cBPartner = new X_C_BPartner(Env.getCtx(),checks[i].getC_BPartner_ID(), checks[i].get_TrxName());
 							//Check and trim strings
 							if(bpAccountNum == null || bpAccountNum.length()>9)
 							{
-								throw new AdempiereUserError("Account number for account: " + bpAccountName + " is NULL or too long.");
+								throw new AdempiereUserError("Account number for account: " + cBPartner.getName()+ " is NULL or too long.");
 							}
 							if(bpAccountName.length() > 32) bpAccountName = bpAccountName.substring(0, 31);
 							if(lodgementRef.length() > 18) lodgementRef = lodgementRef.substring(0, 17);
@@ -155,16 +156,16 @@ public class ABAPaymentExporter implements PaymentExport {
 							//Validate BP bank details
 							if(bpAccountName == null || bpAccountName == "")
 							{
-								throw new AdempiereUserError("Bank account missing name.");
+								throw new AdempiereUserError("Bank account missing name." + cBPartner.getName());
 							}
 							
 							if(bpAccountNum == "" || bpAccountNum.length() < 6)
 							{
-								throw new AdempiereUserError("Account number for account: " + bpAccountName + " is empty or too short.");							
+								throw new AdempiereUserError("Account number for account: " + cBPartner.getName() + " is empty or too short.");							
 							}
 							if(lodgementRef == null || lodgementRef == "")
 							{
-								throw new AdempiereUserError("Lodgement reference empty for: " + bpAccountName);
+								throw new AdempiereUserError("Lodgement reference empty for: " + cBPartner.getName());
 							}
 							
 							
