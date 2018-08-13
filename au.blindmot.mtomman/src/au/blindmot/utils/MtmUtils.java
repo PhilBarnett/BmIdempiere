@@ -307,5 +307,44 @@ public static int getattributeWeight(int productId, String trxName) {
 	weight = DB.getSQLValueEx(trxName, sql.toString());
 	
 	return weight;
+	}
+
+public static void attributePreCheck(String attributeType) {
+	 StringBuilder sql = new StringBuilder();
+	 sql.append("SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name = '");
+	 sql.append(attributeType);
+	 sql.append("'");
+	 
+	 if(getRowCount(sql.toString()) > 1)
+		 {
+		 StringBuilder msg = new StringBuilder("There is more than one Attribute for the attibute type: ");
+		 msg.append(attributeType);
+		 msg.append(". Check the Attributes that match or are close to ");
+		 msg.append(attributeType);
+		 msg.append(" and reconfigure so there is only one.");
+		 throw new AdempiereUserError(msg.toString());
+		 }
+	 
+	
+	}
+
+private static int getRowCount(String sql) {
+	 RowSet rowset = DB.getRowSet(sql.toString());
+	 int rowCount = 0;
+	 try
+	 {
+		 while(rowset.next() )
+			{
+			 rowCount++;
+			}
+	 }
+	 catch (SQLException e)
+	 {
+		 log.severe("Could not get values for query" + e.getMessage());
+			e.printStackTrace();
+	 } 
+	 return rowCount;
 }
+
+
 }

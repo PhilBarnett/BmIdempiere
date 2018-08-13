@@ -14,6 +14,7 @@ import org.compiere.util.Env;
 
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
+import au.blindmot.utils.MtmUtils;
 
 /**
  * @author phil
@@ -212,6 +213,10 @@ protected String trxName;
 		sql.append(" AND ma.m_attribute_id =");
 		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name LIKE'%aste%')");
 		int waste = 0;
+		MtmUtils.attributePreCheck("Waste%");
+		MtmUtils.attributePreCheck("Waste");
+		MtmUtils.attributePreCheck("waste%");
+		MtmUtils.attributePreCheck("waste");
 		waste = DB.getSQLValue(trxName, sql.toString());
 		return waste;
 	}

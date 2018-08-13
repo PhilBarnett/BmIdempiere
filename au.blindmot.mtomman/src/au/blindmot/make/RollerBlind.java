@@ -758,7 +758,9 @@ public class RollerBlind extends MadeToMeasureProduct {
 	 public BigDecimal getRollerTubeCut(int width) {
 		 BigDecimal bigWidth = new BigDecimal(width);
 		 log.warning("---------In RollerBlind.getRollerTubeCut");
-		 deductionPreCheck(MtmUtils.MTM_HEAD_RAIL_DEDUCTION);
+		 log.warning("-------About to go intoMtmUtils.attributePreCheck()");
+		 MtmUtils.attributePreCheck(MtmUtils.MTM_HEAD_RAIL_DEDUCTION);
+		 //deductionPreCheck(MtmUtils.MTM_HEAD_RAIL_DEDUCTION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeductions with deduction type: " + MtmUtils.MTM_HEAD_RAIL_DEDUCTION +" and Headrail comps");
 		
 		 return bigWidth.subtract(MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName));
@@ -766,21 +768,27 @@ public class RollerBlind extends MadeToMeasureProduct {
 	 
 	 public BigDecimal getBottomBarCut() {
 		 BigDecimal fabricWidth = getFabricWidth();
-		 deductionPreCheck(MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
+		 log.warning("-------About to go intoMtmUtils.attributePreCheck()");
+		 MtmUtils.attributePreCheck(MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
+		 //deductionPreCheck(MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
 		 return fabricWidth.subtract(MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName));
 	 }
 	 
 	 public BigDecimal getFabricWidth() {
 		 BigDecimal tubeCut = getRollerTubeCut(wide);
-		 deductionPreCheck(MtmUtils.MTM_FABRIC_DEDUCTION);
+		//deductionPreCheck(MtmUtils.MTM_FABRIC_DEDUCTION);
+		 log.warning("-------About to go intoMtmUtils.attributePreCheck()");
+		 MtmUtils.attributePreCheck(MtmUtils.MTM_FABRIC_DEDUCTION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_FABRIC_DEDUCTION);
 		 return tubeCut.subtract(MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName));
 	 }	
 
 	 public BigDecimal getFabricDrop() {
 		 BigDecimal bigHigh = new BigDecimal(high);
-		 deductionPreCheck(MtmUtils.MTM_FABRIC_ADDITION);
+		 log.warning("-------About to go intoMtmUtils.attributePreCheck()");
+		 MtmUtils.attributePreCheck(MtmUtils.MTM_FABRIC_ADDITION);
+		 //deductionPreCheck(MtmUtils.MTM_FABRIC_ADDITION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_FABRIC_ADDITION);
 		 return bigHigh.add(MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName));
 	 }
