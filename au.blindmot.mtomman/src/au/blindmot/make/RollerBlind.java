@@ -543,6 +543,17 @@ public class RollerBlind extends MadeToMeasureProduct {
 			}
 			
 			rollerTubeID = resolveComponents(rollerTube, tubeDuty);
+			if(rollerTubeID < 1)
+			{
+				MProduct mProduct = new MProduct(Env.getCtx(), m_product_id , trxName);
+				StringBuilder msg = new StringBuilder("A roller tube could not be found in the BOM for MProduct: ");
+				msg.append(mProduct.getName());
+				msg.append(" With MProductID: " + m_product_id);
+				msg.append(". Check the BOM for a 'Roller tube' Part Type.");
+				msg.append(" Also ensure that the Description field in the Product window of the tube contains 'MD' or 'HD' to denote that");
+				msg.append(" the tube is medium duty or heavy duty. FATAL ERROR CAN'T CONTINUE!");
+				throw new AdempiereUserError(msg.toString());
+			}
 			 
 			 /* TODO: Resolve rollerTubeID via calculation
 			 * There's a method MtmUtils.getBendingMoment(int length, int fabricProductId, int basebarProductId)
@@ -607,6 +618,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 	}
 	
 	private void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {
+		log.warning("---------In addMBLDBomDerived(int mProductId, BigDecimal qty, String description) with mProductId: " + mProductId + " qty:" + qty + " description: " + description);
 		MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
 		mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
 		mBomDerived.setM_Product_ID(mProductId);
@@ -638,7 +650,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		}
 		if(part_ID == 0)//The part couldn't be found.
 	{
-		log.warning(instanceParse + partDescription + "---------------Could not resolve control from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
+		log.warning(instanceParse + partDescription + "---------------Could not resolve component from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
 	}
 		return part_ID;
 	}
@@ -760,37 +772,42 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 log.warning("---------In RollerBlind.getRollerTubeCut");
 		 log.warning("-------About to go intoMtmUtils.attributePreCheck()");
 		 MtmUtils.attributePreCheck(MtmUtils.MTM_HEAD_RAIL_DEDUCTION);
-		 //deductionPreCheck(MtmUtils.MTM_HEAD_RAIL_DEDUCTION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeductions with deduction type: " + MtmUtils.MTM_HEAD_RAIL_DEDUCTION +" and Headrail comps");
-		
-		 return bigWidth.subtract(MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName));
+		 BigDecimal deductions = MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName);
+		 log.warning("---------In getRollerTubeCut() Deductions from MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName: " + deductions.toString());
+		 bigWidth = bigWidth.subtract(deductions);
+		 return bigWidth;
 	 }
 	 
 	 public BigDecimal getBottomBarCut() {
 		 BigDecimal fabricWidth = getFabricWidth();
 		 log.warning("-------About to go intoMtmUtils.attributePreCheck()");
 		 MtmUtils.attributePreCheck(MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
-		 //deductionPreCheck(MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
+		//Note: MTM_BOTTOM_BAR_DEDUCTION is part of parent product non instance attribute.
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
-		 return fabricWidth.subtract(MBLDMtomCuts.getDeduction(bottomBarID, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName));
+		 fabricWidth = fabricWidth.subtract(MBLDMtomCuts.getDeduction(m_product_id, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName));
+		 return fabricWidth;
 	 }
 	 
 	 public BigDecimal getFabricWidth() {
-		 BigDecimal tubeCut = getRollerTubeCut(wide);
-		//deductionPreCheck(MtmUtils.MTM_FABRIC_DEDUCTION);
+		 BigDecimal fabWidth = getRollerTubeCut(wide);
 		 log.warning("-------About to go intoMtmUtils.attributePreCheck()");
 		 MtmUtils.attributePreCheck(MtmUtils.MTM_FABRIC_DEDUCTION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_FABRIC_DEDUCTION);
-		 return tubeCut.subtract(MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_DEDUCTION,trxName));
+		 /* 18/8/18 changed location of MTM_FABRIC_DEDUCTION from fabric to parent product (the roller blind itself)
+		  * as a non instance attribute.*/
+		 fabWidth = fabWidth.subtract(MBLDMtomCuts.getDeduction(m_product_id, MtmUtils.MTM_FABRIC_DEDUCTION,trxName));
+		 return fabWidth;
 	 }	
 
 	 public BigDecimal getFabricDrop() {
 		 BigDecimal bigHigh = new BigDecimal(high);
 		 log.warning("-------About to go intoMtmUtils.attributePreCheck()");
 		 MtmUtils.attributePreCheck(MtmUtils.MTM_FABRIC_ADDITION);
-		 //deductionPreCheck(MtmUtils.MTM_FABRIC_ADDITION);
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_FABRIC_ADDITION);
-		 return bigHigh.add(MBLDMtomCuts.getDeduction(fabricID, MtmUtils.MTM_FABRIC_ADDITION, trxName));
+		 //Note: MTM_FABRIC_ADDITION is part of parent product non instance attribute.
+		 bigHigh = bigHigh.add(MBLDMtomCuts.getDeduction(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName));
+		 return  bigHigh;
 	 }
 	 
 	 public BigDecimal getFabricQty() {

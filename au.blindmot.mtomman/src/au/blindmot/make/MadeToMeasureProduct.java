@@ -211,13 +211,19 @@ protected String trxName;
 		sql.append(" (SELECT mp.m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
 		sql.append(mprodID + ")");
 		sql.append(" AND ma.m_attribute_id =");
-		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name LIKE'%aste%')");
+		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name = 'Waste' AND mat.isactive = 'Y')");
 		int waste = 0;
-		MtmUtils.attributePreCheck("Waste%");
+		//Note attribute must be called "Waste" an nothing else.
+		
+		log.warning("--------Calling MtmUtils.attributePreCheck(\"Waste\")");
 		MtmUtils.attributePreCheck("Waste");
+		log.warning("--------Calling MtmUtils.attributePreCheck(\"waste%\")");
 		MtmUtils.attributePreCheck("waste%");
+		log.warning("--------Calling MtmUtils.attributePreCheck(\"waste\")");
 		MtmUtils.attributePreCheck("waste");
-		waste = DB.getSQLValue(trxName, sql.toString());
+		int checkWaste = DB.getSQLValue(trxName, sql.toString());
+		if(checkWaste > 0) return checkWaste;
+		log.warning("---------No waste attribute found for MProuctID: " + mprodID + " Returning waste = " + waste);
 		return waste;
 	}
 	

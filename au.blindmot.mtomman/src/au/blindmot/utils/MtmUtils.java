@@ -313,7 +313,8 @@ public static void attributePreCheck(String attributeType) {
 	 StringBuilder sql = new StringBuilder();
 	 sql.append("SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name = '");
 	 sql.append(attributeType);
-	 sql.append("'");
+	 sql.append("' ");
+	 sql.append("AND m_attribute.isactive = 'Y'");
 	 
 	 if(getRowCount(sql.toString()) > 1)
 		 {

@@ -249,6 +249,7 @@ return false;
 	 * @return
 	 */
 	public int createLines(boolean mustBeStocked) {
+		log.warning("--------In createLines(boolean mustBeStocked)");
 		
 		lineno = 100;
 		
@@ -272,6 +273,7 @@ return false;
 		MProduct finishedProduct = new MProduct(getCtx(), getM_Product_ID(), get_TrxName());
 
 		MProductionLine line = new MProductionLine(getCtx(), 0, get_TrxName());
+		log.warning("Line 276 About to create new MProductionLine with finished product" + finishedProduct.toString());
 		line.setLine( lineno );
 		line.setM_Product_ID( finishedProduct.get_ID() );
 		line.setM_Locator_ID( m_Locator_ID);
@@ -280,12 +282,10 @@ return false;
 		//line.setIsEndProduct(true);
 		line.setAD_Org_ID(determineAdOrgId());
 		line.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
-		/*
-		 * TODO: Extend MProductionLine
-		 * Overwrite the beforeSave() method and stop the mtm end product being setIsEndProduct(false);
-		 */
-		line.saveEx(get_TrxName());
-		System.out.println("----------------line.isEndProduct(): "+ line.isEndProduct());
+		line.saveEx();
+		
+		log.warning("---------In MBLDMtomItemLine.createLines()..line.toString(): " + line.toString());
+		log.warning("----------------line.isEndProduct(): "+ line.isEndProduct());
 		count++;
 		
 		createLines(mustBeStocked, finishedProduct, getProductionQty());
@@ -303,6 +303,7 @@ return false;
 
 	private int createLines(boolean mustBeStocked, MProduct finishedProduct, BigDecimal requiredQty) {
 		
+		log.warning("--------In createLines(boolean mustBeStocked, MProduct finishedProduct, BigDecimal requiredQty)");
 		int defaultLocator = 0;
 		
 		MLocator finishedLocator = MLocator.get(getCtx(), getM_Locator_ID());
@@ -316,6 +317,7 @@ return false;
 		 */
 		
 		MBLDBomDerived[] bomDerived = getBomDerivedLines(getCtx(), getbld_mtom_item_line_ID());
+		log.warning("bomDerived [].toString() = " + bomDerived.toString() );
 		try {
 			int BOMProduct_ID = 0;
 			BigDecimal BOMMovementQty;
@@ -327,12 +329,16 @@ return false;
 			BOMProduct_ID = bomDerived[i].getM_Product_ID();
 			BOMQty = bomDerived[i].getQty();
 			BOMMovementQty = BOMQty;
+			MProduct bomProd = new MProduct(p_ctx, BOMProduct_ID, get_TrxName());
+			log.warning("In for loop. i = " + i + "bomProduct: " + bomProd.getName());
 			
 			MProduct bomproduct = new MProduct(Env.getCtx(), BOMProduct_ID, get_TrxName());
+			log.warning("bomproduct: " + bomproduct.getName());
 				
 				if ( bomproduct.isBOM() && bomproduct.isPhantom() )
 				{
-					createLines(mustBeStocked, bomproduct, BOMMovementQty);
+					log.warning("---------bomproduct.isBOM() && bomproduct.isPhantom() is TRUE");
+					createLines(mustBeStocked, bomproduct, BOMMovementQty);//Is this recursive?
 				}
 				else
 				{
@@ -344,6 +350,7 @@ return false;
 					if (!bomproduct.isStocked())
 					{					
 						MProductionLine BOMLine = null;
+						log.warning("Line 350 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 						BOMLine = new MProductionLine(getCtx(), 0, get_TrxName());
 						BOMLine.setLine( lineno );
 						BOMLine.setM_Product_ID( BOMProduct_ID );
@@ -352,6 +359,7 @@ return false;
 						BOMLine.setPlannedQty( BOMMovementQty );
 						BOMLine.setAD_Org_ID(determineAdOrgId());
 						BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+						log.warning("Line 359 About to saveEx() new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 						BOMLine.saveEx(get_TrxName());
 						
 						lineno = lineno + 10;
@@ -360,6 +368,7 @@ return false;
 					else if (BOMMovementQty.signum() == 0) 
 					{
 						MProductionLine BOMLine = null;
+						log.warning("Line 370 About to saveEx() new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 						BOMLine = new MProductionLine(getCtx(), 0, get_TrxName());
 						BOMLine.setLine( lineno );
 						BOMLine.setM_Product_ID( BOMProduct_ID );
@@ -368,6 +377,7 @@ return false;
 						BOMLine.setPlannedQty( BOMMovementQty );
 						BOMLine.setAD_Org_ID(determineAdOrgId());
 						BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+						
 						BOMLine.saveEx(get_TrxName());
 
 						lineno = lineno + 10;
@@ -426,6 +436,7 @@ return false;
 								}
 								// otherwise create new line
 								else {
+									log.warning("Line 435 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 									BOMLine = new MProductionLine(getCtx(), 0, get_TrxName());
 									BOMLine.setLine( lineno );
 									BOMLine.setM_Product_ID( BOMProduct_ID );
@@ -436,6 +447,7 @@ return false;
 									if ( slASI != 0 && locAttribSet != 0 )  // ie non costing attribute
 										BOMLine.setM_AttributeSetInstance_ID(slASI);
 									BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+									log.warning("Line 446 About to save new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 									BOMLine.saveEx(get_TrxName());
 
 									lineno = lineno + 10;
@@ -466,6 +478,7 @@ return false;
 								}
 								// otherwise create new line
 								else {
+									log.warning("Line 480 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 									BOMLine = new MProductionLine(getCtx(), 0, get_TrxName());
 									BOMLine.setLine( lineno );
 									BOMLine.setM_Product_ID( BOMProduct_ID );
@@ -474,8 +487,9 @@ return false;
 									BOMLine.setPlannedQty( BOMMovementQty);
 									BOMLine.setAD_Org_ID(determineAdOrgId());
 									BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+									log.warning("Line 489 About to save new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 									BOMLine.saveEx(get_TrxName());
-
+									log.warning("Line 491 Just saved new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 									lineno = lineno + 10;
 									count++;
 								}
@@ -490,7 +504,7 @@ return false;
 				}
 			} // for all bom products
 		} catch (Exception e) {
-			throw new AdempiereException("Failed to create production lines", e);
+			throw new AdempiereException("Failed to create production lines " + e.getMessage(), e);
 		}
 		finally {
 			if (log.isLoggable(Level.INFO)) log.info("Added ProductionLines---"  + toString());

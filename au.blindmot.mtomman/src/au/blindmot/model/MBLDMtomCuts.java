@@ -7,9 +7,10 @@ import java.util.Properties;
 
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import java.util.logging.Level;
 
 
-public class MBLDMtomCuts extends X_BLD_mtom_cuts{
+public class MBLDMtomCuts extends X_BLD_mtom_cuts {
 	
 	/**
 	 * 
@@ -34,8 +35,11 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts{
 	public static BigDecimal getDeductions(ArrayList<Integer> components, String deductionType, String trxName) {
 
 		BigDecimal totalDeduction = Env.ZERO;
+		BigDecimal aDeduction; 
 		for (Integer productId : components) {
-			totalDeduction.add(getDeduction(productId.intValue(), deductionType, trxName));
+			aDeduction = getDeduction(productId.intValue(), deductionType, trxName);
+			System.out.println("---------IN getDeductions(), deduction for ProductID: " + productId.toString() + " is: " + aDeduction);
+			totalDeduction = totalDeduction.add(aDeduction);
 		}
 
 		return totalDeduction;

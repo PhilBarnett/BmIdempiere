@@ -31,6 +31,7 @@ import org.osgi.service.event.Event;
 
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
+import au.blindmot.model.X_BLD_Line_ProductSetInstance;
 import au.blindmot.utils.MtmUtils;
 
 public class MBLDEventHandler extends AbstractEventHandler {
@@ -49,7 +50,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MProductionLine.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSECORRECT, MBLDMtomProduction.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MBLDMtomProduction.Table_Name);
-				//registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);
+				registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
 				}
@@ -64,6 +65,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			mProductionLine = (X_M_ProductionLine)po;
 			log.warning("---------MProductionLine event triggered");
 			log.warning("---------event: " + event);
+			log.warning("---------PO: " + po.toString());
 			
 			handleMProductionLineEvent(po);//Handle all events with the same method
 		}
@@ -85,7 +87,25 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		
 		if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW))
 		{
-			log.warning("---------Line 88");
+			//Check if there's a BLD Line ProductSetInstance; if none, create and set.
+			int mProductID = orderLine.getM_Product_ID();
+			MProduct currOrderLineProduct;
+			boolean isMadeToMeasure = false;
+			if (mProductID > 0) 
+				{
+					currOrderLineProduct = new MProduct(Env.getCtx(), mProductID , trxName);
+					isMadeToMeasure = currOrderLineProduct .get_ValueAsBoolean("ismadetomeasure");
+				}
+			if(orderLine.get_Value("bld_line_productsetinstance_id") == null && isMadeToMeasure)//User didn't set bLDLineProductSetInstanceID 
+				
+				{
+					X_BLD_Line_ProductSetInstance xBLDProdSetIns = new X_BLD_Line_ProductSetInstance(Env.getCtx(), 0, trxName);
+					xBLDProdSetIns.saveEx(trxName);
+					orderLine.set_ValueNoCheck("bld_line_productsetinstance_id", xBLDProdSetIns.get_ID());
+					orderLine.save(trxName);
+				}
+			
+			
 			log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
 			
 			if(orderLine.get_Value("reference_id") == null)//It's a new record.
@@ -158,27 +178,40 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		log.warning("---------- In handleMProductionLineEvent");
 		String isEndProduct = "N";
 		BigDecimal movementQty = BigDecimal.ZERO;
+		
+		log.warning("---------getmBLDMtomItemLineID() = " + getmBLDMtomItemLineID());
+		
 		if(!(getmBLDMtomItemLineID() > 0))//It's not an MTMProduction
 		{
 			log.warning("---------Not an MTM product");
 			return;
 		}
 		
-		if (getmBLDMtomItemLineID() > 0)
+		if (getmBLDMtomItemLineID() > 0)//What does this actually test for?
+		{
+			log.warning("getmBLDMtomItemLineID() is > 0.");
 			mToMProductionParent = new MBLDMtomItemLine(pobj.getCtx(), getmBLDMtomItemLineID(), pobj.get_TrxName());
-
-		/*Lines below left in for future debugging convenience, commented out for production.
-		 * /System.out.println(mProductionLine.getM_Product_ID() && mToMProductionParent.getProductionQty().signum() == mProductionLine.getMovementQty().signum());
-		System.out.println("mToMProductionParent.getM_Product_ID(): " + mToMProductionParent.getM_Product_ID());
-		System.out.println("mProductionLine.getM_Product_ID(): " + mProductionLine.getM_Product_ID());
-		System.out.println("mToMProductionParent.getProductionQty().signum(): " + mToMProductionParent.getProductionQty().signum());
-		System.out.println("mProductionLine.getMovementQty().signum()" + mProductionLine.getMovementQty().signum());
-		*/
+		}
+			
+		log.warning("~Line 177 ");
+		//Lines below left in for future debugging convenience, commented out for production.
+		//system.out.println(mProductionLine.getM_Product_ID() && mToMProductionParent.getProductionQty().signum() == mProductionLine.getMovementQty().signum());
+		log.warning("mToMProductionParent.getM_Product_ID(): " + mToMProductionParent.getM_Product_ID());
+		log.warning("mProductionLine.getM_Product_ID(): " + mProductionLine.getM_Product_ID());
+		log.warning("mToMProductionParent.getProductionQty().signum(): " + mToMProductionParent.getProductionQty().signum());
+		log.warning("mProductionLine.getMovementQty().signum()" + mProductionLine.getMovementQty().signum());
+		//
 		if (getmBLDMtomItemLineID() > 0) 
 		{
-			if ( mToMProductionParent.getM_Product_ID() == mProductionLine.getM_Product_ID())//It's an end product
+			int parentProductId = mToMProductionParent.getM_Product_ID();
+			int mProductionLineProductID = mProductionLine.getM_Product_ID();
+			log.warning("parentProductId = " + parentProductId + " mProductionLineProductID = " + mProductionLineProductID);
+			
+			
+			if (parentProductId == mProductionLineProductID)//It's an end product
 			{
 				isEndProduct = "Y";
+				log.warning("Is end product: " + isEndProduct);
 				movementQty = BigDecimal.ONE;
 				System.out.println("----------movementQty rnd 1: " + movementQty);
 				if(DocVoidReverse)
@@ -189,6 +222,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			}
 			else isEndProduct = "N";
 		} 
+		
+		log.warning("Line 207: Is end product: " + isEndProduct);
 		
 		if ( (isEndProduct == "Y") && mProductionLine.getM_AttributeSetInstance_ID() != 0 )
 		{
@@ -206,6 +241,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			}
 		}
 		
+		log.warning("Line 220: Is end product: " + isEndProduct);
+		
 		if(isEndProduct == "Y")
 		{
 			mToMProductionParent = new MBLDMtomItemLine(pobj.getCtx(), getmBLDMtomItemLineID(), pobj.get_TrxName());
@@ -217,14 +254,16 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			sql.append(getmBLDMtomItemLineID());
 			sql.append(" AND m_product_id = ");
 			sql.append(mProductionLine.getM_Product_ID());
-			System.out.println("Attempting to DB.executeUpdate. Success is greater than 0: " + (DB.executeUpdate(sql.toString(), pobj.get_TrxName())>0));
+			System.out.println("Attempting to DB.executeUpdate. Success is greater than 0 or Yes: " + (DB.executeUpdate(sql.toString(), pobj.get_TrxName())>0));
 			
 		}
-		
+		log.warning("At end of handleMProductionLineEvent(PO pobj)");
 	}
 	
 	private int getmBLDMtomItemLineID() {
-		return mProductionLine.get_ValueAsInt("bld_mtom_item_line_id");
+		int mBLDMtomItemLineID = mProductionLine.get_ValueAsInt("bld_mtom_item_line_id");
+		log.warning("---------In getmBLDMtomItemLineID(). mBLDMtomItemLineID = " + mBLDMtomItemLineID);
+		return mBLDMtomItemLineID;
 	}
 	
 	private MOrderLine copyAttributeInstance(X_C_OrderLine toOrderLine, MProduct mProduct) {
