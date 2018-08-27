@@ -174,4 +174,21 @@ public class X_BLD_Product_PartType extends PO implements I_BLD_Product_PartType
 			 return 0;
 		return ii.intValue();
 	}
+
+	@Override
+	public void setBLD_M_PartType_ID(int BLD_M_PartType_ID) {
+		if (BLD_M_PartType_ID < 1) 
+			set_Value (COLUMNNAME_BLD_M_PartType_ID, null);
+		else 
+			set_Value (COLUMNNAME_BLD_M_PartType_ID, Integer.valueOf(BLD_M_PartType_ID));
+		
+	}
+
+	@Override
+	public int getBLD_M_PartType_ID() {
+		Integer ii = (Integer)get_Value(COLUMNNAME_BLD_M_PartType_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
 }

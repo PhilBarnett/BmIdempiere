@@ -75,6 +75,15 @@ public interface I_BLD_Product_PartType
 
 	/** Get BLD Product PartType	  */
 	public int getBLD_Product_PartType_ID();
+	
+	/**Column name COLUMNNAME_BLD__M_PartType_ID */
+	public static final String COLUMNNAME_BLD_M_PartType_ID = "M_PartType_ID";
+	
+	/**Set BLD_M_PartType_ID */
+	public void setBLD_M_PartType_ID (int BLD_M_PartType_ID);
+	
+	/**Get BLD_M_PartType_ID */
+	public int getBLD_M_PartType_ID();
 
     /** Column name BLD_Product_PartType_UU */
     public static final String COLUMNNAME_BLD_Product_PartType_UU = "BLD_Product_PartType_UU";
