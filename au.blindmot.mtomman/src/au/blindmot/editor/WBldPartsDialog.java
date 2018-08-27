@@ -22,7 +22,6 @@ import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.logging.Level;
 
 import org.adempiere.webui.LayoutUtils;
@@ -49,7 +48,6 @@ import org.adempiere.webui.theme.ThemeManager;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.FDialog;
 import org.adempiere.webui.window.WPAttributeInstance;
-import org.compiere.model.I_M_AttributeValue;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSet;
@@ -58,12 +56,13 @@ import org.compiere.model.MAttributeValue;
 import org.compiere.model.MDocType;
 import org.compiere.model.MLot;
 import org.compiere.model.MLotCtl;
+import org.compiere.model.MProduct;
 import org.compiere.model.MQuery;
 import org.compiere.model.MRole;
 import org.compiere.model.MSerNoCtl;
-import org.compiere.model.Query;
 import org.compiere.model.SystemIDs;
 import org.compiere.model.X_M_MovementLine;
+import org.compiere.model.X_M_PartType;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -72,7 +71,6 @@ import org.compiere.util.Msg;
 import org.zkoss.lang.SystemException;
 import org.zkoss.zk.ui.HtmlBasedComponent;
 import org.zkoss.zk.ui.WrongValueException;
-
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
@@ -81,9 +79,9 @@ import org.zkoss.zul.Center;
 import org.zkoss.zul.Menuitem;
 import org.zkoss.zul.Menupopup;
 import org.zkoss.zul.South;
-import org.zkoss.zul.Space;
 import org.zkoss.zul.impl.InputElement;
 
+import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDProductPartType;
 
 
@@ -266,6 +264,11 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		
 		MAttributeSet as = null;
 		
+		//TODO: Check if MTM product if not return false
+		//TODO: Get getProductPartSet and modify code below to suit.
+		
+		
+		
 		int M_AttributeSet_ID = Env.getContextAsInt(Env.getCtx(), m_WindowNoParent, "M_AttributeSet_ID");
 		if (m_M_Product_ID != 0 && M_AttributeSet_ID == 0)
 		{
@@ -371,17 +374,26 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			//	All Attributes
 			
-			/*
+			/*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 			 * This where the magic starts
 			 * TODO: 
 			 */
+			
+			X_M_PartType[] partTypes =  MBLDProductPartType.getProductPartSet(m_M_Product_ID , null);
+			if (log.isLoggable(Level.FINE)) log.fine ("Part Types= " + partTypes.length);
+			for (int i = 0; i < partTypes.length; i++)
+				addAttributeLine (rows, partTypes[i], false, false);
+			
+			/*/Delete once bug checked
 			MAttribute[] attributes = as.getMAttributes (true);
 			if (log.isLoggable(Level.FINE)) log.fine ("Instance Attributes=" + attributes.length);
 			for (int i = 0; i < attributes.length; i++)
 				addAttributeLine (rows, attributes[i], false, false);
+			*/
 		}
 
 		//	Lot
+		//Delete below iff block once debugged
 		if (!m_productWindow && as.isLot())
 		{
 			Row row = new Row();
@@ -452,6 +464,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			this.appendChild(popupMenu);
 		}	//	Lot
 
+		
+		//Delete below iff block once debugged
 		//	SerNo
 		if (!m_productWindow && as.isSerNo())
 		{
@@ -480,6 +494,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			}
 		}	//	SerNo
 
+		//Delete below iff block once debugged
 		//	GuaranteeDate
 		if (!m_productWindow && as.isGuaranteeDate())
 		{
@@ -541,23 +556,23 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 
 	/**
 	 * 	Add Attribute Line
-	 *	@param attribute attribute
+	 *	@param partType attribute
 	 * 	@param product product level attribute
 	 * 	@param readOnly value is read only
 	 */
-	private void addAttributeLine (Rows rows, MAttribute attribute, boolean product, boolean readOnly)
+	private void addAttributeLine (Rows rows, X_M_PartType partType, boolean product, boolean readOnly)
 	{
 		
 		//TODO: Change Attribute object to MBLDProductPartType
-		if (log.isLoggable(Level.FINE)) log.fine(attribute + ", Product=" + product + ", R/O=" + readOnly);
+		if (log.isLoggable(Level.FINE)) log.fine(partType + ", Product=" + product + ", R/O=" + readOnly);
 		
 		m_row++;
-		Label label = new Label (attribute.getName());
+		Label label = new Label (partType.getName());
 		if (product)
 			label.setStyle("font-weight: bold");
 			
-		if (attribute.getDescription() != null)
-			label.setTooltiptext(attribute.getDescription());
+		if (partType.getDescription() != null)
+			label.setTooltiptext(partType.getDescription());
 		
 		Row row = rows.newRow();
 		row.appendChild(label.rightAlign());
@@ -565,10 +580,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		//BLD will all be LIST
 		//if (MAttribute.ATTRIBUTEVALUETYPE_List.equals(attribute.getAttributeValueType()))
 		/*{*/
-			MAttributeValue[] values = attribute.getMAttributeValues();	//	optional = null
+			
+		//TODO: Change to MProduct[] partType.getPartSetProducts(int mProductID, int mPartypeID, String trxName) 
+		
+			MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.getM_PartType_ID(), null);	//	optional = null
 			Listbox editor = new Listbox();
 			editor.setMold("select");
-			for (MAttributeValue value : values) 
+			for (MProduct value : values) 
 			{
 				ListItem item = new ListItem(value != null ? value.getName() : "", value);
 				editor.appendChild(item);
@@ -579,7 +597,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				m_editors.add (editor);
 			row.appendChild(editor);
 			ZKUpdateUtil.setHflex(editor, "1");
-			setListAttribute(attribute, editor);
+			setListAttribute(partType, editor);
 			
 		/*}*/
 		
@@ -648,10 +666,23 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			editor.setValue(Env.ZERO);		
 	}
 
-	private void setListAttribute(MAttribute attribute, Listbox editor) {
+	/*
+	 * BLD will always be list.
+	 * Get the parttype.
+	 * Get the instance of the partype based on m_MbldLineProductsetInstanceID -> bld_line_productinstanceproductID
+	 * -> bld_product_parttype_id gets  m_product_id  which is list value.
+	 * 
+	 */
+	private void setListAttribute(X_M_PartType partType, Listbox editor) {
 		boolean found = false;
-		MAttributeInstance instance = attribute.getMAttributeInstance (m_MbldLineProductsetInstanceID);
-		MAttributeValue[] values = attribute.getMAttributeValues();	//	optional = null
+		MBLDProductPartType mBldProdPartType = 
+				MBLDProductPartType.getMBLDProductPartType(partType.get_ID(), m_M_Product_ID, Env.getCtx(), null);
+		
+		/*instance var below should be the instance for this partype and m_MbldLineProductsetInstanceID
+		 * 
+		 */
+		MBLDLineProductInstance instance = mBldProdPartType.mBldLineProductInstancee (m_MbldLineProductsetInstanceID);
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.get_ID(), null);	//	optional = null
 		if (instance != null)
 		{
 			for (int i = 0; i < values.length; i++)
@@ -664,13 +695,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				}
 			}
 			if (found ){
-				if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + attribute.getName() + " #" + values.length + " - found: " + instance);
+				if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " - found: " + instance);
 			} else {
-				log.warning("Attribute=" + attribute.getName() + " #" + values.length + " - NOT found: " + instance);
+				log.warning("Attribute=" + partType.getName() + " #" + values.length + " - NOT found: " + instance);
 			}
 		}	//	setComboBox
 		else
-			if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + attribute.getName() + " #" + values.length + " no instance");
+			if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " no instance");
 	}
 
 	/**
@@ -1106,26 +1137,5 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		return m_changed;
 	}	//	isChanged
 	
-public MBLDProductPartType[] getProductPartTypes(int mProductID)
-{
-	{
-		if (m_values == null && ATTRIBUTEVALUETYPE_List.equals(getAttributeValueType()))
-		{
-			final String whereClause = I_M_AttributeValue.COLUMNNAME_M_Attribute_ID+"=?";
-			List<MAttributeValue> list = new ArrayList<MAttributeValue>();
-			if (!isMandatory())
-				list.add (null);
-			list = new Query(getCtx(),I_M_AttributeValue.Table_Name,whereClause,null)
-			.setParameters(getM_Attribute_ID())
-			.setOrderBy("Value")
-			.list();
-			m_values = new MBLDProductPartType[list.size()];
-			list.toArray(m_values);
-		}
-		return m_values;
-	}
-	return null;
-	
-}
 
 } //	WPAttributeDialog
