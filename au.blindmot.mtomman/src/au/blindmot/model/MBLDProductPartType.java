@@ -4,10 +4,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 
+import org.compiere.model.MAttributeValue;
 import org.compiere.model.MProduct;
+import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.model.X_M_PartType;
 import org.compiere.util.CLogger;
@@ -41,50 +44,6 @@ public class MBLDProductPartType extends X_BLD_Product_PartType {
 		return "";
 		
 	}
-	
-	
-	/**
-	 * 
-	 * @param mProductID
-	 * @param trxName
-	 * @return
-	 */
-public static X_M_PartType[] getProductPartSet(int mProductID, String trxName) {
-	if (s_log.isLoggable(Level.FINE)) s_log.fine("From M_Product_ID=" + mProductID);
-	if (mProductID == 0)
-		return null;
-	ArrayList<X_M_PartType> partTypes= new ArrayList<X_M_PartType>();
-	
-	StringBuffer sql = new StringBuffer("SELECT m_parttype_id ");
-	sql.append("FROM bld_product_parttype ");
-		sql.append("WHERE M_Product_ID=?");
-	PreparedStatement pstmt = null;
-	ResultSet rs = null;
-	try
-	{
-		pstmt = DB.prepareStatement(sql.toString(), null);
-		pstmt.setInt(1, mProductID);
-		rs = pstmt.executeQuery();
-		if (rs.next())
-		{
-			int mParttypeid  = rs.getInt(1);
-			X_M_PartType partTypeToAdd = new X_M_PartType(Env.getCtx(), mParttypeid, null);
-			partTypes.add(partTypeToAdd);
-		}
-	}
-	catch (SQLException ex)
-	{
-		s_log.log(Level.SEVERE, sql.toString(), ex);
-	}
-	finally
-	{
-		DB.close(rs, pstmt);
-		rs = null; pstmt = null;
-	}
-	X_M_PartType[] partsArray = new X_M_PartType[partTypes.size()];
-	return partTypes.toArray(partsArray);
-	
-}
 
 /**
  * 
@@ -115,7 +74,7 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
 		pstmt.setInt(1, mProductID);
 		pstmt.setInt(2, mPartypeID);
 		rs = pstmt.executeQuery();
-		if (rs.next())
+		while(rs.next())
 		{
 			int mProductBomID  = rs.getInt(1);
 			MProduct partToAdd = new MProduct(Env.getCtx(), mProductBomID, null);
@@ -144,10 +103,10 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
  * @param trxName
  * @return
  */
-public static MBLDProductPartType  getMBLDProductPartType  (int mPartTypeID, int mProductID, Properties ctx, String trxName)
+public static PO  getMBLDProductPartType  (int mPartTypeID, int mProductID, Properties ctx, String trxName)
 {
-	final String whereClause = I_BLD_Product_PartType.COLUMNNAME_BLD_Product_PartType_ID +"=? AND "+I_BLD_Line_ProductInstance.COLUMNNAME_BLD_Line_ProductSetInstance_ID+"=?";
-	MBLDProductPartType retValue = new Query(ctx,I_BLD_Product_PartType.Table_Name, whereClause,trxName)
+	final String whereClause = I_BLD_Product_PartType.COLUMNNAME_BLD_Product_PartType_ID +"=? AND " + I_BLD_Product_PartType.COLUMNNAME_M_Product__ID+"=?";
+	PO retValue = new Query(ctx,I_BLD_Product_PartType.Table_Name, whereClause,trxName)
 	.setParameters(mPartTypeID, mProductID)
 	.first();
 
@@ -168,6 +127,35 @@ public MBLDLineProductInstance getMBLDLineProductInstance (int BldLineProductSet
 
 	return retValue;
 }	//	getAttributeInstance
+
+public MBLDLineProductInstance getMBldLineProductInstance(int m_MbldLineProductsetInstanceID) {
+		final String whereClause = I_BLD_Line_ProductInstance.COLUMNNAME_BLD_Product_PartType_ID +"=? AND "+I_BLD_Line_ProductInstance.COLUMNNAME_BLD_Line_ProductSetInstance_ID+"=?";
+		MBLDLineProductInstance retValue = new Query(getCtx(),I_BLD_Line_ProductInstance.Table_Name,whereClause,get_TrxName())
+		.setParameters(getBLD_Product_PartType_ID(),m_MbldLineProductsetInstanceID)
+		.first();
+		return retValue;
+	
+} //GetMBldLineProductInstance
+	
+
+public void setMBLDLineProductInstance(int m_MbldLineProductsetInstanceID, MAttributeValue value) {
+	/*Load the correct MBLDLineProductInstance object
+	 * 
+	 */
+	int mProductID = getM_Product_ID();
+	int mBLDProductPartTypeID = get_ID();
+	MBLDLineProductInstance mBLDLineProductInstance = new MBLDLineProductInstance(p_ctx, mBLDProductPartTypeID, 
+	m_MbldLineProductsetInstanceID, mProductID, get_TrxName());
+	mBLDLineProductInstance.setM_Product_ID(value.getValue());
+}
+
+public MBLDLineProductInstance[] getmBLDLineProductInstance(int bld_Line_ProductSetInstance_ID) {
+	final String whereClause = I_BLD_Line_ProductInstance.COLUMNNAME_BLD_Product_PartType_ID +"=? AND "+I_BLD_Line_ProductInstance.COLUMNNAME_BLD_Line_ProductSetInstance_ID+"=?";
+	List<PO> retValue = new Query(getCtx(),I_BLD_Line_ProductInstance.Table_Name,whereClause,get_TrxName())
+	.setParameters(getBLD_Product_PartType_ID(),bld_Line_ProductSetInstance_ID).list();
+	MBLDLineProductInstance[] retArray = new MBLDLineProductInstance[retValue.size()];
+	return (MBLDLineProductInstance[]) retValue.toArray(retArray );
+}
 
 
 }

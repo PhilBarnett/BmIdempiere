@@ -23,4 +23,9 @@ public class MBLDLineProductInstance extends X_BLD_Line_ProductInstance {
 			setM_Product_ID (mProductID);
 		}	//	MBLDLineProductInstance
 
+	public void setM_Product_ID(String value) {
+		setM_Product_ID(Integer.parseInt(value));
+	
+	}
+
 }

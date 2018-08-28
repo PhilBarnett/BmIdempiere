@@ -68,7 +68,7 @@ public interface I_BLD_Product_PartType
     public static final String COLUMNNAME_BLD_Product_PartType_ID = "BLD_Product_PartType_ID";
     
     /** Column name BLD_Product_PartType_ID */
-    public static final String COLUMNNAME_M_Product__ID = "M_Product__ID";
+    public static final String COLUMNNAME_M_Product__ID = "M_Product_ID";
 
 	/** Set BLD Product PartType	  */
 	public void setBLD_Product_PartType_ID (int BLD_Product_PartType_ID);
