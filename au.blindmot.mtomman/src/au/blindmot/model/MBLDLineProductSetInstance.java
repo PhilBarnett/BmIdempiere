@@ -10,10 +10,6 @@ import java.util.logging.Level;
 import org.compiere.model.MProduct;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
-import org.compiere.util.Env;
-import org.compiere.util.KeyNamePair;
-
-import au.blindmot.factories.EditorFactory;
 
 public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 
@@ -44,11 +40,14 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 			setDescription ("");
 			return;
 		}
-		
+		/*
+		 * TODO: This method should iterate through pps, get the instance value and write it to the string.
+		 * Currently, instance is null because partType.getmBLDLineProductInstance diesn't work and should be deleted.
+		 */
 		StringBuilder sb = new StringBuilder();
 		
 		//	Instance Values
-		MBLDProductPartType partType = new MBLDProductPartType(p_ctx, mProductID, get_TrxName());
+		MBLDProductPartType partType = new MBLDProductPartType(p_ctx, 0, get_TrxName());
 		MBLDLineProductInstance[] instance = partType.getmBLDLineProductInstance(getBLD_Line_ProductSetInstance_ID());
 		for (int i = 0; i < instance.length; i++)
 		{
@@ -160,4 +159,59 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) 
 	}
 	
 	
-}
+	/**Gets instance. creates new if mProductID == 0
+	 * 
+	 * @param BldLineProductSetInstanceID
+	 * @param mBldPartTypeID
+	 * @param mProductID
+	 * @return
+	 */
+	public MBLDLineProductInstance getMBLDLineProductInstance (int BldLineProductSetInstanceID, int mBldPartTypeID, int mProductID)
+	{
+		MBLDLineProductInstance retInstance = null;
+		if(mProductID > 0)
+		{
+			retInstance = new MBLDLineProductInstance(p_ctx, mBldPartTypeID, 
+					BldLineProductSetInstanceID, mProductID, get_TrxName());
+			return retInstance;
+		}
+		else
+		{
+		StringBuilder sql = new StringBuilder();
+		sql.append("SELECT m_product_id "); 
+		sql.append("FROM bld_line_productinstance ");
+		sql.append("WHERE bld_line_productsetinstance_id = ? ");
+		sql.append("AND bld_product_parttype_id = ? ");
+
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try
+		{
+			pstmt = DB.prepareStatement(sql.toString(), null);
+			pstmt.setInt(1, BldLineProductSetInstanceID);
+			pstmt.setInt(2, mBldPartTypeID);
+			rs = pstmt.executeQuery();
+			if(rs.next())
+			{
+				mProductID = rs.getInt(1);
+			}
+		}
+			catch (SQLException ex)
+			{
+				log.log(Level.SEVERE, sql.toString(), ex);
+			}
+			finally
+			{
+				DB.close(rs, pstmt);
+				rs = null; pstmt = null;
+			}
+		}
+		
+		retInstance = new MBLDLineProductInstance(p_ctx, null, get_TrxName(), mBldPartTypeID, BldLineProductSetInstanceID, mProductID);
+		return retInstance;
+		
+	}
+}	//	getAttributeInstance
+	
+	
+

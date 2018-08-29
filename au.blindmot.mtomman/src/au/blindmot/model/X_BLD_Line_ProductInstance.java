@@ -49,7 +49,11 @@ public class X_BLD_Line_ProductInstance extends PO implements I_BLD_Line_Product
       super (ctx, rs, trxName);
     }
 
-    /** AccessLevel
+    public X_BLD_Line_ProductInstance(Properties p_ctx) {
+		super(p_ctx);
+	}
+
+	/** AccessLevel
       * @return 7 - System - Client - Org 
       */
     protected int get_AccessLevel()

@@ -265,7 +265,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		if (m_M_Product_ID == 0 && !m_productWindow)
 			return false;
 		
-		MAttributeSet as = null;
 		MBLDLineProductSetInstance psa = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
 		Integer[] partTypes = psa.getPartTypes(m_M_Product_ID);
 		//MBLDProductPartType[] partTypes = psa.getProductPartSet(m_M_Product_ID, null);
@@ -696,14 +695,17 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 */
 	private void setListAttribute(MBLDProductPartType partType, Listbox editor) {
 		boolean found = false;
-		PO mBldProdPartType = 
-				MBLDProductPartType.getMBLDProductPartType(partType.get_ID(), m_M_Product_ID, Env.getCtx(), null);
 		
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.get_ID(), null);	//	optional = null
+		
+		if(m_MbldLineProductsetInstanceID > 1)
+		{	
+			MBLDLineProductSetInstance mBLDlPSI  = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
+			MBLDLineProductInstance instance = 
+					mBLDlPSI.getMBLDLineProductInstance(m_MbldLineProductsetInstanceID, partType.getBLD_M_PartType_ID(), m_M_Product_ID);
 		/*instance var below should be the instance for this parttype and m_MbldLineProductsetInstanceID
 		 * 
 		 */
-		MBLDLineProductInstance instance = ((MBLDProductPartType) mBldProdPartType).getMBldLineProductInstance (m_MbldLineProductsetInstanceID);
-		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.get_ID(), null);	//	optional = null
 		if (instance != null)
 		{
 			for (int i = 0; i < values.length; i++)
@@ -721,6 +723,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				log.warning("Attribute=" + partType.getName() + " #" + values.length + " - NOT found: " + instance);
 			}
 		}	//	setComboBox
+		}
 		else
 			if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " no instance");
 	}
@@ -1113,10 +1116,11 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			//{
 				Listbox editor = (Listbox)m_editors.get(i);
 				ListItem item = editor.getSelectedItem();
-				MAttributeValue value = item != null ? (MAttributeValue)item.getValue() : null;
-				if (log.isLoggable(Level.FINE)) log.fine(productPartSet[i].getName() + "=" + value);
+				MProduct value = item != null ? (MProduct)item.getValue() : null;
+				//if (log.isLoggable(Level.FINE)) log.fine(productPartSet[i].getName() + "=" + value);
 				if (productPartSet[i].isMandatory() && value == null)
 					mandatory += " - " + productPartSet[i].getName();
+				
 				productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value);
 				//attributes[i].setMAttributeInstance(m_M_AttributeSetInstance_ID, value);
 			//}
