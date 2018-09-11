@@ -48,21 +48,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		
 	public MBLDMtomItemLine(Properties ctx, MOrderLine orderLine, int mTM_prod_ID, String trxName) {
 			this(ctx, 0, trxName);
-			int m_Prod_ID = orderLine.getM_Product_ID();
-			setDescription(orderLine.getDescription());
-			setM_Product_ID(m_Prod_ID);
-			setbld_mtom_production_ID(mTM_prod_ID);
-			setName(orderLine.getName());
-			setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
-			setattributesetinstance_id(orderLine.getM_AttributeSetInstance_ID());
-			if(orderLine.get_Value("mtm_attribute")!=null)
-			{
-				setinstance_string(orderLine.get_Value("mtm_attribute").toString());
-			}
-			else
-			{
-				setinstance_string("0_0_0");
-			}		
+			setFromOrderLine(orderLine);		
 	}
 	
 	/**
@@ -76,7 +62,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 	/**
 	 * The standard constructor call
 	 */
-	
+	//MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn)
 	public MBLDMtomItemLine(Properties ctx, int mblditomLineID, int mTM_prod_ID, String trxName) {
 		super(ctx, mblditomLineID, trxName);
 		setbld_mtom_production_ID(mTM_prod_ID);
@@ -114,6 +100,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
 		setattributesetinstance_id(orderLine.getM_AttributeSetInstance_ID());
 		setLine(orderLine.getLine());
+		setBld_Line_ProductSetInstance_ID(orderLine.get_ValueAsInt("bld_line_productsetinstance_id"));
 		if(orderLine.get_Value("mtm_attribute")!=null)
 		{
 			setinstance_string(orderLine.get_Value("mtm_attribute").toString());

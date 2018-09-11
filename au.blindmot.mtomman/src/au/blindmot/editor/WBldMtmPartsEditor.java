@@ -160,8 +160,13 @@ public class WBldMtmPartsEditor extends WEditor implements ContextMenuListener
 	 */
 	private void cmd_dialog() throws Exception
 	{
-		//
-		Integer oldValue = (Integer)getValue ();
+		//TODO: getValue() returns a string throws class cast exception 
+		Integer oldValue = 0;
+		if(getValue() != null)
+		{
+			oldValue = new Integer(getValue().toString());
+		}
+		
 		final int oldValueInt = oldValue == null ? 0 : oldValue.intValue ();
 		int bldProductsetinstance_ID = oldValueInt;
 		int M_Product_ID = 0;

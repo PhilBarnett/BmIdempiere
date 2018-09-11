@@ -42,13 +42,12 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 		}
 		/*
 		 * TODO: This method should iterate through pps, get the instance value and write it to the string.
-		 * Currently, instance is null because partType.getmBLDLineProductInstance diesn't work and should be deleted.
+		 * Currently, instance is null because partType.getmBLDLineProductInstance doesn't work and should be deleted.
 		 */
 		StringBuilder sb = new StringBuilder();
 		
 		//	Instance Values
-		MBLDProductPartType partType = new MBLDProductPartType(p_ctx, 0, get_TrxName());
-		MBLDLineProductInstance[] instance = partType.getmBLDLineProductInstance(getBLD_Line_ProductSetInstance_ID());
+		MBLDLineProductInstance[] instance = MBLDProductPartType.getmBLDLineProductInstance(getBLD_Line_ProductSetInstance_ID(), get_TrxName());
 		for (int i = 0; i < instance.length; i++)
 		{
 			
@@ -71,6 +70,7 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 	 * @return
 	 */
 public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) {
+	//mProductID is finished product ID.
 	String tranName;
 	if(trxName != null)
 	{
@@ -113,6 +113,7 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) 
 		DB.close(rs, pstmt);
 		rs = null; pstmt = null;
 	}
+	
 	MBLDProductPartType[] partsArray = new MBLDProductPartType[partTypes.size()];
 	return partTypes.toArray(partsArray);
 	
@@ -166,19 +167,13 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) 
 	 * @param mProductID
 	 * @return
 	 */
-	public MBLDLineProductInstance getMBLDLineProductInstance (int BldLineProductSetInstanceID, int mBldPartTypeID, int mProductID)
+	public MBLDLineProductInstance getMBLDLineProductInstance (int BldLineProductSetInstanceID, int mBldPartTypeID)//, int mProductID)
 	{
 		MBLDLineProductInstance retInstance = null;
-		if(mProductID > 0)
-		{
-			retInstance = new MBLDLineProductInstance(p_ctx, mBldPartTypeID, 
-					BldLineProductSetInstanceID, mProductID, get_TrxName());
-			return retInstance;
-		}
-		else
-		{
+		int bldLineProductInstanceID = 0;
+		
 		StringBuilder sql = new StringBuilder();
-		sql.append("SELECT m_product_id "); 
+		sql.append("SELECT bld_line_productinstance_id "); 
 		sql.append("FROM bld_line_productinstance ");
 		sql.append("WHERE bld_line_productsetinstance_id = ? ");
 		sql.append("AND bld_product_parttype_id = ? ");
@@ -193,24 +188,75 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) 
 			rs = pstmt.executeQuery();
 			if(rs.next())
 			{
-				mProductID = rs.getInt(1);
+				bldLineProductInstanceID = rs.getInt(1);
 			}
 		}
-			catch (SQLException ex)
-			{
-				log.log(Level.SEVERE, sql.toString(), ex);
-			}
-			finally
-			{
-				DB.close(rs, pstmt);
-				rs = null; pstmt = null;
-			}
+		catch (SQLException ex)
+		{
+			log.log(Level.SEVERE, sql.toString(), ex);
+		}
+		finally
+		{
+			DB.close(rs, pstmt);
+			rs = null; pstmt = null;
 		}
 		
-		retInstance = new MBLDLineProductInstance(p_ctx, null, get_TrxName(), mBldPartTypeID, BldLineProductSetInstanceID, mProductID);
+		
+		if(bldLineProductInstanceID > 0)
+		{
+			retInstance = new MBLDLineProductInstance(p_ctx, bldLineProductInstanceID, get_TrxName());
+			retInstance.save();
+			return retInstance;
+		}
+		
+		//
+		
+		/*
+		if(mProductID > 0)
+		{
+			retInstance = new MBLDLineProductInstance(p_ctx, 0, get_TrxName());
+			retInstance.setM_Product_ID(mProductID );
+			retInstance.save();
+			return retInstance;
+		}
+		*/
+		
 		return retInstance;
 		
 	}
+	
+	
+	/**
+	 * Not required yet
+	@Override
+	
+	protected boolean afterSave(boolean newRecord, boolean success) 
+	{
+		if (super.afterSave(newRecord, success)) 
+		{
+			if (newRecord && success)
+			{
+				//use id as description when description is empty
+				String desc = this.getDescription();
+				if (desc == null || desc.trim().length() == 0)
+				{
+					this.set_ValueNoCheck("Description", Integer.toString(getBLD_Line_ProductSetInstance_ID()));
+					String sql = "UPDATE bld_line_productsetinstance SET Description = ? WHERE M_AttributeSetInstance_ID = ?";
+					int no = DB.executeUpdateEx(sql, 
+							new Object[]{Integer.toString(getBLD_Line_ProductSetInstance_ID()), getBLD_Line_ProductSetInstance_ID()}, 
+							get_TrxName());
+					if (no <= 0)
+					{
+						log.log(Level.SEVERE, "Failed to update description.");
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+		
+		return false;
+	} */
 }	//	getAttributeInstance
 	
 	

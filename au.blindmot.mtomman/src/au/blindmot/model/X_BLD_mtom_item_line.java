@@ -147,6 +147,10 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	{
 		return (String)get_Value(COLUMNNAME_bld_mtom_item_line_UU);
 	}
+	
+	/**
+	 * Set bld_line_productsetinstance_id 
+	 */
 
 	public I_BLD_mtom_production getbld_mtom_production() throws RuntimeException
     {
@@ -455,5 +459,22 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	public String getValue () 
 	{
 		return (String)get_Value(COLUMNNAME_Value);
+	}
+
+	@Override
+	public void setBld_Line_ProductSetInstance_ID(int bld_Line_ProductSetInstance_ID) {
+		if (bld_Line_ProductSetInstance_ID < 1) 
+			set_ValueNoCheck (COLUMNNAME_bld_line_productsetinstance_ID, null);
+		else 
+			set_ValueNoCheck (COLUMNNAME_bld_line_productsetinstance_ID, Integer.valueOf(bld_Line_ProductSetInstance_ID));
+	}
+
+	@Override
+	public int getBld_Line_ProductSetInstance_ID() {
+		Integer ii = new Integer(get_Value(COLUMNNAME_bld_line_productsetinstance_ID).toString());
+		if (ii.intValue()<1)
+			 return 0;
+		return ii.intValue();
+		
 	}
 }

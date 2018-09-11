@@ -5,8 +5,6 @@ package au.blindmot.eventhandler;
 import java.io.File;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.sql.RowSet;
@@ -29,8 +27,11 @@ import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.osgi.service.event.Event;
 
+import au.blindmot.model.MBLDLineProductInstance;
+import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
+import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.model.X_BLD_Line_ProductSetInstance;
 import au.blindmot.utils.MtmUtils;
 
@@ -41,6 +42,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	private X_C_OrderLine orderLine = null;
 	private MBLDMtomItemLine mToMProductionParent = null;
 	private boolean DocVoidReverse = false; 
+	String trxName = null;
 	
 	@Override
 	protected void initialize() {
@@ -59,6 +61,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	protected void doHandleEvent(Event event) {
 	
 	PO po = getPO(event);
+	trxName = po.get_TrxName();
 	
 	if(po instanceof MProductionLine)
 		{
@@ -79,7 +82,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	{
 		log.warning("---------MOrderLine event triggered");
 		log.warning("---------event: " + event);
-		String trxName = po.get_TrxName();
+		trxName = po.get_TrxName();
 		System.out.println(Env.getCtx().toString());
 		orderLine = (MOrderLine)po;//The new OrderLine to copy the attribute instances to.
 		log.warning("---------Line 83");
@@ -125,7 +128,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				MOrderLine copyFromOrderLine = copyAttributeInstance(orderLine, mProduct);
 				if(copyFromOrderLine != null)//Then it's a new record, not a copied record.
 					{
-						
+					copyBldProductInstance(copyFromOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),  orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), mProductID);
 					System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.saveEx();
@@ -359,6 +362,41 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		
 		RowSet rowset = DB.getRowSet(sql.toString());
 		return rowset;
+	}
+	
+	private void copyBldProductInstance(int fromBldPIID,  int toBldPIID, int mProductID) {
+		
+		/*get the from psi
+		 * create a new Instance from the from psi
+		 * 
+		 */
+		StringBuilder sb = new StringBuilder();
+		MBLDLineProductInstance[] fromInstance = MBLDProductPartType.getmBLDLineProductInstance(fromBldPIID, trxName);
+		if(toBldPIID > 0)
+			{
+				for(int i = 0; i < fromInstance.length; i++)
+				{
+					MBLDLineProductInstance toInstance = new MBLDLineProductInstance(Env.getCtx(), 0, trxName);
+					toInstance.setBLD_Product_PartType_ID(fromInstance[i].getBLD_Product_PartType_ID());
+					toInstance.setBLD_Line_ProductSetInstance_ID(toBldPIID);
+					toInstance.setM_Product_ID(fromInstance[i].getM_Product_ID());
+					toInstance.saveEx(trxName);
+					
+					if (fromInstance[i]!= null && fromInstance[i].getM_Product_ID() > 0)
+					{
+						MProduct nameAdd = new MProduct(Env.getCtx(), fromInstance[i].getM_Product_ID(), trxName);
+						if (sb.length() > 0)
+							sb.append("_");
+						sb.append(nameAdd.getName());
+					}
+				}
+				MBLDLineProductSetInstance toBLdpsi = new MBLDLineProductSetInstance(Env.getCtx(), toBldPIID, trxName);
+	
+				toBLdpsi.setDescription(sb.toString());
+				toBLdpsi.save();
+			}
+		
+		
 	}
 	
 }

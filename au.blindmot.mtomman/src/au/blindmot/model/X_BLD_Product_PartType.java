@@ -191,4 +191,21 @@ public class X_BLD_Product_PartType extends PO implements I_BLD_Product_PartType
 			 return 0;
 		return ii.intValue();
 	}
+
+	@Override
+	public int getM_PartTypeID() {
+		Integer ii = (Integer)get_Value(COLUMNNAME_MPartTypeID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	@Override
+	public void setM_PartTypeId(int mPartTypeID) {
+		if (mPartTypeID < 1) 
+			set_Value (COLUMNNAME_MPartTypeID, null);
+		else 
+			set_Value (COLUMNNAME_MPartTypeID, Integer.valueOf(mPartTypeID));
+		
+	}
 }

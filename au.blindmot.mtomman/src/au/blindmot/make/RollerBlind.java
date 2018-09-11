@@ -5,7 +5,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.sql.RowSet;
@@ -21,7 +20,9 @@ import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 
 import au.blindmot.model.MBLDBomDerived;
+import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDMtomCuts;
+import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
 
@@ -57,6 +58,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 	private static String ROLLER_TUBE = "Roller tube";
 	private static String LIFT_SPRING = "Lift spring";
 	private static String END_CAP = "End Cap";
+	private static String FABRIC = "Fabric";
 	
 	//
 	private static String FABRIC_LENGTH_ADDITION = "Fabric length addition";
@@ -83,7 +85,9 @@ public class RollerBlind extends MadeToMeasureProduct {
 		interpretMattributeSetInstance();
 	}
 	
-	
+	/**
+	 * 
+	 */
 	@Override
 	public void interpretMattributeSetInstance() {
 		AttributePair[] attributePair = getMAttributeSetInstance();
@@ -105,6 +109,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 			}
 			
 			else*/ 
+			//TODO: Is if(mInstance.equalsIgnoreCase("Blind control")) required?
 			if(mInstance.equalsIgnoreCase("Blind control"))
 			{	
 				blindControlIns = mInstanceValue;
@@ -114,26 +119,26 @@ public class RollerBlind extends MadeToMeasureProduct {
 				}
 				
 			}	
-			else if(mInstance.equalsIgnoreCase("Blind non control mech"))
+			/*else if(mInstance.equalsIgnoreCase("Blind non control mech"))
 			{
 				tNCMIns = mInstanceValue;
-			}
-			else if(mInstance.equalsIgnoreCase("Roller bracket"))
+			}*/
+			/*else if(mInstance.equalsIgnoreCase("Roller bracket"))
 			{
 				rollerBracketIns = mInstanceValue;
-			}
-			else if(mInstance.equalsIgnoreCase("Mech colour"))
+			}*/
+			/*else if(mInstance.equalsIgnoreCase("Mech colour"))
 			{
 				mechColIns = mInstanceValue;
-			}
-			else if(mInstance.equalsIgnoreCase("Bracket colour"))
+			}*/
+			/*else if(mInstance.equalsIgnoreCase("Bracket colour"))
 			{
 				rollerBracketColIns = mInstanceValue;
-			}
-			else if(mInstance.equalsIgnoreCase("Chain safe"))
+			}*/
+			/*else if(mInstance.equalsIgnoreCase("Chain safe"))
 			{
 				chainSafeIns = mInstanceValue;
-			}
+			}*/
 			else if(mInstance.equalsIgnoreCase("Roll type"))
 			{
 				rollTypeIns = mInstanceValue;
@@ -144,11 +149,14 @@ public class RollerBlind extends MadeToMeasureProduct {
 			}
 		}
 		
-		addColoursToBracketsControls();
+		//addColoursToBracketsControls();
 		//mtmrolleritem.saveEx();
 	}
 	
-	//Handle colours
+	/*TODO: Deprecate this
+	 * What a horrible way to accomplish this!
+	 * /Handle colours
+	 *
 	private void addColoursToBracketsControls() {
 		
 		//Add colour to the non control mech
@@ -175,22 +183,23 @@ public class RollerBlind extends MadeToMeasureProduct {
 			newblindControlIns.append(" " + mechColIns);
 			blindControlIns = newblindControlIns.toString();
 		}
-	}
+	}*/
 
 	@Override
 	/**
-	 * Must be first method called in object.
-	 * Should be called init()?
+	 * 
 	 * 
 	 */
 	public boolean getCuts() {
 		
-		//TODO: get the fabricID, rollerTubeID, bottomBarID from BOM lines in case they've been edited by user.
+		/*
+		 * /TODO: get the fabricID, rollerTubeID, bottomBarID from BOM lines in case they've been edited by user.
+		 */
 		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
 	    pattern = Pattern.compile(patternString);
-	    setInstanceFields();//Sets instance fields from the instance_string column
+	    //setInstanceFields();//Sets instance fields from the instance_string column
 		populatePartTypes(m_product_id);//Gets the ArrayLists of parts
-		setValueProductID();//Interprets the attribute instances and picks parts from ArrayLists to match, also creates BOM lines for chain driven blinds.
+		setValueProductID();//Currently Set roller tube ID based on blind width only
 		
 		//Get a value for field fabricWidth & fabricDrop
 		BigDecimal fabricWidth = getFabricWidth();
@@ -312,9 +321,11 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 * From the AttributePair[]
 		 */
 		//Get fields setup
+		addMtmInstancePartsToBomDerived();
 		populatePartTypes(m_product_id) ;
 		setValueProductID();//Chain accessory BOM lines are added here.
-		setInstanceFields();
+		//setInstanceFields();
+		/*
 		addMtmInstancePartsToBomDerived();//Creates BOM lines from the products in the 'instance_string' column.
 		addBomDerivedLines(controlID, null);
 		addBomDerivedLines(nonControlID, null);
@@ -322,6 +333,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		addBomDerivedLines(controlBracketID, null);
 		addBomDerivedLines(chainSafeID, null);
 		addBomDerivedLines(endCapID, null);
+		*/
 		if(isChainControl) 
 			{
 				int liftID = getLiftSpring();
@@ -407,7 +419,9 @@ public class RollerBlind extends MadeToMeasureProduct {
 		
 	
 	
-		
+		/*TODO: The parts added by the editor dialogue can be removed from the code below
+		 * 
+		 */
 			for(int i = 0; i < parts.length; i++) {
 	
 				X_M_PartType mPartType = new X_M_PartType(null, parts[i], null);
@@ -417,7 +431,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 				{
 					miscItem.add(new KeyNamePair(productIDs[i], names[i]));;
 				}
-				else if(partType.equalsIgnoreCase(CONTROL_COMP))
+				/*else if(partType.equalsIgnoreCase(CONTROL_COMP))
 				{
 					controlType.add(new KeyNamePair(productIDs[i], names[i]));
 				}
@@ -436,7 +450,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 				else if(partType.equalsIgnoreCase(CHAIN_SAFE))
 				{
 					chainSafe.add(new KeyNamePair(productIDs[i], names[i]));
-				}
+				}*/
 				else if(partType.equalsIgnoreCase(CHAIN_ACC))
 				{
 					chainAcc.add(new KeyNamePair(productIDs[i], names[i]));
@@ -445,6 +459,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 				{
 					rollerTube.add(new KeyNamePair(productIDs[i], names[i]));
 				}
+				//TODO: Pick end cap to match colour of base bar.
 				else if(partType.equalsIgnoreCase(END_CAP))
 				{
 					endCap.add(new KeyNamePair(productIDs[i], names[i]));
@@ -497,6 +512,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 	
 		 */
 		//Add the chain accessories
+		
+		/*
 		if(isChainControl)
 		{
 			for (KeyNamePair ca : chainAcc) {
@@ -518,19 +535,19 @@ public class RollerBlind extends MadeToMeasureProduct {
 				mBomDerived.saveEx();
 				
 		        }
-		}
+		}*/
 		
 		
 		//Resolve controlBracketID
 		//TODO: Protocol must be bracket description contains: control(literal), colour(instance), type(instance) - dual, single extension etc.
-		
+		/*
 			controlID = resolveComponents(controlType, blindControlIns);//Resolve controlID
 			nonControlID = resolveComponents(TubularNCM, tNCMIns);//Resolve nonControlID
 			//TODO: May need more logic to determine brackets as below 2 statement assign the same value.
 			nonControlBracketID = resolveComponents(rollerBracket, rollerBracketColIns, rollerBracketIns);//Resolve nonControlBracketID
 			controlBracketID = resolveComponents(rollerBracket, rollerBracketColIns, rollerBracketIns);//
 			chainSafeID = resolveComponents(chainSafe, chainSafeIns);//Resolve chainSafeID
-			
+		*/
 			
 			/**
 			 * Set roller tube ID based on blind width only
@@ -619,15 +636,24 @@ public class RollerBlind extends MadeToMeasureProduct {
 	
 	private void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {
 		log.warning("---------In addMBLDBomDerived(int mProductId, BigDecimal qty, String description) with mProductId: " + mProductId + " qty:" + qty + " description: " + description);
-		MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
-		mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
-		mBomDerived.setM_Product_ID(mProductId);
-		qty.setScale(2, BigDecimal.ROUND_CEILING);
-		mBomDerived.setQty(qty);
-		if(description != null)mBomDerived.setDescription(description);
-		mBomDerived.saveEx();
+		if(mProductId > 0 && qty.compareTo(BigDecimal.ZERO) > 0)
+		{
+			MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
+			mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
+			mBomDerived.setM_Product_ID(mProductId);
+			qty.setScale(2, BigDecimal.ROUND_CEILING);
+			mBomDerived.setQty(qty);
+			if(description != null)mBomDerived.setDescription(description);
+			mBomDerived.saveEx();
+		}
 	}
 	
+	/**
+	 * 
+	 * @param parts
+	 * @param instanceParse
+	 * @return
+	 */
 	private int resolveComponents(ArrayList<KeyNamePair> parts, String instanceParse) {
 	
 		int part_ID = 0;
@@ -655,6 +681,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		return part_ID;
 	}
 	
+	/*
 	private int resolveComponents(ArrayList<KeyNamePair> parts, String instanceParse, String instanceParse2) {
 		
 		int part_ID = 0;
@@ -678,10 +705,47 @@ public class RollerBlind extends MadeToMeasureProduct {
 		log.warning(instanceParse + "---------------Could not resolve control from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
 	}
 		return part_ID;
-	}
+	}*/
 	
-	
+	//TODO: Modify so all parts are added to BOMDerived
 	private void addMtmInstancePartsToBomDerived(){
+		
+		int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
+		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
+		for(int i = 0; i < mBLDLineProductInstance.length; i++)
+		{
+				int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
+				int mPartTypeID = mBLDLineProductInstance[i].getBLD_Product_PartType_ID();
+				MBLDProductPartType mBLDProductPartType  = new MBLDProductPartType(Env.getCtx(), mPartTypeID, null);
+				int xMPartTypeID = mBLDProductPartType.getM_PartTypeID();
+				X_M_PartType mPartType  = new X_M_PartType (Env.getCtx(), xMPartTypeID , null);
+				if(mPartType.getName().equals(CONTROL_COMP))
+				{
+					controlID = mProductId;
+				}
+				if(mPartType.getName().equals(NON_CONTROL_MECH))
+				{
+					nonControlID = mProductId;
+				}
+				if(mPartType.getName().equals(ROLLER_BRACKET))
+				{
+					nonControlBracketID = mProductId;
+				}
+				if(mPartType.getName().equals(ROLLER_BRACKET))
+				{
+					controlBracketID = mProductId;
+				}
+				if(mPartType.getName().equals(FABRIC))
+				{
+					fabricID = mProductId;
+				}
+				
+				
+				BigDecimal qty = getBomQty(mProductId);
+				addMBLDBomDerived(mProductId, qty, trxName);
+		}
+		
+		/*
 		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
 	    pattern = Pattern.compile(patternString);
 		if(mtmInstanceParts != null)//Add the parts stored in the bldmtomlineiem instance_string column
@@ -700,7 +764,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 				addMBLDBomDerived(mProductId, qty, trxName);
 			}
 		}
-	 }
+	 }*/
     }
 	
 	private void addBomDerivedLines(int partProduct_id, String description){
@@ -729,7 +793,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 	}
 
 	
-	 private String[] getInstanceArray() {
+	/* private String[] getInstanceArray() {
 		 
 		 if(mtmInstanceParts!=null && mtmInstanceParts.toString().contains("_")) 
 		 {
@@ -739,7 +803,9 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 } 
 		 else return null;
 
-	 }
+	 } */
+	 
+	/**Deprecate / delete 
 	 
 	 private void setInstanceFields() {	
 	 
@@ -754,7 +820,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 			if(s == 2)bottomBarID = mProductId;
 		}
 	}
-	 }
+	 }*/
 	 
 	 public ArrayList <Integer> getHeadRailComps() {
 	 ArrayList <Integer> headRailComps = new ArrayList <Integer>();
@@ -953,5 +1019,117 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 } 
 		 return rowCount;
 	 }
+	 
+	 /**
+		 * Searches for all the BOM parts from product with m_product_id
+		 * sorts them into ArrayList with a KeyNamePair array for each relevant
+		 * m_parttype_id
+		 * @param m_product_id
+		 */
+		private void setPartIDs(int m_product_id) 
+		{
+			StringBuilder sql = new StringBuilder("SELECT mp.m_parttype_id, mp.m_product_id, mp.name ");
+			sql.append("FROM m_product mp INNER JOIN m_product_bom mpb ");
+			sql.append("ON mp.m_product_id = mpb.m_productbom_id ");
+			sql.append("AND mpb.m_product_id = ");
+			sql.append(m_product_id);
+			sql.append(" ORDER BY mp.m_parttype_id");
+			
+			/*Get the Parttypes for this product
+			 * get the instances for this lineID
+			 * Iterate through and set the fields for the part IDS
+			 * 	private int nonControlBracketID = 0;
+			 *	private int controlID = 0;
+				private int nonControlID = 0;
+				private int chainSafeID = 0;
+				private int rollerTubeID = 0;
+				private int endCapID = 0;
+			 * 
+			 * 
+			 */
+			
 		
+			
+			List<String> mpName = new ArrayList<String>();
+			List<Integer> partIDs = new ArrayList<Integer>();
+			List<Integer> prodIDs = new ArrayList<Integer>();
+			
+			ResultSet rs = DB.getRowSet(sql.toString());
+			System.out.println(rs.toString());
+			
+			    try {
+					while (rs.next()) {
+						partIDs.add(rs.getInt(1));
+						prodIDs.add(rs.getInt(2));
+						mpName.add(rs.getString(3));
+					}
+				} catch (SQLException e) 
+			    {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			    finally
+			    {
+			    	DB.close(rs);
+			    	rs = null;
+			    }
+			
+			Integer parts[] = partIDs.toArray(new Integer[(partIDs.size())]);
+			String names[] = mpName.toArray(new String[mpName.size()]);
+			Integer productIDs[] = prodIDs.toArray(new Integer[(prodIDs.size())]);
+			
+		
+		
+			
+				for(int i = 0; i < parts.length; i++) {
+		
+					X_M_PartType mPartType = new X_M_PartType(null, parts[i], null);
+					String partType = (String) mPartType.get_Value("name");
+					
+					if(partType == null)
+					{
+						miscItem.add(new KeyNamePair(productIDs[i], names[i]));;
+					}
+					else if(partType.equalsIgnoreCase(CONTROL_COMP))
+					{
+						controlType.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					else if(partType.equalsIgnoreCase(BOTTOM_BAR))
+					{
+						bottomBar.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					else if(partType.equalsIgnoreCase(NON_CONTROL_MECH))
+					{
+						TubularNCM.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					else if(partType.equalsIgnoreCase(ROLLER_BRACKET))
+					{
+						rollerBracket.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					else if(partType.equalsIgnoreCase(CHAIN_SAFE))
+					{
+						chainSafe.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					else if(partType.equalsIgnoreCase(CHAIN_ACC))
+					{
+						chainAcc.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					else if(partType.equalsIgnoreCase(ROLLER_TUBE))
+					{
+						rollerTube.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					else if(partType.equalsIgnoreCase(END_CAP))
+					{
+						endCap.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					else if(partType.equalsIgnoreCase(LIFT_SPRING))
+					{
+						liftSpring.add(new KeyNamePair(productIDs[i], names[i]));
+					}
+					
+				}
+				
+				
+	}
+
 }

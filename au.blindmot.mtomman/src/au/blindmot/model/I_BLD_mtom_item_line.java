@@ -104,6 +104,16 @@ public interface I_BLD_mtom_item_line
 
     /** Column name bld_mtom_production_ID */
     public static final String COLUMNNAME_bld_mtom_production_ID = "bld_mtom_production_ID";
+    
+    /** Column name bld_mtom_production_ID */
+    public static final String COLUMNNAME_bld_line_productsetinstance_ID = "bld_line_productsetinstance_id";
+    
+    /** Set bld line productsetinstance_ID **/
+    public void setBld_Line_ProductSetInstance_ID (int bld_line_productsetinstance_id);
+    
+    /** Get bld line productsetinstance_ID **/
+    public int getBld_Line_ProductSetInstance_ID ();
+ 
 
 	/** Set Made to measure production	  */
 	public void setbld_mtom_production_ID (int bld_mtom_production_ID);

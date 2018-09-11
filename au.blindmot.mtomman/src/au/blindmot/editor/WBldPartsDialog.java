@@ -696,13 +696,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private void setListAttribute(MBLDProductPartType partType, Listbox editor) {
 		boolean found = false;
 		
-		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.get_ID(), null);	//	optional = null
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.getBLD_M_PartType_ID(), null);	//	optional = null
 		
 		if(m_MbldLineProductsetInstanceID > 1)
 		{	
 			MBLDLineProductSetInstance mBLDlPSI  = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
 			MBLDLineProductInstance instance = 
-					mBLDlPSI.getMBLDLineProductInstance(m_MbldLineProductsetInstanceID, partType.getBLD_M_PartType_ID(), m_M_Product_ID);
+					mBLDlPSI.getMBLDLineProductInstance(m_MbldLineProductsetInstanceID, partType.get_ID());
 		/*instance var below should be the instance for this parttype and m_MbldLineProductsetInstanceID
 		 * 
 		 */

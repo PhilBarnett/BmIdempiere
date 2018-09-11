@@ -93,9 +93,14 @@ public class MtmUtils {
 	 * @return
 	 */
 	public static BigDecimal getFabWeight(int length, int width, int fabricID, String trxname) {
+		if(!(fabricID > 0))
+		{
+			throw new AdempiereUserError("No fabric specified for a line item. is the fabric a mandatory Part Type?");
+		}
+		
 		MProduct mProduct = new MProduct(Env.getCtx(), fabricID, trxname);
 		BigDecimal  fabweightsqm = mProduct.getWeight();
-		if(fabweightsqm.equals(Env.ZERO))
+		if(fabweightsqm.equals(Env.ZERO))//TODO: Fabric weight defaults
 		{
 			throw new AdempiereUserError("No Weight for product: " + mProduct.getName() + " " + mProduct.getDescription());
 		}

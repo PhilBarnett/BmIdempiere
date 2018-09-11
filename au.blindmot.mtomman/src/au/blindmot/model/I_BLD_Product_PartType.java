@@ -179,4 +179,19 @@ public interface I_BLD_Product_PartType
 	  * User who updated this records
 	  */
 	public int getUpdatedBy();
+	
+	/**COLUMN NAME_m_parttype_id*/
+	public static final String COLUMNNAME_MPartTypeID = "m_parttype_id";
+	
+	/**
+	 * Get MPartype ID
+	 * @return
+	 */
+	public int getM_PartTypeID();
+	
+	/**
+	 * Set MPrtType ID
+	 * 
+	 */
+	public void setM_PartTypeId(int mPartTypeID);
 }

@@ -18,7 +18,7 @@ public class MBLDLineProductInstance extends X_BLD_Line_ProductInstance {
 	 * @param BLD_Line_ProductSetInstance_ID
 	 * @param mProductID
 	 * @param trxName
-	 */
+	 
 	public MBLDLineProductInstance(Properties ctx, int BLD_Product_PartType_ID, 
 			int BLD_Line_ProductSetInstance_ID, int mProductID, String trxName)
 		{
@@ -27,7 +27,7 @@ public class MBLDLineProductInstance extends X_BLD_Line_ProductInstance {
 			setBLD_Line_ProductSetInstance_ID (BLD_Line_ProductSetInstance_ID);
 			setM_Product_ID (mProductID);
 		}	//	MBLDLineProductInstance
-
+*/
 	/**
 	 * Load Existing - use when mProductID is not 0 or null
 	 * @param p_ctx

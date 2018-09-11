@@ -4,11 +4,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.logging.Level;
 
-import org.compiere.model.MAttributeValue;
 import org.compiere.model.MProduct;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
@@ -54,17 +53,18 @@ public class MBLDProductPartType extends X_BLD_Product_PartType {
  */
 public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, String trxName) {
 	if (s_log.isLoggable(Level.FINE)) s_log.fine("From M_Product_ID=" + mProductID);
-	if (mProductID == 0)
-		return null;
-	ArrayList<MProduct> products= new ArrayList<MProduct>();
+	if (mProductID == 0) return null;
+	
+	HashSet<MProduct> products= new HashSet<MProduct>();
 	StringBuffer sql = new StringBuffer();
-	sql.append("SELECT mpb.m_product_bom_id, "); 
-	sql.append("mp.name ");
+	sql.append("SELECT mpb.m_productbom_id "); 
 	sql.append("FROM m_product_bom mpb ");
-	sql.append("JOIN m_product mp ON mp.m_product_id = mpb.m_product_bom_id ");
+	sql.append("JOIN m_product mp ON mp.m_product_id = mpb.m_productbom_id ");
 	sql.append("JOIN m_parttype mpt ON mpt.m_parttype_id = mp.m_parttype_id ");
-	sql.append("WHERE mpb.m_product_id = ?");
-	sql.append("AND mpt.m_parttype_id = ?");
+	sql.append("JOIN bld_product_parttype bpt ON bpt.m_parttype_id = mpt.m_parttype_id ");
+	sql.append("WHERE mpb.m_product_id = ? ");
+	sql.append("AND bpt.m_parttype_id = ? ");
+	sql.append("ORDER BY bpt.m_parttype_id");
 
 	PreparedStatement pstmt = null;
 	ResultSet rs = null;
@@ -117,7 +117,7 @@ public static PO  getMBLDProductPartType  (int mPartTypeID, int mProductID, Prop
 public MBLDLineProductInstance getMBldLineProductInstance(int m_MbldLineProductsetInstanceID) {
 	
 	StringBuilder sql = new StringBuilder();
-	sql.append("SELECT bld_product_parttype_id ");
+	sql.append("SELECT bld_line_productinstance_id ");
 	sql.append("FROM bld_line_productinstance ");
 	sql.append("WHERE bld_product_parttype_id = ? ");
 	sql.append("AND bld_line_productsetinstance_id = ? ");
@@ -132,8 +132,8 @@ public MBLDLineProductInstance getMBldLineProductInstance(int m_MbldLineProducts
 		rs = pstmt.executeQuery();
 		if(rs.next())
 		{
-			int BLDproductParttypeID  = rs.getInt(1);
-			retValue = new MBLDLineProductInstance (Env.getCtx(), BLDproductParttypeID, get_TrxName());
+			int BldLineProductinstanceID  = rs.getInt(1);
+			retValue = new MBLDLineProductInstance (Env.getCtx(), BldLineProductinstanceID, get_TrxName());
 		}
 	}
 	catch (SQLException ex)
@@ -164,26 +164,57 @@ public void setMBLDLineProductInstance(int m_MbldLineProductsetInstanceID, MProd
 	System.out.println("MBLDProductPartType.get_ID(): " + get_ID());
 	System.out.println("MBLDProductPartType.getBLD_M_PartType_ID()(): " + getBLD_M_PartType_ID());
 	MBLDLineProductInstance mBLDLineProductInstance = getMBldLineProductInstance(m_MbldLineProductsetInstanceID);
-	//MBLDLineProductInstance mBLDLineProductInstance1 = new MBLDLineProductInstance(p_ctx, mBLDProductPartTypeID, 
-	//m_MbldLineProductsetInstanceID, mProductID, get_TrxName());
+
 	if (mBLDLineProductInstance == null)//Doesn't exist yet
 	{
 		
-		mBLDLineProductInstance = new MBLDLineProductInstance(p_ctx, get_ID(), m_MbldLineProductsetInstanceID, mProductID, get_TrxName());
-		//mBLDLineProductInstance.setBLD_Product_PartType_ID(get_ID());
-		//mBLDLineProductInstance.setBLD_Line_ProductSetInstance_ID(m_MbldLineProductsetInstanceID);
+		mBLDLineProductInstance = new MBLDLineProductInstance(p_ctx, 0, get_TrxName());
+		mBLDLineProductInstance.setBLD_Line_ProductSetInstance_ID(m_MbldLineProductsetInstanceID);
+		mBLDLineProductInstance.setM_Product_ID(mProductID );
+		mBLDLineProductInstance.setBLD_Product_PartType_ID(get_ID());
+		mBLDLineProductInstance.saveEx();
 	}
-	//mBLDLineProductInstance.setM_Product_ID(mProductID );
-	mBLDLineProductInstance.saveEx(get_TrxName());
+	mBLDLineProductInstance.setM_Product_ID(mProductID );
+	mBLDLineProductInstance.save();
 }
 
-public MBLDLineProductInstance[] getmBLDLineProductInstance(int bld_Line_ProductSetInstance_ID) {
-	final String whereClause = I_BLD_Line_ProductInstance.COLUMNNAME_BLD_Product_PartType_ID +"=? AND "+I_BLD_Line_ProductInstance.COLUMNNAME_BLD_Line_ProductSetInstance_ID+"=?";
-	List<PO> retValue = new Query(getCtx(),I_BLD_Line_ProductInstance.Table_Name,whereClause,get_TrxName())
-	.setParameters(getBLD_Product_PartType_ID(),bld_Line_ProductSetInstance_ID).list();
-	MBLDLineProductInstance[] retArray = new MBLDLineProductInstance[retValue.size()];
-	return (MBLDLineProductInstance[]) retValue.toArray(retArray );
-}
-
+public static MBLDLineProductInstance[] getmBLDLineProductInstance(int bld_Line_ProductSetInstance_ID, String trxn) {
+	
+	StringBuilder sql = new StringBuilder();
+	sql.append("SELECT bld_line_productinstance_id ");
+	sql.append("FROM bld_line_productinstance ");
+	sql.append("WHERE bld_line_productsetinstance_id = ? ");
+	sql.append("ORDER BY bld_product_parttype_id");
+	MBLDLineProductInstance[] retValueArray  = null;
+	PreparedStatement pstmt = null;
+	ResultSet rs = null;
+	ArrayList<MBLDLineProductInstance> mBPSI = new ArrayList<MBLDLineProductInstance>();
+	
+	try
+	{
+		pstmt = DB.prepareStatement(sql.toString(), null);
+		pstmt.setInt(1, bld_Line_ProductSetInstance_ID);
+		rs = pstmt.executeQuery();
+		while(rs.next())
+		{
+			int mBLDLineProductInstanceID = rs.getInt(1);
+			MBLDLineProductInstance addValue = new MBLDLineProductInstance (Env.getCtx(), mBLDLineProductInstanceID, trxn);
+			//Does this need to be saved? addValue.saveEx();
+			mBPSI.add(addValue);
+		}
+	}
+	catch (SQLException ex)
+	{
+		s_log.log(Level.SEVERE, sql.toString(), ex);
+	}
+	finally
+	{
+		DB.close(rs, pstmt);
+		rs = null; pstmt = null;
+	}
+	retValueArray = new MBLDLineProductInstance[mBPSI.size()];
+	return mBPSI.toArray(retValueArray);
+	
+	}
 
 }

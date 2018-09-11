@@ -16,14 +16,17 @@ public class LookupFactory implements ILookupFactory {
 			log.warning("--------BLD lookup loaded");
 			return new BldLookup(gridFieldVO.ctx, gridFieldVO.WindowNo);
 		}
-			
-			
+				
 		return null;
 	}
 
 	@Override
 	public boolean isLookup(GridFieldVO gridFieldVO) {
-		if (gridFieldVO.displayType == DisplayTypeFactory.BldMtmParts)return true;
+		if (gridFieldVO.displayType == DisplayTypeFactory.BldMtmParts)
+		{
+			return true;
+		}
+			
 		return false;
 	}
 	
