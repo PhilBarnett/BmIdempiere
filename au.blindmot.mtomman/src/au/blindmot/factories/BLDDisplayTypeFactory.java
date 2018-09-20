@@ -9,7 +9,7 @@ import org.compiere.model.X_AD_Reference;
 import org.compiere.util.Env;
 import org.compiere.util.Language;
 
-public class DisplayTypeFactory implements IDisplayTypeFactory {
+public class BLDDisplayTypeFactory implements IDisplayTypeFactory {
 	
 	public static int BldMtmParts= ((X_AD_Reference)new Query(Env.getCtx(), X_AD_Reference.Table_Name, "AD_Reference_UU = '616c6609-dbcd-44e2-b50f-88166d7faba0'", null).first()).getAD_Reference_ID();
 

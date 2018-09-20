@@ -8,9 +8,9 @@ import org.compiere.util.CLogger;
 
 import au.blindmot.editor.WBldMtmPartsEditor;
 
-public class EditorFactory implements IEditorFactory {
+public class BLDEditorFactory implements IEditorFactory {
 	
-	CLogger log = CLogger.getCLogger(EditorFactory.class);
+	CLogger log = CLogger.getCLogger(BLDEditorFactory.class);
 
 	@Override
 	public WEditor getEditor(GridTab gridTab, GridField gridField, boolean tableEditor) {
@@ -22,7 +22,7 @@ public class EditorFactory implements IEditorFactory {
         WEditor editor = null;
         int displayType = gridField.getDisplayType();
 
-        if(displayType == DisplayTypeFactory.BldMtmParts){
+        if(displayType == BLDDisplayTypeFactory.BldMtmParts){
 	        log.warning("-------MY CUSTOM BldMtmParts DISPLAYTYPE");
 	        editor = new WBldMtmPartsEditor(gridTab, gridField);
         }

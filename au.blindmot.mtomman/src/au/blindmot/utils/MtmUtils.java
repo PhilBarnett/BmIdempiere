@@ -168,10 +168,10 @@ public class MtmUtils {
 	
 	public static String getRotation(String rollTypeIns, String controlSide) {
 		if(rollTypeIns==null || controlSide==null)return "";
-		if(rollTypeIns.equalsIgnoreCase("NR")||controlSide.equalsIgnoreCase("Left")) return MTM_CLOCKWISE;
-		if(rollTypeIns.equalsIgnoreCase("RR")||controlSide.equalsIgnoreCase("Left")) return MTM_ANTI_CLOCKWISE;
-		if(rollTypeIns.equalsIgnoreCase("NR")||controlSide.equalsIgnoreCase("Right")) return MTM_ANTI_CLOCKWISE;
-		if(rollTypeIns.equalsIgnoreCase("RR")||controlSide.equalsIgnoreCase("Right"))return MTM_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("NR")&&controlSide.equalsIgnoreCase("Left")) return MTM_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("RR")&&controlSide.equalsIgnoreCase("Left")) return MTM_ANTI_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("NR")&&controlSide.equalsIgnoreCase("Right")) return MTM_ANTI_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("RR")&&controlSide.equalsIgnoreCase("Right"))return MTM_CLOCKWISE;
 		return "";
 	}
 

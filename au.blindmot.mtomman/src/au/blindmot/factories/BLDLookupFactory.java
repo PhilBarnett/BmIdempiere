@@ -7,12 +7,12 @@ import org.compiere.util.CLogger;
 
 import au.blindmot.editor.BldLookup;
 
-public class LookupFactory implements ILookupFactory {
+public class BLDLookupFactory implements ILookupFactory {
 	
-	CLogger log = CLogger.getCLogger(LookupFactory.class);
+	CLogger log = CLogger.getCLogger(BLDLookupFactory.class);
 	@Override
 	public Lookup getLookup(GridFieldVO gridFieldVO) {
-		if(gridFieldVO.displayType == DisplayTypeFactory.BldMtmParts) {
+		if(gridFieldVO.displayType == BLDDisplayTypeFactory.BldMtmParts) {
 			log.warning("--------BLD lookup loaded");
 			return new BldLookup(gridFieldVO.ctx, gridFieldVO.WindowNo);
 		}
@@ -22,7 +22,7 @@ public class LookupFactory implements ILookupFactory {
 
 	@Override
 	public boolean isLookup(GridFieldVO gridFieldVO) {
-		if (gridFieldVO.displayType == DisplayTypeFactory.BldMtmParts)
+		if (gridFieldVO.displayType == BLDDisplayTypeFactory.BldMtmParts)
 		{
 			return true;
 		}

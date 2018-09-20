@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" name="au.blindmot.mtomman.editorfactory">
-   <implementation class="au.blindmot.factories.EditorFactory"/>
+   <implementation class="au.blindmot.factories.BLDEditorFactory"/>
    <property name="service.ranking" type="Integer" value="100"/>
    <service>
       <provide interface="org.adempiere.webui.factory.IEditorFactory"/>

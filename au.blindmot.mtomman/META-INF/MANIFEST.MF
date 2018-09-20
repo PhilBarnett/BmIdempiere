@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Mtomman
-Bundle-Version: 1.0.6.qualifier
+Bundle-Version: 1.0.7.qualifier
 Bundle-SymbolicName: au.blindmot.mtomman;singleton:=true
 Import-Package: org.adempiere.webui,
  org.adempiere.webui.action,
@@ -34,15 +34,27 @@ Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-IN
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Export-Package: action.images,
- au.blindmot.calloutfactory,
- au.blindmot.eventhandler,
- au.blindmot.factories,
- au.blindmot.make,
- au.blindmot.model,
- au.blindmot.mtmbtn,
- au.blindmot.mtmcallouts,
- au.blindmot.mtmlabels.processes,
- au.blindmot.processes.mtmcreate,
+ au.blindmot.calloutfactory;uses:="org.adempiere.base",
+ au.blindmot.eventhandler;uses:="org.osgi.service.event,org.adempiere.base.event",
+ au.blindmot.factories;
+  uses:="org.adempiere.webui.factory,
+   org.compiere.util,
+   org.compiere.model,
+   org.adempiere.base,
+   org.compiere.process,
+   org.compiere.acct,
+   org.adempiere.webui.editor,
+   au.blindmot.make",
+ au.blindmot.make;uses:="org.compiere.util,au.blindmot.model",
+ au.blindmot.model;
+  uses:="org.compiere.util,
+   org.compiere.model,
+   org.compiere.process,
+   org.compiere.acct",
+ au.blindmot.mtmbtn;uses:="org.adempiere.webui.action,org.adempiere.webui.adwindow,org.zkoss.zk.ui.event",
+ au.blindmot.mtmcallouts;uses:="org.compiere.util,org.compiere.model,org.adempiere.base",
+ au.blindmot.mtmlabels.processes;uses:="org.compiere.process",
+ au.blindmot.processes.mtmcreate;uses:="org.compiere.process",
  au.blindmot.utils
 Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 

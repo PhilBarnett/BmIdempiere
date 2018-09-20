@@ -110,6 +110,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 			
 			else*/ 
 			//TODO: Is if(mInstance.equalsIgnoreCase("Blind control")) required?
+			
+			/*
 			if(mInstance.equalsIgnoreCase("Blind control"))
 			{	
 				blindControlIns = mInstanceValue;
@@ -119,6 +121,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 				}
 				
 			}	
+			*/
 			/*else if(mInstance.equalsIgnoreCase("Blind non control mech"))
 			{
 				tNCMIns = mInstanceValue;
@@ -139,7 +142,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 			{
 				chainSafeIns = mInstanceValue;
 			}*/
-			else if(mInstance.equalsIgnoreCase("Roll type"))
+			if(mInstance.equalsIgnoreCase("Roll type"))
 			{
 				rollTypeIns = mInstanceValue;
 			}
@@ -198,6 +201,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
 	    pattern = Pattern.compile(patternString);
 	    //setInstanceFields();//Sets instance fields from the instance_string column
+	    setUserSelectedPartIds();
+	    setChainControl(controlID);
 		populatePartTypes(m_product_id);//Gets the ArrayLists of parts
 		setValueProductID();//Currently Set roller tube ID based on blind width only
 		
@@ -321,6 +326,8 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 * From the AttributePair[]
 		 */
 		//Get fields setup
+		setUserSelectedPartIds();
+		setChainControl(controlID);
 		addMtmInstancePartsToBomDerived();
 		populatePartTypes(m_product_id) ;
 		setValueProductID();//Chain accessory BOM lines are added here.
@@ -707,11 +714,13 @@ public class RollerBlind extends MadeToMeasureProduct {
 		return part_ID;
 	}*/
 	
+	/**
+	 * Sets fields from parts that users can select from the part dialog selection.
+	 */
 	//TODO: Modify so all parts are added to BOMDerived
-	private void addMtmInstancePartsToBomDerived(){
+	private void setUserSelectedPartIds(){
 		
-		int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
-		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
+		MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance(); 
 		for(int i = 0; i < mBLDLineProductInstance.length; i++)
 		{
 				int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
@@ -739,10 +748,6 @@ public class RollerBlind extends MadeToMeasureProduct {
 				{
 					fabricID = mProductId;
 				}
-				
-				
-				BigDecimal qty = getBomQty(mProductId);
-				addMBLDBomDerived(mProductId, qty, trxName);
 		}
 		
 		/*
@@ -948,7 +953,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		 * What is its rotation?
 		 * Check liftSpring array - is it empty? If not, then loop through array and find the lightest spring that
 		 * will do the job.
-		 * Only specify a spring if the BOM has one that has a range that he blind weight falls into,
+		 * Only specify a spring if the BOM has one that has a range that the blind weight falls into,
 		 * IE no spring unless blind is heavy enough for the available springs
 		 */
 		 BigDecimal weight = MtmUtils.getHangingMass(wide, high, fabricID, bottomBarID, trxName);
@@ -1131,5 +1136,42 @@ public class RollerBlind extends MadeToMeasureProduct {
 				
 				
 	}
+		
+private MBLDLineProductInstance[] getMBLDLineProductInstance() {
+	int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
+	MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
+	return mBLDLineProductInstance;
+}
+
+private void addMtmInstancePartsToBomDerived() {
+	MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance();
+	
+	for(int i = 0; i < mBLDLineProductInstance.length; i++)
+	{
+		int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
+		BigDecimal qty = getBomQty(mProductId);
+		addMBLDBomDerived(mProductId, qty, trxName);
+	}
+}
+/**
+ * //TODO: Possibly should be a boolean field in the m_product table ischaincontrol
+ * @param controlProductID
+ */
+
+public void setChainControl(int controlProductID) {
+	if(controlProductID > 0)
+	{
+		MProduct controlProduct = new MProduct(Env.getCtx(), controlProductID, null);
+		String controlName = controlProduct.getName();
+		if(controlName.contains("chain"))
+		{
+			isChainControl = true;
+		}
+		else
+		{
+			isChainControl = false;
+		}
+	}
+}
 
 }
