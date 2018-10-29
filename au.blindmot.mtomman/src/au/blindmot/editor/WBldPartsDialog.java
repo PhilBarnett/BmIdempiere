@@ -16,7 +16,6 @@
  *****************************************************************************/
 package au.blindmot.editor;
 
-import java.awt.List;
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -883,8 +882,16 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				if (productPartSet[i].isMandatory() && value == null)
 					mandatory += " - " + productPartSet[i].getName();
 				
-				productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value);
-				//attributes[i].setMAttributeInstance(m_M_AttributeSetInstance_ID, value);
+				if((!isChainPartType(editor)) || (isChainPartType(editor) && isChainControl))
+				{
+					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, true);
+				}
+				else if(isChainPartType(editor) && !isChainControl)
+				{
+					//Don't save or create new and delete existing if it's chain control and a chain part type
+					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
+				}
+				
 			//}
 				
 			m_changed = true;
@@ -907,6 +914,16 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	}	//	saveSelection
 
 	
+	private boolean isChainPartType(Listbox editor) {
+		// TODO Auto-generated method stub
+		for(Listbox lBox : chainArray)
+		{
+			if(lBox == editor)
+				return true;
+		}
+		return false;
+	}
+
 	/**************************************************************************
 	 * 	Get Instance ID
 	 * 	@return Instance ID

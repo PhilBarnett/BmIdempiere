@@ -124,10 +124,11 @@ public MBLDLineProductInstance getMBldLineProductInstance(int m_MbldLineProducts
 	MBLDLineProductInstance retValue = null;
 	PreparedStatement pstmt = null;
 	ResultSet rs = null;
+	int partTypeID = get_ID();
 	try
 	{
 		pstmt = DB.prepareStatement(sql.toString(), null);
-		pstmt.setInt(1, get_ID());
+		pstmt.setInt(1, partTypeID);
 		pstmt.setInt(2, m_MbldLineProductsetInstanceID);
 		rs = pstmt.executeQuery();
 		if(rs.next())
@@ -151,7 +152,7 @@ public MBLDLineProductInstance getMBldLineProductInstance(int m_MbldLineProducts
 } //GetMBldLineProductInstance
 	
 
-public void setMBLDLineProductInstance(int m_MbldLineProductsetInstanceID, MProduct value) {
+public void setMBLDLineProductInstance(int m_MbldLineProductsetInstanceID, MProduct value, boolean keep) {
 	/*Load the correct MBLDLineProductInstance object
 	 * 
 	 */
@@ -165,7 +166,7 @@ public void setMBLDLineProductInstance(int m_MbldLineProductsetInstanceID, MProd
 	System.out.println("MBLDProductPartType.getBLD_M_PartType_ID()(): " + getBLD_M_PartType_ID());
 	MBLDLineProductInstance mBLDLineProductInstance = getMBldLineProductInstance(m_MbldLineProductsetInstanceID);
 
-	if (mBLDLineProductInstance == null)//Doesn't exist yet
+	if (mBLDLineProductInstance == null && keep)//Doesn't exist yet - create new if we want to keep it.
 	{
 		
 		mBLDLineProductInstance = new MBLDLineProductInstance(p_ctx, 0, get_TrxName());
@@ -174,8 +175,16 @@ public void setMBLDLineProductInstance(int m_MbldLineProductsetInstanceID, MProd
 		mBLDLineProductInstance.setBLD_Product_PartType_ID(get_ID());
 		mBLDLineProductInstance.saveEx();
 	}
-	mBLDLineProductInstance.setM_Product_ID(mProductID );
-	mBLDLineProductInstance.save();
+	if(keep)//only save if we want to keep
+	{
+		mBLDLineProductInstance.setM_Product_ID(mProductID );
+		mBLDLineProductInstance.save();
+	}
+	if(mBLDLineProductInstance != null && !keep)//delete existing if we don't want to keep.
+	{
+		mBLDLineProductInstance.delete(true, get_TrxName());
+	}
+	
 }
 
 public static MBLDLineProductInstance[] getmBLDLineProductInstance(int bld_Line_ProductSetInstance_ID, String trxn) {
