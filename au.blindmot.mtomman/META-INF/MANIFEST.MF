@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Mtomman
-Bundle-Version: 1.2.0.qualifier
+Bundle-Version: 1.2.2.qualifier
 Bundle-SymbolicName: au.blindmot.mtomman;singleton:=true
 Import-Package: org.adempiere.webui,
  org.adempiere.webui.action,
@@ -23,6 +23,7 @@ Import-Package: org.adempiere.webui,
  org.zkoss.lang,
  org.zkoss.zk.ui,
  org.zkoss.zk.ui.event,
+ org.zkoss.zk.ui.select.annotation,
  org.zkoss.zk.ui.util,
  org.zkoss.zul,
  org.zkoss.zul.impl

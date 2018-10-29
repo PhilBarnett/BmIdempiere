@@ -225,7 +225,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 		if(fabIdToUse !=0 )
 
 			{
-				addBldMtomCuts(fabIdToUse, fabricWidth, fabricDrop.add(new BigDecimal(fabricLengthAddition)), 0);	
+				addBldMtomCuts(fabIdToUse, fabricWidth, fabricDrop/*TODO: Remove when tested .add(new BigDecimal(fabricLengthAddition))*/, 0);	
 			}
 		
 		int rollerTID = getBomProductID(ROLLER_TUBE);

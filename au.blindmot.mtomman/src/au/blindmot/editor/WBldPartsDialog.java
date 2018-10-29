@@ -16,6 +16,7 @@
  *****************************************************************************/
 package au.blindmot.editor;
 
+import java.awt.List;
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -70,11 +71,14 @@ import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
 import org.zkoss.lang.SystemException;
+import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.HtmlBasedComponent;
 import org.zkoss.zk.ui.WrongValueException;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
+import org.zkoss.zk.ui.event.SelectEvent;
+import org.zkoss.zk.ui.select.annotation.Listen;
 import org.zkoss.zul.Borderlayout;
 import org.zkoss.zul.Center;
 import org.zkoss.zul.Menuitem;
@@ -190,6 +194,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private Button		bNewRecord = new Button(Msg.getMsg(Env.getCtx(), "NewRecord"));
 	private Listbox		existingCombo = new Listbox();
 	private Button		bSelect = new Button(); 
+	private Listbox		ctrlBox = null;
 	//	Lot
 //	private VString fieldLotString = new VString ("Lot", false, false, true, 20, 20, null, null);
 	private Textbox fieldLotString = new Textbox();
@@ -212,6 +217,9 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private ConfirmPanel confirmPanel = new ConfirmPanel (true);
 	
 	private String m_columnName = null;
+	private boolean isChainControl = false;
+	private static String IS_CHAIN_CONTROL = "Is chain control";
+	private ArrayList<Listbox> chainArray = new ArrayList<Listbox>();
 
 	/**
 	 *	Layout
@@ -309,65 +317,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			FDialog.error(m_WindowNo, this, "MProductNotMadeTo Measure");
 			return false;
 		}
-		/*
-		//	Product has no Instance Attributes
-		if (!m_productWindow && !as.isInstanceAttribute())
-		{
-			FDialog.error(m_WindowNo, this, "PAttributeNoInstanceAttribute");
-			return false;
-		}
-		 	*/
-		/*
-		//	Show Product Attributes
-		if (m_productWindow)
-		{
-			Row row = new Row();
-			row.setParent(rows);
-			cbNewEdit.setLabel(Msg.getMsg(Env.getCtx(), "EditRecord"));
-			cbNewEdit.addEventListener(Events.ON_CHECK, this);
-			row.appendChild(cbNewEdit);
-						
-			String sql = "SELECT M_AttributeSetInstance_ID, Description"
-				+ " FROM M_AttributeSetInstance"
-				+ " WHERE M_AttributeSet_ID = " + as.getM_AttributeSet_ID()
-				+ " AND EXISTS ("
-				+ " SELECT 1 FROM M_AttributeInstance INNER JOIN M_Attribute"
-				+ " ON (M_AttributeInstance.M_Attribute_ID = M_Attribute.M_Attribute_ID)"
-				+ " WHERE M_AttributeInstance.M_AttributeSetInstance_ID = M_AttributeSetInstance.M_AttributeSetInstance_ID"
-				+ " AND M_Attribute.IsInstanceAttribute = 'N')";
-			existingCombo.setMold("select");
-			KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql, true);
-			for (KeyNamePair pair : keyNamePairs) {
-				existingCombo.appendItem(pair.getName(), pair.getKey());
-			}
-			existingCombo.addActionListener(this);
-			row.appendChild(existingCombo);
-			ZKUpdateUtil.setHflex(existingCombo, "1");
-			
-			row = new Row();
-			row.setParent(rows);
-			LayoutUtils.addSclass("txt-btn", bNewRecord);
-			bNewRecord.addActionListener(this);
-			row.appendChild(bNewRecord);
-			row.appendChild(new Space());
-			MAttribute[] attributes = as.getMAttributes (false);
-			if (log.isLoggable(Level.FINE)) log.fine ("Product Attributes=" + attributes.length);
-			for (int i = 0; i < attributes.length; i++)
-				addAttributeLine (rows, attributes[i], true, false);
-			if (m_MbldLineProductsetInstanceID > 0)
-			{
-				for(int i = 0; i < existingCombo.getItemCount(); i++)
-				{
-					ListItem pp = existingCombo.getItemAtIndex(i);
-					if (pp.getValue() != null && (Integer)pp.getValue() == m_MbldLineProductsetInstanceID)
-					{
-						existingCombo.setSelectedIndex(i);
-						break;
-					}
-				}
-			}
-		}
-		*/
+		
 		else	//	Set Instance Attributes
 		{
 			Row row = new Row();
@@ -394,7 +344,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			 */
 			
 			MBLDLineProductSetInstance mbps = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
-			//Below probably won't work...
 			MBLDProductPartType[] partTypes1 =  mbps.getProductPartSet(m_M_Product_ID , null);
 			if (log.isLoggable(Level.FINE)) log.fine ("Part Types= " + partTypes1.length);
 			for (int i = 0; i < partTypes1.length; i++)
@@ -407,127 +356,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				addAttributeLine (rows, attributes[i], false, false);
 			*/
 		}
-
-		//	Lot
-		//Delete below if block once debugged
-		
-		/*
-		if (!m_productWindow && as.isLot())
-		{
-			Row row = new Row();
-			row.setParent(rows);
-			m_row++;
-			Label label = new Label (Msg.translate(Env.getCtx(), "Lot"));
-			row.appendChild(label);
-			row.appendChild(fieldLotString);
-			ZKUpdateUtil.setHflex(fieldLotString, "1");
-			fieldLotString.setText (m_masi.getLot());
-			//	M_Lot_ID
-		//	int AD_Column_ID = 9771;	//	M_AttributeSetInstance.M_Lot_ID
-		//	fieldLot = new VLookup ("M_Lot_ID", false,false, true, 
-		//		MLookupFactory.get(Env.getCtx(), m_WindowNo, 0, AD_Column_ID, DisplayType.TableDir));
-			String sql = "SELECT M_Lot_ID, Name "
-				+ "FROM M_Lot l "
-				+ "WHERE EXISTS (SELECT M_Product_ID FROM M_Product p "
-					+ "WHERE p.M_AttributeSet_ID=" + m_masi.getM_AttributeSet_ID()
-					+ " AND p.M_Product_ID=l.M_Product_ID)";
-			fieldLot = new Listbox();
-			fieldLot.setMold("select");
-			KeyNamePair[] keyNamePairs = DB.getKeyNamePairs(sql, true);
-			for (KeyNamePair pair : keyNamePairs) {
-				fieldLot.appendItem(pair.getName(), pair.getKey());
-			}
-						
-			label = new Label (Msg.translate(Env.getCtx(), "M_Lot_ID"));
-			row = new Row();
-			row.setParent(rows);
-			m_row++;
-			row.appendChild(label);
-			row.appendChild(fieldLot);
-			ZKUpdateUtil.setHflex(fieldLot, "1");
-			if (m_masi.getM_Lot_ID() != 0)
-			{
-				for (int i = 1; i < fieldLot.getItemCount(); i++)
-				{
-					ListItem pp = fieldLot.getItemAtIndex(i);
-					if ((Integer)pp.getValue() == m_masi.getM_Lot_ID())
-					{
-						fieldLot.setSelectedIndex(i);
-						fieldLotString.setReadonly(true);
-						break;
-					} 
-				}
-			}
-			fieldLot.addEventListener(Events.ON_SELECT, this);
-			//	New Lot Button
-			if (m_masi.getMAttributeSet().getM_LotCtl_ID() != 0)
-			{
-				if (MRole.getDefault().isTableAccess(MLot.Table_ID, false)
-					&& MRole.getDefault().isTableAccess(MLotCtl.Table_ID, false)
-					&& !m_masi.isExcludeLot(m_AD_Column_ID, Env.isSOTrx(Env.getCtx(), m_WindowNoParent)))
-				{
-					row = new Row();
-					row.setParent(rows);
-					m_row++;
-					row.appendChild(bLot);
-					bLot.addEventListener(Events.ON_CLICK, this);
-					LayoutUtils.addSclass("txt-btn", bLot);
-				}
-			}
-			//	Popup 
-//			fieldLot.addMouseListener(new VPAttributeDialog_mouseAdapter(this));    //  popup
-			mZoom = new Menuitem(Msg.getMsg(Env.getCtx(), "Zoom"), ThemeManager.getThemeResource("images/Zoom16.png"));
-			mZoom.addEventListener(Events.ON_CLICK, this);
-			popupMenu.appendChild(mZoom);
-			this.appendChild(popupMenu);
-		}	//	Lot
-
-		
-		//Delete below iff block once debugged
-		//	SerNo
-		if (!m_productWindow && as.isSerNo())
-		{
-			Row row = new Row();
-			row.setParent(rows);
-			m_row++;
-			Label label = new Label (Msg.translate(Env.getCtx(), "SerNo"));
-			row.appendChild(label);
-			row.appendChild(fieldSerNo);
-			ZKUpdateUtil.setHflex(fieldSerNo, "1");
-			fieldSerNo.setText(m_masi.getSerNo());
 			
-			//	New SerNo Button
-			if (m_masi.getMAttributeSet().getM_SerNoCtl_ID() != 0)
-			{
-				if (MRole.getDefault().isTableAccess(MSerNoCtl.Table_ID, false)
-					&& !m_masi.isExcludeSerNo(m_AD_Column_ID, Env.isSOTrx(Env.getCtx(), m_WindowNoParent)))
-				{
-					row = new Row();
-					row.setParent(rows);
-					m_row++;
-					row.appendChild(bSerNo);
-					bSerNo.addEventListener(Events.ON_CLICK, this);
-					LayoutUtils.addSclass("txt-btn", bSerNo);
-				}
-			}
-		}	//	SerNo
-
-		//Delete below iff block once debugged
-		//	GuaranteeDate
-		if (!m_productWindow && as.isGuaranteeDate())
-		{
-			Row row = new Row();
-			row.setParent(rows);
-			m_row++;
-			Label label = new Label (Msg.translate(Env.getCtx(), "GuaranteeDate"));
-			if (m_MbldLineProductsetInstanceID == 0)
-				fieldGuaranteeDate.setValue(m_masi.getGuaranteeDate(true));
-			else
-				fieldGuaranteeDate.setValue(m_masi.getGuaranteeDate());
-			row.appendChild(label);
-			row.appendChild(fieldGuaranteeDate);			
-		}	//	GuaranteeDate
-*/		
 		if (m_row == 0)
 		{
 			FDialog.error(m_WindowNo, this, "PAttributeNoInfo");
@@ -562,6 +391,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		Label label = new Label (Msg.translate(Env.getCtx(), "Description"));
 //		label.setLabelFor(fieldDescription);
 		fieldDescription.setText(m_masi.getDescription());
+		System.out.println(m_masi.getDescription());
 		fieldDescription.setReadonly(true);
 		Row row = new Row();
 		row.setParent(rows);
@@ -581,6 +411,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private void addAttributeLine (Rows rows, MBLDProductPartType partType, boolean product, boolean readOnly)
 	{
 		
+		boolean tBC = false;
 		//TODO: Change Attribute object to MBLDProductPartType
 		if (log.isLoggable(Level.FINE)) log.fine(partType + ", Product=" + product + ", R/O=" + readOnly);
 		
@@ -590,7 +421,24 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			label.setStyle("font-weight: bold");
 			
 		if (partType.getDescription() != null)
-			label.setTooltiptext(partType.getDescription());
+		{
+			String desc = partType.getDescription();
+			label.setTooltiptext(desc);
+			if(desc.equalsIgnoreCase("Tubular Blind Control"))
+			{
+				tBC = true;
+			}
+			
+			
+		}
+			
+		
+		
+		/*
+		 * TODO: 
+		 * If the partType.getDescription() is tubular blind control then add a listener
+		 * If partType.getDescription() == 'Chain accessory' or 'Chain' then check to see if tubular blind control is a chain drive - if it is then set field active
+		 */
 		
 		Row row = rows.newRow();
 		row.appendChild(label.rightAlign());
@@ -603,6 +451,12 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		
 			MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.getBLD_M_PartType_ID(), null);	//	optional = null
 			Listbox editor = new Listbox();
+			
+			//Add any chain related rows to chainArray
+			if(editor != null && partType.getName().contains("Chain"))
+			{
+				chainArray.add(editor);
+			}
 			editor.setMold("select");
 			for (MProduct value : values) 
 			{
@@ -616,36 +470,25 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			row.appendChild(editor);
 			ZKUpdateUtil.setHflex(editor, "1");
 			setListAttribute(partType, editor);
-			
-		/*}*/
-		
-		/*
-		else if (MAttribute.ATTRIBUTEVALUETYPE_Number.equals(attribute.getAttributeValueType()))
-		{
-			NumberBox editor = new NumberBox(false);
-			setNumberAttribute(attribute, editor);
-			row.appendChild(editor);
-			ZKUpdateUtil.setHflex(editor, "1");
-			if (readOnly)
-				editor.setEnabled(false);
-			else
-				m_editors.add (editor);
-		}
-		else	//	Text Field
-		{
-			Textbox editor = new Textbox();
-			setStringAttribute(attribute, editor);
-			row.appendChild(editor);
-			ZKUpdateUtil.setHflex(editor, "1");
-			if (readOnly)
-				editor.setEnabled(false);
-			else
-				m_editors.add (editor);
-		}
-		*/
+			if(tBC == true)
+			{
+				editor.setId("controlBox");
+				editor.addEventListener(Events.ON_SELECT, this); 
+				ctrlBox = editor;
+				tBC = false;
+			}
 		
 	}	//	addAttributeLine
-
+	
+	private ListItem getControlId()
+	{
+		if(ctrlBox != null)
+		{
+			return ctrlBox.getSelectedItem();
+		}
+		return null;
+	}
+	
 	private void updateAttributeEditor(MBLDProductPartType partType, int index) {
 		//if (MAttribute.ATTRIBUTEVALUETYPE_List.equals(attribute.getAttributeValueType()))
 		//{
@@ -705,7 +548,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 					mBLDlPSI.getMBLDLineProductInstance(m_MbldLineProductsetInstanceID, partType.get_ID());
 		/*instance var below should be the instance for this parttype and m_MbldLineProductsetInstanceID
 		 * 
-		 */
+		 */	
+			
 		if (instance != null)
 		{
 			for (int i = 0; i < values.length; i++)
@@ -770,47 +614,14 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		{
 			cmd_existingCombo();
 		}
-		
-		/*
-		//	Select Lot from existing
-		else if (e.getTarget() == fieldLot)
+		else if (e.getTarget().getId().equalsIgnoreCase("controlBox"))
 		{
-			ListItem pp = fieldLot.getSelectedItem();
-			if (pp != null && (Integer)pp.getValue() != -1)
-			{
-				fieldLotString.setText(pp.getLabel());
-				fieldLotString.setReadonly(true);
-				m_masi.setM_Lot_ID((Integer)pp.getValue());
-			}
-			else
-			{
-				fieldLotString.setReadonly(false);
-				m_masi.setM_Lot_ID(0);
-			}
-		} */
-		
-		/*
-		//	Create New Lot
-		else if (e.getTarget() == bLot)
-		{
-			KeyNamePair pp = m_masi.createLot(m_M_Product_ID);
-			if (pp != null)
-			{
-				ListItem item = new ListItem(pp.getName(), pp.getKey());
-				fieldLot.appendChild(item);
-				fieldLot.setSelectedItem(item);
-				fieldLotString.setText (m_masi.getLot());
-				fieldLotString.setReadonly(true);
-			}
-		} */
-		
-		/*
-		//	Create New SerNo
-		else if (e.getTarget() == bSerNo)
-		{
-			fieldSerNo.setText(m_masi.getSerNo(true));
+			System.out.println("e.getTarget().getId().equalsIgnoreCase(\"controlBox\")");
+			setChainControlFlag();
+			setActive();//Set the chain related Listboxes inactive	
+			
 		}
-		*/
+		
 		//	OK
 		else if (e.getTarget().getId().equals("Ok"))
 		{
@@ -855,25 +666,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			bNewRecord.setEnabled(true);
 			cmd_edit();
 			
-			/*
-			{
-			m_M_AttributeSetInstance_ID = (Integer) pp.getValue();
-			m_masi = MAttributeSetInstance.get(Env.getCtx(), m_M_AttributeSetInstance_ID, m_M_Product_ID);
-			// Get Attribute Set
-			MAttributeSet as = m_masi.getMAttributeSet();
-			MAttribute[] attributes = as.getMAttributes (false);
-			if (log.isLoggable(Level.FINE)) log.fine ("Product Attributes=" + attributes.length);
-			for (int i = 0; i < attributes.length; i++)
-				updateAttributeEditor(attributes[i], i);
-			
-			cbNewEdit.setEnabled(true);
-			cbNewEdit.setSelected(false);
-			bNewRecord.setEnabled(true);
-			cmd_edit();
-		}
-			
-			*/
-			
 		}
 	}
 
@@ -906,6 +698,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			}
 		}
 		fieldDescription.setText("");
+		setActive();
 	}
 
 	private void cmd_edit() {
@@ -919,7 +712,12 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				((Listbox)editor).setEnabled(check);
 			else if (editor instanceof NumberBox)
 				((NumberBox)editor).setEnabled(check);
-		}	
+		}
+		if(check)
+		{
+			setActive();
+		}
+		
 		
 	}
 
@@ -1000,15 +798,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	{
 		boolean rw = cbNewEdit.isChecked();
 		if (log.isLoggable(Level.CONFIG)) log.config("R/W=" + rw + " " + m_masi);
-		/*
-		fieldLotString.setReadonly(!(rw && m_masi.getM_Lot_ID()==0));
-		if (fieldLot != null)
-			fieldLot.setEnabled(rw);
-		bLot.setEnabled(rw);
-		fieldSerNo.setReadonly(!rw);
-		bSerNo.setEnabled(rw);
-		fieldGuaranteeDate.setReadonly(!rw);
-		*/
+		
 		for (int i = 0; i < m_editors.size(); i++)
 		{
 			HtmlBasedComponent editor = m_editors.get(i);
@@ -1018,7 +808,12 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				((Listbox)editor).setEnabled(rw);
 			else if (editor instanceof NumberBox)
 				((NumberBox)editor).setEnabled(rw);
-		}	
+		}
+		if(rw)
+		{
+			setActive();
+		}
+		
 	}	//	cmd_newEdit
 
 	/**
@@ -1062,39 +857,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		//
 		m_changed = false;
 		String mandatory = "";
-		
-		/*
-		if (!m_productWindow && as.isLot())
-		{
-			if (log.isLoggable(Level.FINE)) log.fine("Lot=" + fieldLotString.getText ());
-			String text = fieldLotString.getText();
-			m_masi.setLot (text);
-			if (as.isLotMandatory() && (text == null || text.length() == 0))
-				mandatory += " - " + Msg.translate(Env.getCtx(), "Lot");
-			m_changed = true;
-		}	*///	Lot
-		/*
-		if (!m_productWindow && as.isSerNo())
-		{
-			if (log.isLoggable(Level.FINE)) log.fine("SerNo=" + fieldSerNo.getText());
-			String text = fieldSerNo.getText();
-			m_masi.setSerNo(text);
-			if (as.isSerNoMandatory() && (text == null || text.length() == 0))
-				mandatory += " - " + Msg.translate(Env.getCtx(), "SerNo");
-			m_changed = true;
-		}	//	SerNo
-		*/
-		/*
-		if (!m_productWindow && as.isGuaranteeDate())
-		{
-			if (log.isLoggable(Level.FINE)) log.fine("GuaranteeDate=" + fieldGuaranteeDate.getValue());
-			Date gDate = fieldGuaranteeDate.getValue();
-			Timestamp ts = gDate != null ? new Timestamp(gDate.getTime()) : null;
-			m_masi.setGuaranteeDate(ts);
-			if (as.isGuaranteeDateMandatory() && ts == null)
-				mandatory += " - " + Msg.translate(Env.getCtx(), "GuaranteeDate");
-			m_changed = true;
-		}	*///	GuaranteeDate
 
 		//	***	Save Attributes ***
 		//	New Instance
@@ -1125,29 +887,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				//attributes[i].setMAttributeInstance(m_M_AttributeSetInstance_ID, value);
 			//}
 				
-			/*	
-			else if (MAttribute.ATTRIBUTEVALUETYPE_Number.equals(attributes[i].getAttributeValueType()))
-			{
-				NumberBox editor = (NumberBox)m_editors.get(i);
-				BigDecimal value = editor.getValue();
-				if (log.isLoggable(Level.FINE)) log.fine(attributes[i].getName() + "=" + value);
-				if (attributes[i].isMandatory() && value == null)
-					mandatory += " - " + attributes[i].getName();
-				//setMAttributeInstance doesn't work without decimal point
-				if (value != null && value.scale() == 0)
-					value = value.setScale(1, BigDecimal.ROUND_HALF_UP);
-				attributes[i].setMAttributeInstance(m_MbldLineProductsetInstanceID, value);
-			}
-			else
-			{
-				Textbox editor = (Textbox)m_editors.get(i);
-				String value = editor.getText();
-				if (log.isLoggable(Level.FINE)) log.fine(attributes[i].getName() + "=" + value);
-				if (attributes[i].isMandatory() && (value == null || value.length() == 0))
-					mandatory += " - " + attributes[i].getName();
-				attributes[i].setMAttributeInstance(m_MbldLineProductsetInstanceID, value);
-			}
-			*/
 			m_changed = true;
 		}	//	for all attributes
 		m_MbldLineProductsetInstanceID = m_masi.getBLD_Line_ProductSetInstance_ID();
@@ -1203,6 +942,67 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	{
 		return m_changed;
 	}	//	isChanged
-	
 
+	/**
+	 * Sets chain related editors to not enabled if the control mech is not a chain drive
+	 */
+	private void setChainControlFlag() 
+	{
+		ListItem item = getControlId();
+		System.out.println(item.toString());
+		//m_masi.setM_Lot_ID((Integer)pp.getValue());
+		MProduct value = item != null ? (MProduct)item.getValue() : null;
+		int controlID = value.get_ID();
+		String description = null;
+		
+		if(controlID > 0)
+		{
+			MProduct product = new MProduct(Env.getCtx(), controlID, null);
+			int prodID = product.get_ID();
+			String attribute = getAttributeString(prodID, IS_CHAIN_CONTROL);
+			if(attribute.equalsIgnoreCase("Yes")) 
+			{
+				isChainControl = true;
+			}
+			else
+			{
+				isChainControl = false;
+			}
+		}
+		
+		}
+	
+	/**
+	 * 
+	 * @param mProductID
+	 * @param attributeName
+	 * @return
+	 */
+	public String getAttributeString (int mProductID, String attributeName) {
+
+		StringBuilder sql = new StringBuilder	("	SELECT value FROM m_attributeinstance ma ");
+		sql.append("WHERE ma.m_attributesetinstance_id = ");
+		sql.append("(SELECT m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ? ");
+		//sql.append(mProductID);
+		//sql.append(") ");
+		sql.append("AND ma.m_attribute_id = ");
+		sql.append("(SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name LIKE '");
+		sql.append(attributeName);
+		sql.append("'))");
+				
+		String attributeValue = DB.getSQLValueString(null, sql.toString(),mProductID);
+		
+		return attributeValue;
+		}
+	
+	private void setActive() {
+		setChainControlFlag();
+		
+		for(Listbox box : chainArray)
+		{
+			box.setEnabled(isChainControl);
+		}
+	}
+	
+	
 } //	WPAttributeDialog
