@@ -16,22 +16,17 @@
  *****************************************************************************/
 package au.blindmot.editor;
 
-import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.logging.Level;
 
-import org.adempiere.webui.LayoutUtils;
 import org.adempiere.webui.apps.AEnv;
 import org.adempiere.webui.component.Button;
 import org.adempiere.webui.component.Checkbox;
 import org.adempiere.webui.component.Column;
 import org.adempiere.webui.component.Columns;
 import org.adempiere.webui.component.ConfirmPanel;
-import org.adempiere.webui.component.Datebox;
 import org.adempiere.webui.component.Grid;
 import org.adempiere.webui.component.Label;
 import org.adempiere.webui.component.ListItem;
@@ -50,34 +45,21 @@ import org.adempiere.webui.window.FDialog;
 import org.adempiere.webui.window.WPAttributeInstance;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
-import org.compiere.model.MAttributeSet;
-import org.compiere.model.MAttributeSetInstance;
-import org.compiere.model.MAttributeValue;
 import org.compiere.model.MDocType;
-import org.compiere.model.MLot;
-import org.compiere.model.MLotCtl;
 import org.compiere.model.MProduct;
 import org.compiere.model.MQuery;
-import org.compiere.model.MRole;
-import org.compiere.model.MSerNoCtl;
-import org.compiere.model.PO;
 import org.compiere.model.SystemIDs;
 import org.compiere.model.X_M_MovementLine;
-import org.compiere.model.X_M_PartType;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
-import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
 import org.zkoss.lang.SystemException;
-import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.HtmlBasedComponent;
 import org.zkoss.zk.ui.WrongValueException;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
-import org.zkoss.zk.ui.event.SelectEvent;
-import org.zkoss.zk.ui.select.annotation.Listen;
 import org.zkoss.zul.Borderlayout;
 import org.zkoss.zul.Center;
 import org.zkoss.zul.Menuitem;
@@ -194,19 +176,10 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private Listbox		existingCombo = new Listbox();
 	private Button		bSelect = new Button(); 
 	private Listbox		ctrlBox = null;
-	//	Lot
-//	private VString fieldLotString = new VString ("Lot", false, false, true, 20, 20, null, null);
-	private Textbox fieldLotString = new Textbox();
 	private Listbox fieldLot = new Listbox();
-	private Button bLot = new Button(Msg.getMsg (Env.getCtx(), "New"));
 	//	Lot Popup
 	Menupopup 					popupMenu = new Menupopup();
 	private Menuitem 			mZoom;
-	//	Ser No
-	private Textbox fieldSerNo = new Textbox();
-	private Button bSerNo = new Button(Msg.getMsg (Env.getCtx(), "New"));
-	//	Date
-	private Datebox fieldGuaranteeDate = new Datebox();
 	//
 	private Textbox fieldDescription = new Textbox(); //TODO: set length to 20
 	//
@@ -970,8 +943,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		//m_masi.setM_Lot_ID((Integer)pp.getValue());
 		MProduct value = item != null ? (MProduct)item.getValue() : null;
 		int controlID = value.get_ID();
-		String description = null;
-		
 		if(controlID > 0)
 		{
 			MProduct product = new MProduct(Env.getCtx(), controlID, null);

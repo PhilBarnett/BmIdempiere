@@ -748,6 +748,10 @@ public class RollerBlind extends MadeToMeasureProduct {
 				{
 					fabricID = mProductId;
 				}
+				if(mPartType.getName().equals(BOTTOM_BAR))
+				{
+					bottomBarID = mProductId;
+				}
 		}
 		
 		/*

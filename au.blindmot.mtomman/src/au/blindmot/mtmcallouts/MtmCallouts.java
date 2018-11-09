@@ -20,6 +20,7 @@ import org.compiere.model.MProduct;
 import org.compiere.model.MRole;
 import org.compiere.model.MUOMConversion;
 import org.compiere.util.CLogger;
+import org.compiere.util.DB;
 import org.compiere.util.Env;
 
 import au.blindmot.utils.MtmUtils;
@@ -67,15 +68,71 @@ public class MtmCallouts implements IColumnCallout {
 			{
 				if(mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_M_AttributeSetInstance_ID))
 				{
+					/*
+					 * How to know if there's grid pricing? Check if value_one, value_two are not null? Have an explicitly set column 'isgridprice' in m_product table? Make protocol that all
+					 * MTM products have grid pricing - would this work for pelmets?
+					*TODO:Add 2 new columns to M_ProductPriceVendorBreak table -> value_one, value_two
+					Make the breakvalue column a linear list - 1,2,3,4,5 etc
+					Consider value_one the width value_two the drop.
+					SELECT the record from the M_ProductPriceVendorBreak table that matches the width and drop entered in the Mattributesetinstance record for the line item.
+					Programmatically set the qty as the found price break. The actual price is qty x price so the price is actual divided by the arbitrary qty value.
+					The price should auto calculate.
+					*
+					*TODO:Add virtual column to M_ProductPriceVendorBreak table and field to window to show effective price.
+					*TODO: Add column to m_product table 'isgridprice'
+					*TODO:Add 2 new columns to M_ProductPriceVendorBreak table -> value_one, value_two
+					*TODO: Write a method that returns the qty from the M_ProductPriceVendorBreak based on value_one, value_two. Look through amt() to see how the 
+					*price list selection works.
+					*Research:
+					*int M_PriceList_Version_ID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_Version_ID");
+					*In this method, if the product is a grid price, pick the break value and set the qty field with it.
+					*The actual price desired will have to be the result of the qty x price
+					*TODO: The value to sent to amt(Env.getCtx(), windowNum, tab, gridField, value) is
+					*SELECT breakvalue FROM m_productpricevendorbreak WHERE (value_one >= width AND <= width +1) AND (value_two <= drop <= drop +1)
+					*
+					* Need to create a way to import the price grids and write the breaks taking into consideration the price x break.
+					* ->Check for duplicates for the product.
+					*
+					*/
+					if(isPriceLocked(mTab)) return "";//Don't change qty fields if price is locked - no change to qty, no change to price.
 					System.out.println("---------It's MASI column.");
-					BigDecimal l_by_w = MtmUtils.hasLengthAndWidth((int)value).setScale(2, BigDecimal.ROUND_HALF_EVEN);
-					if(l_by_w != Env.ZERO.setScale(2))
+					BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth((int)value);
+					if(l_by_w != null)
 					{
-						log.warning("-------MtmCallouts setting field with: " + l_by_w);
-						setField(l_by_w, mTab);
-						amt(Env.getCtx(), windowNum, tab, gridField, l_by_w);
+						if(mProduct.get_ValueAsBoolean("isgridprice"))//Set qty from pricelist - grid pricing.
+						{
+							int mPriceListVersionID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_Version_ID");
+							int mMproductID = mProduct.get_ID();
+							StringBuilder sql = new StringBuilder("SELECT breakvalue FROM m_productpricevendorbreak mb ");
+							sql.append("WHERE mb.value_one >= ? AND mb.value_two >= ? ");
+							sql.append("AND mb.m_product_id = ");
+							sql.append(mMproductID);
+							sql.append(" AND mb.m_pricelist_version_id = ");
+							sql.append(mPriceListVersionID);
+							sql.append(" FETCH FIRST 1 ROWS ONLY");
+							
+							BigDecimal breakval = new BigDecimal(DB.getSQLValue(null, sql.toString(), l_by_w[0], l_by_w[1]));
+							log.warning("-------MtmCallouts setting field with: " + breakval);
+							setField(breakval, mTab);
+							amt(Env.getCtx(), windowNum, tab, gridField, breakval);
+							setLocked(true, mTab);
+						}
+						else
+						{
+							BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2);
+							System.out.println(area);	
+							log.warning("-------MtmCallouts setting field with: " + l_by_w);
+							setField(area, mTab);
+							amt(Env.getCtx(), windowNum, tab, gridField, area);
+							setLocked(true, mTab);
+						}
+						
+						/*
+						 * int M_Product_ID = Env.getContextAsInt(ctx, WindowNo, mTab.getTabNo(), "M_Product_ID");
+						 * int M_PriceList_ID = Env.getContextAsInt(ctx, WindowNo, mTab.getTabNo(), "M_PriceList_ID");
+						 */
 					}
-					if(l_by_w == Env.ZERO.setScale(2))//Check if it has length only
+					if(l_by_w == null)//Check if it has length only
 					{
 						BigDecimal length = MtmUtils.hasLength((int)value).setScale(2, BigDecimal.ROUND_HALF_EVEN);
 						if(length != Env.ZERO.setScale(2))
@@ -85,6 +142,7 @@ public class MtmCallouts implements IColumnCallout {
 							//GridFieldVO vo = new GridFieldVO(ctx, mProduct_ID, mProduct_ID, mProduct_ID, mProduct_ID, false);
 							//GridField qtyField = new GridField(null);
 							amt(Env.getCtx(), windowNum, tab, gridField, length);
+							setLocked(true, mTab);
 						}
 					}//public String org.compiere.model.CalloutOrder.amt (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 					
@@ -117,6 +175,32 @@ public class MtmCallouts implements IColumnCallout {
 					mTab.setValue(fields[i], amount);
 				}
 		}
+	}
+	
+	private void setLocked(boolean lockIt, GridTab mTab) {
+		GridField[] fields = mTab.getFields();
+		for(int i=0; i<fields.length; i++)
+		{
+			if(fields[i].getColumnName().equalsIgnoreCase("lockprice"))  
+				{
+					mTab.setValue(fields[i], lockIt);
+					break;
+				}
+		}
+	}
+	
+	private boolean isPriceLocked(GridTab mTab) {
+		GridField[] fields = mTab.getFields();
+		boolean isLocked = false;
+		for(int i=0; i<fields.length; i++)
+		{
+			if(fields[i].getColumnName().equalsIgnoreCase("lockprice")) 
+				{
+					isLocked = (boolean) fields[i].getValue();
+					break;
+				}
+		}
+		return isLocked;
 	}
 	/**
 	 * Copied from org.compiere.model.CalloutOrder because org.compiere.model.CalloutOrder

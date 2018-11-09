@@ -202,8 +202,12 @@ public class MtmUtils {
 	return deduction;
 	}
 
-
-public static BigDecimal hasLengthAndWidth(int masi_id) {
+/**
+ * Returns the area of a made to measure product if it has length and width.
+ * @param masi_id
+ * @return
+ */
+public static BigDecimal[] hasLengthAndWidth(int masi_id) {
 	
 	StringBuilder sql = new StringBuilder("SELECT ma.name, mai.value ");
 	sql.append("FROM m_attribute ma ");
@@ -225,11 +229,12 @@ public static BigDecimal hasLengthAndWidth(int masi_id) {
 			
 			if(rowCount == 2 && rowValues[0] != 0 && rowValues[1] != 0)
 			{
-				BigDecimal area = new BigDecimal((rowValues[0] * rowValues[1])).setScale(2);
+				BigDecimal area[];
+				area = new BigDecimal[] {new BigDecimal(rowValues[0]),new BigDecimal(rowValues[1])};
 				System.out.println(area);
-				BigDecimal divisor = new BigDecimal(1000000);
-				BigDecimal result = area.divide(divisor, BigDecimal.ROUND_CEILING);
-				return result;
+				//BigDecimal divisor = new BigDecimal(1000000);
+				//BigDecimal result = area.divide(divisor, BigDecimal.ROUND_CEILING);
+				return area;
 			} 
 			
 		}
@@ -237,7 +242,7 @@ public static BigDecimal hasLengthAndWidth(int masi_id) {
 		log.severe("Could not get values from attributeinstance RowSet for width and drop " + e.getMessage());
 		e.printStackTrace();
 	}
-	return Env.ZERO;
+	return null;
 	
 }
 

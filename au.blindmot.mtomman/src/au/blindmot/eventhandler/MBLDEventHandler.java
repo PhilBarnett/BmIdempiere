@@ -141,13 +141,23 @@ public class MBLDEventHandler extends AbstractEventHandler {
 						if(mAttributeInstanceID > 0)
 							{
 							
-							BigDecimal l_by_w = MtmUtils.hasLengthAndWidth((int)mAttributeInstanceID).setScale(2, BigDecimal.ROUND_HALF_EVEN);
-							if(l_by_w != Env.ZERO.setScale(2))
+							
+							/*
+							 * 	BigDecimal area = new BigDecimal((rowValues[0] * rowValues[1])).setScale(2);
+							 * System.out.println(area);
+							 *BigDecimal divisor = new BigDecimal(1000000);
+								BigDecimal result = area.divide(divisor, BigDecimal.ROUND_CEILING);
+								return result;
+							 */
+							BigDecimal l_by_w[] = MtmUtils.hasLengthAndWidth((int)mAttributeInstanceID);
+							if(l_by_w != null)
 								{
-									orderLine.setQtyEntered(l_by_w);	
+									BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2);
+									System.out.println(area);	
+									orderLine.setQtyEntered(area);	
 								}
 							
-							if(l_by_w == Env.ZERO.setScale(2))//Check if it has length only
+							if(l_by_w == null)//Check if it has length only
 								{
 									BigDecimal length = MtmUtils.hasLength((int)mAttributeInstanceID).setScale(2, BigDecimal.ROUND_HALF_EVEN);
 									if(length != Env.ZERO.setScale(2))
