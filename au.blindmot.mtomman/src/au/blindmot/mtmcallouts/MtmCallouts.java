@@ -112,6 +112,21 @@ public class MtmCallouts implements IColumnCallout {
 							sql.append(" FETCH FIRST 1 ROWS ONLY");
 							
 							BigDecimal breakval = new BigDecimal(DB.getSQLValue(null, sql.toString(), l_by_w[0], l_by_w[1]));
+							if(breakval.compareTo(Env.ZERO) < 0)//No price found, use highest price available
+							{
+								StringBuilder sql1 = new StringBuilder("SELECT breakvalue FROM m_productpricevendorbreak mb ");
+								sql1.append("WHERE mb.value_one = (SELECT MAX(value_one) from m_productpricevendorbreak) ");
+								sql1.append("AND value_two = (SELECT MAX(value_two) from m_productpricevendorbreak) ");
+								sql1.append("AND mb.m_product_id = ");
+								sql1.append(mMproductID);
+								sql1.append(" AND mb.m_pricelist_version_id = ");
+								sql1.append(mPriceListVersionID);
+								sql1.append(" FETCH FIRST 1 ROWS ONLY");
+								
+								breakval = new BigDecimal(DB.getSQLValue(null, sql1.toString()));
+								log.warning("---------No price found, use highest price available");
+							}
+							
 							log.warning("-------MtmCallouts setting field with: " + breakval);
 							setField(breakval, mTab);
 							amt(Env.getCtx(), windowNum, tab, gridField, breakval);

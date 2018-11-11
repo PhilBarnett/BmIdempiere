@@ -3,6 +3,7 @@ package au.blindmot.factories;
 import org.adempiere.base.IProcessFactory;
 import org.compiere.process.ProcessCall;
 
+import au.blindmot.gridprice.processes.GridPrice;
 import au.blindmot.mtmlabels.processes.MtmLabels;
 import au.blindmot.processes.mtmcreate.MtmCreate;
 
@@ -22,6 +23,11 @@ public class MtmProcessFactory implements IProcessFactory {
 			{
 				return new MtmLabels();
 			}
+			else if (className.equals("au.blindmot.gridprice.processes.GridPrice"))
+			{
+				return new GridPrice();
+			}
+				
 		return null;
 	}
 	
