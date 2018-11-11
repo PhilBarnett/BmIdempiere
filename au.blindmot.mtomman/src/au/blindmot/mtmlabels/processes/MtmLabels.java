@@ -13,12 +13,14 @@ import javax.sql.RowSet;
 
 import org.compiere.model.MBPartner;
 import org.compiere.model.MProduct;
+import org.compiere.model.X_M_PartType;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 
+import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
@@ -46,6 +48,7 @@ public class MtmLabels extends SvrProcess{
 	public static final String SERIAL_END = ",N,Y";
 	public static final String PRINT_QUALITY = "^PQ1,0,1,Y";
 	public static final String END_FORMAT = "^XZ";
+	public static final String FABRIC = "Fabric";
 	private int bLDMtomProduction_ID = 0;
 	private boolean finishedItemOnly = false;
 	private int labelCopies = 1;
@@ -135,7 +138,7 @@ public class MtmLabels extends SvrProcess{
 				label.append(addOrderDescription(mBLDMtomProduction.getDescription()));
 				if(isRollerBlind(lines[i].getM_Product_ID()))
 				{
-					label.append(addFabric(lines[i].getinstance_string(), lines[i].getLine()));
+					label.append(addFabric(lines[i]));
 				}
 				label.append(addLocation(lines[i]));
 				label.append(addProductname(lines[i].getM_Product_ID(), true));
@@ -276,6 +279,7 @@ public class MtmLabels extends SvrProcess{
 	private String addCutLength(MBLDMtomCuts cut)
 	{
 		BigDecimal cutLength =  cut.getLength();
+		if(cutLength.compareTo(Env.ZERO) == 0) return "";
 		String length = cutLength.toString();
 		StringBuilder cutToRet = new StringBuilder();
 		cutToRet.append(FIELD_ORIGIN + "230,175");
@@ -290,6 +294,7 @@ public class MtmLabels extends SvrProcess{
 	private String addCutWidth(MBLDMtomCuts cut)
 	{
 		BigDecimal cutWidth =  cut.getWidth();
+		if(cutWidth.compareTo(Env.ZERO) == 0) return "";
 		String width = cutWidth.toString();
 		StringBuilder cutToRet = new StringBuilder();
 		cutToRet.append(FIELD_ORIGIN + "20,175");
@@ -302,16 +307,33 @@ public class MtmLabels extends SvrProcess{
 	}
 	
 	
-	private String addFabric(String instanceString, int lineNum) {
-		if(instanceString.equalsIgnoreCase("0_0_0"))//TODO: Need to test that product is also a roller.
+	private String addFabric(MBLDMtomItemLine line) {
+		
+		int fabID = 0;
+		MProduct bomProduct = null;
+		MBLDBomDerived[] bomLines = line.getBomDerivedLines (getCtx(), line.get_ID());
+		for(int y = 0; y < bomLines.length; y++)
+		{
+			int mProductBomID = bomLines[y].getM_Product_ID();
+			bomProduct = new MProduct(Env.getCtx(), mProductBomID, null);
+			X_M_PartType bomPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
+			if(bomPartType != null)
+				{
+					if(bomPartType.getName().equalsIgnoreCase(FABRIC))
+					{
+						fabID = mProductBomID;
+						break;
+					}
+				}
+				
+		}
+		if(fabID == 0)
 			{
-				throw new AdempiereUserError("There is no fabric/bottom bar specified for: " + lineNum);
+				throw new AdempiereUserError("There is no fabric/bottom bar specified for: " + line.getLine());
 			}
-		String fabric = instanceString.substring(0, 7);
-		Integer fabID = new Integer(fabric);
-		MProduct mProduct = new MProduct(getCtx(), fabID, get_TrxName());
-		String name = mProduct.getName();
-		String desc = mProduct.getDescription();
+		
+		String name = bomProduct.getName();
+		String desc = bomProduct.getDescription();
 		
 		List<Object> params = new  ArrayList<Object>();
 		params.add(fabID);
@@ -431,7 +453,7 @@ public class MtmLabels extends SvrProcess{
 			if(cut.getM_Product_ID() == line.getM_Product_ID()) isEndProduct = true;//Redundant, should always be false here
 			if(isFabric(cut.getM_Product_ID()))
 			{
-				cutItems.append(addFabric(line.getinstance_string(), line.getLine()));
+				cutItems.append(addFabric(line));
 				cutItems.append(addCutWidth(cut));
 			}
 			else
@@ -439,6 +461,7 @@ public class MtmLabels extends SvrProcess{
 				cutItems.append(addProductname(cut.getM_Product_ID(), isEndProduct));
 			}
 			cutItems.append(addCutLength(cut));
+			cutItems.append(addCutWidth(cut));
 			cutItems.append(PRINT_QUALITY);
 			cutItems.append(END_FORMAT);
 			cutItems.append("\n");

@@ -78,7 +78,11 @@ public class RollerBlind extends MadeToMeasureProduct {
     BigDecimal oneHundred = new BigDecimal("100");
 	BigDecimal oneThousand = new BigDecimal("1000");
 	
-
+/*General thoughts:
+ * Addition of parts is either hard coded or part of the 'selectable part types' - eg warning tags. Perhaps add an attribute like
+ * BOM add: default for all that flags this BOm part to be added to all finished parent items?
+ * 
+ */
 
 	public RollerBlind (int product_id, int bld_mtom_item_line_id, String trxn) {
 		super(product_id, bld_mtom_item_line_id, trxn);

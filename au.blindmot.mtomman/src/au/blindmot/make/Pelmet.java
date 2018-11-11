@@ -2,6 +2,8 @@ package au.blindmot.make;
 
 import java.math.BigDecimal;
 
+import org.compiere.model.MProduct;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 
@@ -144,8 +146,15 @@ public class Pelmet extends MadeToMeasureProduct {
 		sql.append(size + "%'");
 		sql.append(" AND mp.description LIKE '");
 		sql.append(colour + "%'");
-		
-		return DB.getSQLValue(trxName, sql.toString());
+	
+		int itemID = DB.getSQLValue(trxName, sql.toString());
+		if(itemID < 0)
+		{
+			MProduct parent = new MProduct(Env.getCtx(), m_product_id, null);
+			String prodName = parent.getName();
+			throw new AdempiereUserError("There was no product to cut in the BOM for " + prodName + " with size: " + size + " and colour: " + colour + ". Check BOM and try again.");
+		}
+		return itemID;
 	}
 
 	private void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {

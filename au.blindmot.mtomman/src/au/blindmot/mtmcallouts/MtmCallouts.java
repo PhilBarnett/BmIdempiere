@@ -211,6 +211,7 @@ public class MtmCallouts implements IColumnCallout {
 		{
 			if(fields[i].getColumnName().equalsIgnoreCase("lockprice")) 
 				{
+					if(fields[i].getValue() == null || fields[i].getValue() == "N") return isLocked;
 					isLocked = (boolean) fields[i].getValue();
 					break;
 				}
