@@ -25,6 +25,11 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 	}
 
 
+	public MBLDLineProductSetInstance(Properties ctx, ResultSet rs, String trxName) {
+		super(ctx, rs, trxName);
+	}
+
+
 	public static MBLDLineProductSetInstance get(Properties ctx, int m_MbldLineProductsetInstanceID,
 			int m_M_Product_ID) {
 		

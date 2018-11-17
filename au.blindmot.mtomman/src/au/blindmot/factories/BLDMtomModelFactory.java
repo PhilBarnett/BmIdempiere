@@ -7,9 +7,12 @@ import org.compiere.model.PO;
 import org.compiere.util.Env;
 
 import au.blindmot.model.MBLDBomDerived;
+import au.blindmot.model.MBLDLineProductInstance;
+import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
+import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.model.MBLDProductionLog;
 
 public class BLDMtomModelFactory implements IModelFactory {
@@ -33,6 +36,15 @@ public class BLDMtomModelFactory implements IModelFactory {
 		if(tableName.equalsIgnoreCase(MBLDProductionLog.Table_Name))
 			return MBLDProductionLog.class;
 		
+		if(tableName.equalsIgnoreCase(MBLDLineProductSetInstance.Table_Name))
+			return MBLDLineProductSetInstance.class;
+		
+		if(tableName.equalsIgnoreCase(MBLDLineProductInstance.Table_Name))
+			return MBLDLineProductInstance.class;
+		
+		if(tableName.equalsIgnoreCase(MBLDProductPartType.Table_Name))
+			return MBLDProductPartType.class;
+		
 		return null;
 	}
 
@@ -54,6 +66,15 @@ public class BLDMtomModelFactory implements IModelFactory {
 		if(tableName.equalsIgnoreCase(MBLDProductionLog.Table_Name))
 			return new MBLDProductionLog(Env.getCtx(), Record_ID, trxName);
 		
+		if(tableName.equalsIgnoreCase(MBLDLineProductSetInstance.Table_Name))
+			return new MBLDLineProductSetInstance(Env.getCtx(), Record_ID, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDLineProductInstance.Table_Name))
+			return new MBLDLineProductInstance(Env.getCtx(), Record_ID, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDProductPartType.Table_Name))
+			return new MBLDProductPartType(Env.getCtx(), Record_ID, trxName);
+		
 		return null;
 	}
 
@@ -74,6 +95,15 @@ public class BLDMtomModelFactory implements IModelFactory {
 		
 		if(tableName.equalsIgnoreCase(MBLDProductionLog.Table_Name))
 			return new MBLDProductionLog(Env.getCtx(), rs, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDLineProductSetInstance.Table_Name))
+			return new MBLDLineProductSetInstance(Env.getCtx(), rs, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDLineProductInstance.Table_Name))
+			return new MBLDLineProductInstance(Env.getCtx(), rs, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDProductPartType.Table_Name))
+			return new MBLDProductPartType(Env.getCtx(), rs, trxName);
 		
 
 		return null;

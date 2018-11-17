@@ -58,4 +58,8 @@ public class MBLDLineProductInstance extends X_BLD_Line_ProductInstance {
 	;
 	}
 
+	public MBLDLineProductInstance(Properties ctx, ResultSet rs, String trxName) {
+		super(ctx, rs, trxName);
+	}
+
 }

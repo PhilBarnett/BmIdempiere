@@ -29,6 +29,10 @@ public class MBLDProductPartType extends X_BLD_Product_PartType {
 		// TODO Auto-generated constructor stub
 	}
 	
+	public MBLDProductPartType(Properties ctx, ResultSet rs, String trxName) {
+		super(ctx, rs, trxName);
+	}
+
 	/**
 	 * 
 	 * @return
