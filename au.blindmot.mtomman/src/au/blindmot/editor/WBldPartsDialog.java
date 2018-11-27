@@ -316,8 +316,9 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			 */
 			
 			MBLDLineProductSetInstance mbps = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
+			log.warning("mbs == :" + mbps.toString());
 			MBLDProductPartType[] partTypes1 =  mbps.getProductPartSet(m_M_Product_ID , null);
-			if (log.isLoggable(Level.FINE)) log.fine ("Part Types= " + partTypes1.length);
+			log.warning ("Part Types= " + partTypes1.length);
 			for (int i = 0; i < partTypes1.length; i++)
 				addAttributeLine (rows, partTypes1[i], false, false);
 			
@@ -382,8 +383,9 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 */
 	private void addAttributeLine (Rows rows, MBLDProductPartType partType, boolean product, boolean readOnly)
 	{
-		
-		boolean tBC = false;
+		log.warning("--------In WBldPartsDialog.addAttributeLine()) start --- partType: " + partType.toString());
+		log.warning("--------partType.getName(): " + partType.getName() + " partType.getDescription(): " + partType.getDescription());
+		boolean tubularBlindControl = false;
 		//TODO: Change Attribute object to MBLDProductPartType
 		if (log.isLoggable(Level.FINE)) log.fine(partType + ", Product=" + product + ", R/O=" + readOnly);
 		
@@ -391,14 +393,17 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		Label label = new Label (partType.getName());
 		if (product)
 			label.setStyle("font-weight: bold");
-			
-		if (partType.getDescription() != null)
+		log.warning("--------In WBldPartsDialog.addAttributeLine() Before if (partType.getDescription() != null) String desc = partType.getDescription() == " + partType.getDescription());	
+		if (partType.getName() != null)
 		{
-			String desc = partType.getDescription();
+			String desc = partType.getName();
+			if(desc == null)
 			label.setTooltiptext(desc);
-			if(desc.equalsIgnoreCase("Tubular Blind Control"))
+			log.warning("--------In WBldPartsDialog.addAttributeLine() String desc = partType.getDescription() == " + desc);
+			if(desc.equalsIgnoreCase("Tubular Blind Control") || partType.getName().equalsIgnoreCase("Tubular blind control"))
 			{
-				tBC = true;
+				log.warning("--------In WBldPartsDialog.addAttributeLine() tubularBlindControl = true");
+				tubularBlindControl = true;
 			}
 			
 			
@@ -407,7 +412,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		
 		
 		/*
-		 * TODO: 
 		 * If the partType.getDescription() is tubular blind control then add a listener
 		 * If partType.getDescription() == 'Chain accessory' or 'Chain' then check to see if tubular blind control is a chain drive - if it is then set field active
 		 */
@@ -442,22 +446,34 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			row.appendChild(editor);
 			ZKUpdateUtil.setHflex(editor, "1");
 			setListAttribute(partType, editor);
-			if(tBC == true)
+			if(tubularBlindControl == true)
 			{
+				log.warning("---------In WBldPartsDialog.addAttributeLine tubularBlindControl == true");
+				if(editor == null)
+				{
+					log.warning("---------In WBldPartsDialog.addAttributeLine tubularBlindControl == true, editor == null");
+				}
 				editor.setId("controlBox");
 				editor.addEventListener(Events.ON_SELECT, this); 
+				log.warning("---------line 450 editor");
 				ctrlBox = editor;
-				tBC = false;
+				tubularBlindControl = false;
 			}
 		
 	}	//	addAttributeLine
 	
 	private ListItem getControlId()
 	{
+		if(ctrlBox == null)
+		{
+			log.warning("---------In WBldPartsDialog.getControlID(), ctrlBox == null");
+		}
+		
 		if(ctrlBox != null)
 		{
 			return ctrlBox.getSelectedItem();
 		}
+		log.warning("---------In WBldPartsDialog.getControlID() returning null");
 		return null;
 	}
 	
@@ -588,7 +604,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		}
 		else if (e.getTarget().getId().equalsIgnoreCase("controlBox"))
 		{
-			System.out.println("e.getTarget().getId().equalsIgnoreCase(\"controlBox\")");
+			
+			log.warning("---------In WBldPartsDialog.onEvent()---e.getTarget().getId().equalsIgnoreCase(\"controlBox\")");
 			setChainControlFlag();
 			setActive();//Set the chain related Listboxes inactive	
 			
@@ -821,11 +838,15 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 */
 	private boolean saveSelection()
 	{
-		log.info("");
+		log.warning("--------In WBldPartsDialog.saveSelection() m_MbldLineProductsetInstanceID == " + m_MbldLineProductsetInstanceID);
 		MBLDLineProductSetInstance as = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
+		log.warning("---------MBLDLineProductSetInstance as == " + as.toString());
 		
 		if (as == null)
-			return true;
+			{
+				//log.severe ("No Model for M_AttributeSetInstance_ID=" + m_MbldLineProductsetInstanceID + ", M_Product_ID=" + m_M_Product_ID);	
+				return true;
+			}
 		//
 		m_changed = false;
 		String mandatory = "";
@@ -855,7 +876,10 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				if (productPartSet[i].isMandatory() && value == null)
 					mandatory += " - " + productPartSet[i].getName();
 				
-				if((!isChainPartType(editor)) || (isChainPartType(editor) && isChainControl))
+				log.warning("BEFORE if((!isChainPartType(editor)) || ((isChainPartType(editor) && isChainControl)))");
+				log.warning("isChainPartType(editor)) : " + isChainPartType(editor) + " isChainControl: " + isChainControl);
+				log.warning("editor: " + editor.toString());
+				if((!isChainPartType(editor)) || ((isChainPartType(editor) && isChainControl)))
 				{
 					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, true);
 				}
@@ -880,6 +904,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		//	Save Model
 		else if (m_changed)
 		{
+			log.warning("--------WBldPartsDialog.saveSelection() --- m_changed == true");
 			m_masi.setDescription (m_M_Product_ID);
 			m_masi.saveEx();
 		}
@@ -888,11 +913,15 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 
 	
 	private boolean isChainPartType(Listbox editor) {
-		// TODO Auto-generated method stub
+		log.warning("---------In WBldPartsDialog.isChainPartType() chainArray: " + chainArray.toString());
 		for(Listbox lBox : chainArray)
 		{
 			if(lBox == editor)
+			{
+				log.warning("---------WBldPartsDialog.isChainPartType() - Listbox: " + lBox.toString() + " is a chain parttype");
 				return true;
+			}
+				
 		}
 		return false;
 	}
@@ -938,8 +967,16 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 */
 	private void setChainControlFlag() 
 	{
+		log.warning("--------In WBldPartsDialog.setChainControlFlag()");
 		ListItem item = getControlId();
-		System.out.println(item.toString());
+		if(item == null)
+		{
+			log.warning("--------In WBldPartsDialog.setChainControlFlag() isChainControl = false");
+			isChainControl = false;
+			return;
+		}
+		
+		log.warning("---------setChainControlFlag(): " + item.toString());
 		//m_masi.setM_Lot_ID((Integer)pp.getValue());
 		MProduct value = item != null ? (MProduct)item.getValue() : null;
 		int controlID = value.get_ID();
@@ -950,16 +987,17 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			String attribute = getAttributeString(prodID, IS_CHAIN_CONTROL);
 			if(attribute.equalsIgnoreCase("Yes")) 
 			{
+				log.warning("--------In WBldPartsDialog.setChainControlFlag()--- isChainControl = true;");
 				isChainControl = true;
 			}
 			else
 			{
+				log.warning("--------In WBldPartsDialog.setChainControlFlag()--- isChainControl = false;");
 				isChainControl = false;
 			}
 		}
 		
 		}
-	
 	/**
 	 * 
 	 * @param mProductID
@@ -984,6 +1022,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		}
 	
 	private void setActive() {
+		log.warning("--------In WBldPartsDialog.setActive()");
 		setChainControlFlag();
 		
 		for(Listbox box : chainArray)

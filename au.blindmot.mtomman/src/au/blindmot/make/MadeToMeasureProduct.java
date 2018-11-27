@@ -20,7 +20,7 @@ import au.blindmot.utils.MtmUtils;
  * @author phil
  *
  */
-public abstract class MadeToMeasureProduct {
+public abstract class MadeToMeasureProduct implements MtmInfo {
 
 protected int wide = 0;
 protected int high = 0;
@@ -82,7 +82,6 @@ protected String trxName;
 	public abstract boolean deleteBomDerived();
 	public abstract boolean deleteCuts(); 
 	
-
 	public int getWide() {
 		return wide;
 	}

@@ -39,7 +39,10 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 	public void setDescription(int mProductID)
 	{
 		//	Make sure we have a Product Set
+		log.warning("--------In MBLDLineProductSetInstance.setDescription(int mProductID)");
 		MBLDProductPartType[] pps = getProductPartSet(mProductID, get_TrxName());
+		log.warning("--------In MBLDLineProductSetInstance.setDescription pps == " + pps.toString() + "mProductID == " + mProductID);
+		
 		if (pps == null)
 		{
 			setDescription ("");

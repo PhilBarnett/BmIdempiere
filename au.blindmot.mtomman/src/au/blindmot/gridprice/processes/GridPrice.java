@@ -61,7 +61,8 @@ public class GridPrice extends SvrProcess {
 	private static String PRICE_STANDARD = "pricestd";
 	private String priceListType = PRICE_LIST;
 	private int mProductID;
-	private BigDecimal breakValue = Env.ZERO;
+	private BigDecimal breakValue = new BigDecimal("0.001");
+	private BigDecimal breakIncrement = new BigDecimal("0.001");
 	
 	
 	/**
@@ -207,7 +208,7 @@ public class GridPrice extends SvrProcess {
 		BigDecimal drop = new BigDecimal(dropAndPrice.get(0));
 		for(String wide : width)
 		{
-			breakValue = breakValue.add(Env.ONE);
+			breakValue = breakValue.add(breakIncrement);
 			//create a gridprice at this position in width
 			/*
 			 * If the Price List type is set to 'List Price', the process will create List prices and will also create 
@@ -225,9 +226,9 @@ public class GridPrice extends SvrProcess {
 			{
 				//Create List Price
 				//TODO:Handle 0 in the Set price list & Set price limit parameters
-				BigDecimal priceStd = new BigDecimal(dropAndPrice.get(width.indexOf(wide))).divide(breakValue, 2, RoundingMode.HALF_EVEN);
-				BigDecimal priceList = priceStd.multiply(priceListPercent.divide(Env.ONEHUNDRED, 2, RoundingMode.HALF_EVEN));
-				BigDecimal priceLmt = priceStd.multiply(priceLmtPercent.divide(Env.ONEHUNDRED, 2, RoundingMode.HALF_EVEN));
+				BigDecimal priceStd = new BigDecimal(dropAndPrice.get(width.indexOf(wide))).divide(breakValue, 5, RoundingMode.HALF_EVEN);
+				BigDecimal priceList = priceStd.multiply(priceListPercent.divide(Env.ONEHUNDRED, 1, RoundingMode.HALF_EVEN));
+				BigDecimal priceLmt = priceStd.multiply(priceLmtPercent.divide(Env.ONEHUNDRED, 1, RoundingMode.HALF_EVEN));
 				setGridPrice(wide, drop, breakValue, priceList, priceStd, priceLmt);
 				//Create Standard price based on priceStandard parameter
 				//Create Limit price based on priceLimit parameter

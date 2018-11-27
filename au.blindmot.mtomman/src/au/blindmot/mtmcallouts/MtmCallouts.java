@@ -12,10 +12,13 @@ import org.adempiere.model.GridTabWrapper;
 import org.adempiere.webui.window.FDialog;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
+import org.compiere.model.I_C_Invoice;
+import org.compiere.model.I_C_Order;
 import org.compiere.model.I_C_OrderLine;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
+import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProduct;
 import org.compiere.model.MRole;
 import org.compiere.model.MUOMConversion;
@@ -29,6 +32,7 @@ public class MtmCallouts implements IColumnCallout {
 
 	CLogger log = CLogger.getCLogger(MtmCallouts.class);
 	int windowNum = 0;
+	int tabNum = 0;
 	GridTab tab = null;
 	GridField gridField = null;
 	
@@ -53,6 +57,7 @@ public class MtmCallouts implements IColumnCallout {
 		else
 		{
 			tab = mTab;
+			tabNum = mTab.getTabNo();
 		}
 		
 		windowNum = WindowNo;
@@ -97,33 +102,59 @@ public class MtmCallouts implements IColumnCallout {
 					if(isPriceLocked(mTab)) return "";//Don't change qty fields if price is locked - no change to qty, no change to price.
 					System.out.println("---------It's MASI column.");
 					BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth((int)value);
+			
 					if(l_by_w != null)
+						log.warning("------MTM Callouts Length: " + l_by_w[0] + " Width: " + l_by_w[1]);	
 					{
 						if(mProduct.get_ValueAsBoolean("isgridprice"))//Set qty from pricelist - grid pricing.
 						{
-							int mPriceListVersionID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_Version_ID");
+							
+							setQtyReadOnly(mTab);//We set the qty to read only so user can't adjust grid price.
+							//int mPriceListVersionID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_Version_ID", true);
+							int M_PriceList_ID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_ID", true);
+							MPriceList pl = MPriceList.get(ctx, M_PriceList_ID, null);
+							int mPriceListVersionID = 0;
+							Timestamp date = null;
+							if (mTab.getAD_Table_ID() == I_C_OrderLine.Table_ID)
+								date = Env.getContextAsDate(ctx, "DateOrdered");
+							MPriceListVersion plv = pl.getPriceListVersion(date);
+							if (plv != null && plv.getM_PriceList_Version_ID() > 0) 
+								{
+								 	mPriceListVersionID = plv.getM_PriceList_Version_ID();
+								}
+					
+							
+							log.warning("------MTM Callouts M_PriceList_Version_ID: " + mPriceListVersionID);
 							int mMproductID = mProduct.get_ID();
+							log.warning("------MTM Callouts mMproductID: " + mMproductID);
 							StringBuilder sql = new StringBuilder("SELECT breakvalue FROM m_productpricevendorbreak mb ");
-							sql.append("WHERE mb.value_one >= ? AND mb.value_two >= ? ");
+							sql.append("WHERE mb.value_two >= ? AND mb.value_one >= ? ");
 							sql.append("AND mb.m_product_id = ");
 							sql.append(mMproductID);
 							sql.append(" AND mb.m_pricelist_version_id = ");
 							sql.append(mPriceListVersionID);
 							sql.append(" FETCH FIRST 1 ROWS ONLY");
 							
-							BigDecimal breakval = new BigDecimal(DB.getSQLValue(null, sql.toString(), l_by_w[0], l_by_w[1]));
-							if(breakval.compareTo(Env.ZERO) < 0)//No price found, use highest price available
+							BigDecimal breakval = null;
+							String stringBreakVal = DB.getSQLValueString(null, sql.toString(), l_by_w);
+							if(stringBreakVal != null)
+							{
+								breakval = new BigDecimal(stringBreakVal);
+							}
+							
+							if(breakval == null)//No price found, use highest price available
 							{
 								StringBuilder sql1 = new StringBuilder("SELECT breakvalue FROM m_productpricevendorbreak mb ");
 								sql1.append("WHERE mb.value_one = (SELECT MAX(value_one) from m_productpricevendorbreak) ");
 								sql1.append("AND value_two = (SELECT MAX(value_two) from m_productpricevendorbreak) ");
 								sql1.append("AND mb.m_product_id = ");
 								sql1.append(mMproductID);
-								sql1.append(" AND mb.m_pricelist_version_id = ");
-								sql1.append(mPriceListVersionID);
+								sql1.append(" AND mb.m_pricelist_version_id = ?");
+								//sql1.append(mPriceListVersionID);
 								sql1.append(" FETCH FIRST 1 ROWS ONLY");
 								
-								breakval = new BigDecimal(DB.getSQLValue(null, sql1.toString()));
+								breakval = new BigDecimal(DB.getSQLValueString(null, sql1.toString(), mPriceListVersionID));
+								
 								log.warning("---------No price found, use highest price available");
 							}
 							
@@ -203,6 +234,19 @@ public class MtmCallouts implements IColumnCallout {
 				}
 		}
 	}
+	
+	private void setQtyReadOnly(GridTab mTab) {
+		GridField[] fields = mTab.getFields();
+		for(int i=0; i<fields.length; i++)
+		{
+			if(fields[i].getColumnName().equalsIgnoreCase("qtyentered"))  
+				{
+					fields[i].setDisplayed(false);
+					break;
+				}
+		}
+	}
+	
 	
 	private boolean isPriceLocked(GridTab mTab) {
 		GridField[] fields = mTab.getFields();

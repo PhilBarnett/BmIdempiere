@@ -1,6 +1,7 @@
 package au.blindmot.make;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.compiere.model.MProduct;
 import org.compiere.util.AdempiereUserError;
@@ -175,6 +176,12 @@ public class Pelmet extends MadeToMeasureProduct {
 		{
 			productToCut = getcutItemID(pelmetColIns, pelmetSize);
 		}
+	}
+
+	@Override
+	public List<String> getConfig() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

@@ -5,6 +5,8 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Properties;
 
+import org.compiere.model.MProduct;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import java.util.logging.Level;
@@ -58,6 +60,15 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts {
 	sql.append("')");
 			
 	BigDecimal deduction = new BigDecimal(DB.getSQLValueEx(trxName, sql.toString()));
+	if(deduction == null || deduction.compareTo(Env.ZERO) < 0)
+	{
+		MProduct m_Product = new MProduct(null, mProductID, trxName);
+		StringBuilder msg = new StringBuilder("There is no ");
+		msg.append(deductionType);
+		msg.append(" for product: ");
+		msg.append(m_Product.getName());
+		throw new AdempiereUserError(msg.toString());
+	}
 	
 	return deduction;
 	}

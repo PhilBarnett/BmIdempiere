@@ -26,7 +26,7 @@ import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
 
-public class RollerBlind extends MadeToMeasureProduct {
+public class RollerBlind extends MadeToMeasureProduct{
 	
 	private ArrayList<KeyNamePair> controlType = new ArrayList<KeyNamePair>();
 	private ArrayList<KeyNamePair> bottomBar = new ArrayList<KeyNamePair>();
@@ -307,6 +307,7 @@ public class RollerBlind extends MadeToMeasureProduct {
 	    }catch (SQLException e) {
 				log.severe("Could not get values from attributeinstance RowSet " + e.getMessage());
 				e.printStackTrace();
+				throw new AdempiereUserError("Could not find attribute; " + FABRIC_LENGTH_ADDITION + "In product:" + mProduct.getName());
 			}   
 			   return value;
 	}
@@ -1180,6 +1181,19 @@ public void setChainControl(int controlProductID) {
 			isChainControl = false;
 		}
 	}
+}
+
+@Override
+public List<String> getConfig() {
+	ArrayList <String> config = new ArrayList<String>();
+	config.add("Attribute: Bottom bar deduction - The negative number to add to fabric to get the bottom bar length.");
+	config.add("Attribute: Fabric deduction - Deduction relative to tube, usually -ve");
+	config.add("Attribute: Fabric length addition - How much extra to add to fabric cut relative to the length of a blind.");
+	config.add("Instance Attribute: Width");
+	config.add("Instance Attribute: Drop");
+	config.add("Instance Attribute: Blind control side - List: Left, Right");
+	config.add("Instance Attribute: Roll Type - List: NR, RR");
+	return config;
 }
 
 }

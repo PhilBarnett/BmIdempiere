@@ -1,5 +1,7 @@
 package au.blindmot.make;
 
+import java.util.List;
+
 public class PanelGlide extends MadeToMeasureProduct {
 	
 
@@ -41,6 +43,12 @@ public class PanelGlide extends MadeToMeasureProduct {
 	public boolean deleteCuts() {
 		// TODO Auto-generated method stub
 		return false;
+	}
+
+	@Override
+	public List<String> getConfig() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

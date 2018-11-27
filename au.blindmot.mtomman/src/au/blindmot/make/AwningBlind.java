@@ -1,6 +1,6 @@
 package au.blindmot.make;
 
-import org.compiere.model.MAttributeSetInstance;
+import java.util.List;
 
 public class AwningBlind extends MadeToMeasureProduct {
 
@@ -44,6 +44,12 @@ public class AwningBlind extends MadeToMeasureProduct {
 	public boolean deleteCuts() {
 		// TODO Auto-generated method stub
 		return false;
+	}
+
+	@Override
+	public List<String> getConfig() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

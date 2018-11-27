@@ -5,6 +5,7 @@ import org.compiere.process.ProcessCall;
 
 import au.blindmot.gridprice.processes.GridPrice;
 import au.blindmot.mtmlabels.processes.MtmLabels;
+import au.blindmot.mtmproductinfo.processes.MtmProductGetConfig;
 import au.blindmot.processes.mtmcreate.MtmCreate;
 
 public class MtmProcessFactory implements IProcessFactory {
@@ -27,6 +28,11 @@ public class MtmProcessFactory implements IProcessFactory {
 			{
 				return new GridPrice();
 			}
+			else if (className.equals("au.blindmot.mtmproductinfo.processes.MtmProductGetConfig"))
+			{	
+				return new MtmProductGetConfig();
+			}
+		
 				
 		return null;
 	}
