@@ -5,6 +5,7 @@ package au.blindmot.eventhandler;
 import java.io.File;
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.sql.RowSet;
@@ -63,22 +64,31 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	PO po = getPO(event);
 	trxName = po.get_TrxName();
 	
-	if(po instanceof MProductionLine)
+	if(po instanceof MProductionLine && po != null)
 		{
+			if(!DocVoidReverse) return;
+		
 			mProductionLine = (X_M_ProductionLine)po;
 			log.warning("---------MProductionLine event triggered");
 			log.warning("---------event: " + event);
+			log.warning("Event topic: " + event.getTopic());
+			log.warning("Event property error: " + event.getProperty("event.errorMessages"));
 			log.warning("---------PO: " + po.toString());
 			
+			/*
+			ArrayList<String> errors = (ArrayList<String>) event.getProperty("event.errorMessages");
+			log.warning("Errors: " + errors.toString());
+			if(errors.contains("java.lang.NullPointerException")) return;
+			*/
 			handleMProductionLineEvent(po);//Handle all events with the same method
 		}
 	
-	if(po instanceof MBLDMtomProduction)//The parent production is being voided or reversed.
+	if(po instanceof MBLDMtomProduction && po != null)//The parent production is being voided or reversed.
 	{
 		DocVoidReverse = true;	
 	}
 	
-	if(po instanceof MOrderLine)
+	if(po instanceof MOrderLine && po != null)
 	{
 		log.warning("---------MOrderLine event triggered");
 		log.warning("---------event: " + event);
@@ -200,13 +210,14 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			return;
 		}
 		
+		
 		if (getmBLDMtomItemLineID() > 0)//What does this actually test for?
 		{
 			log.warning("getmBLDMtomItemLineID() is > 0.");
 			mToMProductionParent = new MBLDMtomItemLine(pobj.getCtx(), getmBLDMtomItemLineID(), pobj.get_TrxName());
 		}
-			
-		log.warning("~Line 177 ");
+		/*	
+		log.warning("~Line 209 ");
 		//Lines below left in for future debugging convenience, commented out for production.
 		//system.out.println(mProductionLine.getM_Product_ID() && mToMProductionParent.getProductionQty().signum() == mProductionLine.getMovementQty().signum());
 		log.warning("mToMProductionParent.getM_Product_ID(): " + mToMProductionParent.getM_Product_ID());
@@ -214,6 +225,9 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		log.warning("mToMProductionParent.getProductionQty().signum(): " + mToMProductionParent.getProductionQty().signum());
 		log.warning("mProductionLine.getMovementQty().signum()" + mProductionLine.getMovementQty().signum());
 		//
+		
+		*/
+		
 		if (getmBLDMtomItemLineID() > 0) 
 		{
 			int parentProductId = mToMProductionParent.getM_Product_ID();
@@ -226,18 +240,32 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				isEndProduct = "Y";
 				log.warning("Is end product: " + isEndProduct);
 				movementQty = BigDecimal.ONE;
-				System.out.println("----------movementQty rnd 1: " + movementQty);
+				log.warning("----------movementQty rnd 1: " + movementQty);
 				if(DocVoidReverse)
 					{
 						movementQty = movementQty.negate();
-						System.out.println("----------movementQty rnd 2: " + movementQty);
+						log.warning("----------movementQty rnd 2: " + movementQty);
+						if(isEndProduct == "Y")
+						{
+							mToMProductionParent = new MBLDMtomItemLine(pobj.getCtx(), getmBLDMtomItemLineID(), pobj.get_TrxName());
+							StringBuilder sql = new StringBuilder("UPDATE ");
+							sql.append("m_productionline SET ");
+							sql.append("isendproduct = '" + isEndProduct + "'");
+							sql.append(", movementqty = '" + movementQty + "'");
+							sql.append(" WHERE m_productionline.bld_mtom_item_line_id = ");
+							sql.append(getmBLDMtomItemLineID());
+							sql.append(" AND m_product_id = ");
+							sql.append(mProductionLine.getM_Product_ID());
+							log.warning("Attempting to DB.executeUpdate. Success is greater than 0 or Yes: " + (DB.executeUpdate(sql.toString(), pobj.get_TrxName())>0));
+							
+						}
+						
 					}
 			}
 			else isEndProduct = "N";
 		} 
 		
-		log.warning("Line 207: Is end product: " + isEndProduct);
-		
+		/*
 		if ( (isEndProduct == "Y") && mProductionLine.getM_AttributeSetInstance_ID() != 0 )
 		{
 			String where = "M_QualityTest_ID IN (SELECT M_QualityTest_ID " +
@@ -255,21 +283,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		}
 		
 		log.warning("Line 220: Is end product: " + isEndProduct);
+		*/
 		
-		if(isEndProduct == "Y")
-		{
-			mToMProductionParent = new MBLDMtomItemLine(pobj.getCtx(), getmBLDMtomItemLineID(), pobj.get_TrxName());
-			StringBuilder sql = new StringBuilder("UPDATE ");
-			sql.append("m_productionline SET ");
-			sql.append("isendproduct = '" + isEndProduct + "'");
-			sql.append(", movementqty = '" + movementQty + "'");
-			sql.append(" WHERE m_productionline.bld_mtom_item_line_id = ");
-			sql.append(getmBLDMtomItemLineID());
-			sql.append(" AND m_product_id = ");
-			sql.append(mProductionLine.getM_Product_ID());
-			System.out.println("Attempting to DB.executeUpdate. Success is greater than 0 or Yes: " + (DB.executeUpdate(sql.toString(), pobj.get_TrxName())>0));
-			
-		}
 		log.warning("At end of handleMProductionLineEvent(PO pobj)");
 	}
 	

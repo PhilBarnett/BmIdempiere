@@ -210,9 +210,9 @@ protected String trxName;
 		sql.append(" (SELECT mp.m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
 		sql.append(mprodID + ")");
 		sql.append(" AND ma.m_attribute_id =");
-		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name = 'Waste' AND mat.isactive = 'Y')");
+		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name = 'Waste%' AND mat.isactive = 'Y')");
 		int waste = 0;
-		//Note attribute must be called "Waste" an nothing else.
+		//Note attribute must be called "Waste%" and nothing else.
 		
 		log.warning("--------Calling MtmUtils.attributePreCheck(\"Waste\")");
 		MtmUtils.attributePreCheck("Waste");

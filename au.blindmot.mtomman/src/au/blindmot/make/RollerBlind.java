@@ -22,6 +22,7 @@ import org.compiere.util.KeyNamePair;
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDMtomCuts;
+import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
@@ -838,10 +839,33 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 
 	 public ArrayList <Integer> getHeadRailComps() {
 	 ArrayList <Integer> headRailComps = new ArrayList <Integer>();
-		headRailComps.add(nonControlBracketID);
-		headRailComps.add(controlBracketID);
-		headRailComps.add(controlID);
-		headRailComps.add(nonControlID);
+	 
+	 //Allow blinds to be built without brackets but not without control and non control mechs.
+	 	MBLDMtomItemLine item = new MBLDMtomItemLine(Env.getCtx(), mtom_item_line_id, trxName);
+		if(nonControlBracketID > 0) headRailComps.add(nonControlBracketID);
+		if(controlBracketID > 0) headRailComps.add(controlBracketID);
+		if(controlID > 0)
+			{
+				headRailComps.add(controlID);
+			}
+		else
+			{
+			StringBuilder msg = new StringBuilder("No Control mech for item with line number: ");
+			msg.append(item.getLine());
+			throw new AdempiereUserError(msg.toString());
+			}
+		
+		if(nonControlID > 0)
+			{
+				headRailComps.add(nonControlID);
+			}
+		else
+			{
+				StringBuilder msg = new StringBuilder("No Non Control mech for item with line number: ");
+				msg.append(item.getLine());
+				throw new AdempiereUserError(msg.toString());
+			}
+		
 		log.warning("--------In RollerBlind.getHeadRailComps.");
 		log.warning("--------Headrail comps are: " + headRailComps.toString());
 		return headRailComps;

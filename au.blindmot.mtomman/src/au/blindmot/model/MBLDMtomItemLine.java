@@ -15,7 +15,9 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductCategory;
 import org.compiere.model.MProductionLine;
+import org.compiere.model.MQualityTest;
 import org.compiere.model.MStorageOnHand;
+import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.process.DocumentEngine;
 import org.compiere.util.AdempiereUserError;
@@ -269,9 +271,10 @@ return false;
 		//line.setIsEndProduct(true);
 		line.setAD_Org_ID(determineAdOrgId());
 		line.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+		log.warning("---------In MBLDMtomItemLine.createLines()..line.toString(): " + line.toString());
 		line.saveEx();
 		
-		log.warning("---------In MBLDMtomItemLine.createLines()..line.toString(): " + line.toString());
+		
 		log.warning("----------------line.isEndProduct(): "+ line.isEndProduct());
 		count++;
 		
@@ -604,6 +607,53 @@ return false;
 	
 	public BigDecimal getProductionQty() {
 		return BigDecimal.ONE;
+	}
+	
+/**
+ * 
+ * @param pobj
+ */
+	public void cleanupProductionLines(boolean isReversal) {
+		
+		log.warning("---------- In MBLDMtomItemLine.cleanupProductionLines()");
+		
+		int mBLDMtomItemLineID = get_ID();
+		
+		if(!isReversal)
+		{
+			if (getattributesetinstance_id() != 0 )
+			{
+				String where = "M_QualityTest_ID IN (SELECT M_QualityTest_ID " +
+				"FROM M_Product_QualityTest WHERE M_Product_ID=?) " +
+				"AND M_QualityTest_ID NOT IN (SELECT M_QualityTest_ID " +
+				"FROM M_QualityTestResult WHERE M_AttributeSetInstance_ID=?)";
+	
+				List<MQualityTest> tests = new Query(Env.getCtx(), MQualityTest.Table_Name, where, get_TrxName())
+				.setOnlyActiveRecords(true).setParameters(getM_Product_ID(), getattributesetinstance_id()).list();
+				// create quality control results
+				for (MQualityTest test : tests)
+				{
+					test.createResult(getattributesetinstance_id());
+				}
+			}
+		}
+		BigDecimal productionQty = getProductionQty();
+		if(isReversal) 
+		{
+			productionQty = getProductionQty().negate();
+		}
+			//mToMProductionParent = new MBLDMtomItemLine(pobj.getCtx(), getmBLDMtomItemLineID(), pobj.get_TrxName());
+			StringBuilder sql = new StringBuilder("UPDATE ");
+			sql.append("m_productionline SET ");
+			sql.append("isendproduct = 'Y'");
+			sql.append(", movementqty = " + productionQty);
+			sql.append(" WHERE m_productionline.bld_mtom_item_line_id = ");
+			sql.append(mBLDMtomItemLineID);
+			sql.append(" AND m_product_id = ");
+			sql.append(getM_Product_ID());
+			log.warning("Attempting to DB.executeUpdate. Success is greater than 0 or Yes: " + (DB.executeUpdate(sql.toString(), get_TrxName())>0));
+			
+		log.warning("At end of MBLDMtomItemLine.cleanupProductionLines()");
 	}
 	
 }

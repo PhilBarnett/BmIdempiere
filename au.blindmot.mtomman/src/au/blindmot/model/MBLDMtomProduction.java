@@ -277,6 +277,11 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 							mBldItemLines[j].setIsComplete(true);
 							mBldItemLines[j].saveEx();
 						}
+						
+						for(int ii = 0; ii < mBldItemLines.length; ii++)
+						{
+							mBldItemLines[ii].cleanupProductionLines(false);
+						}
 		
 		setProcessed(true);
 		return DocAction.STATUS_Completed;
@@ -389,6 +394,8 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			return false;
 
 		m_processMsg = reversal.getDocumentNo();
+		
+		reverseEndProduct();
 
 		return true;
 	}
@@ -433,6 +440,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 					}
 				}
 			}
+			reverseEndProduct();
 		}
 		
 		
@@ -526,6 +534,8 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			return false;
 
 		m_processMsg = reversal.getDocumentNo();
+		
+		
 
 		return true;
 	}
@@ -751,7 +761,8 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		if(from.getM_Locator_ID()!=0)to.setM_Locator_ID(from.getM_Locator_ID());
 		to.setM_Product_ID(from.getM_Product_ID());
 		to.setbld_mtom_production_ID(from.getbld_mtom_production_ID());
-		to.setinstance_string(from.getinstance_string());
+		to.setBld_Line_ProductSetInstance_ID(from.getBld_Line_ProductSetInstance_ID());
+		to.setinstance_string(from.getinstance_string());//TODO: Remove once instance string column removed.
 		System.out.println("from attrributeSetInstance: " + from.getattributesetinstance());
 		to.saveEx();
 		System.out.println("to attrributeSetInstance: " + to.getattributesetinstance());
@@ -790,6 +801,14 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		MProductionLine[] linesToRet = new MProductionLine[retlines.size()];
 		retlines.toArray(linesToRet);
 		return linesToRet;
+	}
+	
+	private void reverseEndProduct() {
+		MBLDMtomItemLine[] lines = getLines();
+		for(int ii = 0; ii < lines.length; ii++)
+		{
+			lines[ii].cleanupProductionLines(true);
+		}
 	}
 
 }
