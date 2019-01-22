@@ -24,6 +24,11 @@ public class MtmCalloutFactory implements IColumnCalloutFactory {
 		{
 			list.add(new MtmCallouts());
 		}
+		if(tableName.equalsIgnoreCase(MOrderLine.Table_Name) && columnName.equalsIgnoreCase(MOrderLine.COLUMNNAME_M_Product_ID))
+		{
+			list.add(new MtmCallouts());
+		}
+		
 		
 		return list != null ? list.toArray(new IColumnCallout[0]) : new IColumnCallout[0];
 	}

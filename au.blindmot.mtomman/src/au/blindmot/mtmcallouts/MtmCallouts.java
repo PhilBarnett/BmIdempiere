@@ -22,6 +22,7 @@ import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProduct;
 import org.compiere.model.MRole;
 import org.compiere.model.MUOMConversion;
+import org.compiere.model.PO;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -66,6 +67,9 @@ public class MtmCallouts implements IColumnCallout {
 		if(mTab.getAD_Table_ID() == MOrderLine.Table_ID)
 		{
 			//If it's an mtm product
+			
+			if(mTab.getValue(MOrderLine.COLUMNNAME_M_Product_ID) != null)
+			{
 			int mProduct_ID = (int) mTab.getValue(MOrderLine.COLUMNNAME_M_Product_ID);
 			log.warning("----------MProductID: " + mProduct_ID);
 			MProduct mProduct = new MProduct(ctx, mProduct_ID, null);
@@ -153,9 +157,18 @@ public class MtmCallouts implements IColumnCallout {
 								//sql1.append(mPriceListVersionID);
 								sql1.append(" FETCH FIRST 1 ROWS ONLY");
 								
-								breakval = new BigDecimal(DB.getSQLValueString(null, sql1.toString(), mPriceListVersionID));
-								
-								log.warning("---------No price found, use highest price available");
+								String result = DB.getSQLValueString(null, sql1.toString(), mPriceListVersionID);
+								if(result!=null)
+								{
+									breakval = new BigDecimal(result);
+									log.warning("---------No price found, use highest price available");
+								}
+								else
+								{
+									FDialog.warn(WindowNo, "No price found at the dimesions entered. Please check the dimesion limits for this product. Setting price to: " + breakval);
+									breakval = Env.ONE;
+								}
+							
 							}
 							
 							log.warning("-------MtmCallouts setting field with: " + breakval);
@@ -163,9 +176,10 @@ public class MtmCallouts implements IColumnCallout {
 							amt(Env.getCtx(), windowNum, tab, gridField, breakval);
 							setLocked(true, mTab);
 						}
-						else
+						else //It's a regular non gridprice MTM product
 						{
-							BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2);
+							BigDecimal sqmMtr = new BigDecimal("1000000");
+							BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2).divide(sqmMtr);
 							System.out.println(area);	
 							log.warning("-------MtmCallouts setting field with: " + l_by_w);
 							setField(area, mTab);
@@ -192,6 +206,19 @@ public class MtmCallouts implements IColumnCallout {
 						}
 					}//public String org.compiere.model.CalloutOrder.amt (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 					
+				}
+			}
+				if(mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_M_Product_ID))
+				{
+					//I_C_OrderLine orderLine = GridTabWrapper.create(mTab, I_C_OrderLine.class);
+					//int lineID = orderLine.getC_OrderLine_ID();
+					setBLDLineProductSetInstance(null,mTab);
+					
+					/*
+					MOrderLine mOrderLine = new MOrderLine(Env.getCtx(), lineID, Env.g);
+					mOrderLine.set_ValueOfColumn("BLD_Line_ProductSetInstance_ID", null);
+					mOrderLine.save();// try getting transaction
+					*/
 				}
 			}
 		}
@@ -223,6 +250,17 @@ public class MtmCallouts implements IColumnCallout {
 		}
 	}
 	
+	private void setBLDLineProductSetInstance(Object value, GridTab mTab) {
+		GridField[] fields = mTab.getFields();
+		for(int i=0; i<fields.length; i++)
+		{
+			if(fields[i].getColumnName().equalsIgnoreCase("BLD_Line_ProductSetInstance_ID"))
+				{
+					mTab.setValue(fields[i], value);
+				}
+		}
+	}
+	
 	private void setLocked(boolean lockIt, GridTab mTab) {
 		GridField[] fields = mTab.getFields();
 		for(int i=0; i<fields.length; i++)
@@ -234,6 +272,7 @@ public class MtmCallouts implements IColumnCallout {
 				}
 		}
 	}
+	
 	
 	private void setQtyReadOnly(GridTab mTab) {
 		GridField[] fields = mTab.getFields();

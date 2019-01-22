@@ -455,7 +455,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				}
 				editor.setId("controlBox");
 				editor.addEventListener(Events.ON_SELECT, this); 
-				log.warning("---------line 450 editor");
+				log.warning("---------line 458 editor");
 				ctrlBox = editor;
 				tubularBlindControl = false;
 			}
@@ -538,8 +538,11 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		 * 
 		 */	
 			
+		/*	
+			
 		if (instance != null)
 		{
+			log.warning("--------In setListAttribute, MBLDLineProductInstance instance: " + instance.toString());
 			for (int i = 0; i < values.length; i++)
 			{
 				if (values[i] != null && values[i].get_ID() == instance.getM_Product_ID())
@@ -555,10 +558,49 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				log.warning("Attribute=" + partType.getName() + " #" + values.length + " - NOT found: " + instance);
 			}
 		}	//	setComboBox
-		}
-		else
+		
+		*/
+			
+			
+			if (instance != null)
+			{
+				log.warning("--------In setListAttribute, MBLDLineProductInstance instance: " + instance.toString());
+				int prodID = instance.getM_Product_ID();
+				for (int i = 0; i < values.length; i++)
+				{
+					if (values[i] != null && values[i].get_ID() == prodID)
+					{
+						for (int i1 = 0; i1 < editor.getItemCount(); i1++)
+						{
+							editor.setSelectedIndex (i1);
+							if(editor.getValue() != null)
+							{
+								Object setValue = editor.getValue();
+								MProduct mProduct = (MProduct)setValue;
+								if(mProduct.get_ID() == prodID)
+								{		
+									break;
+								}
+							}					
+						}
+						MProduct mProduct = (MProduct)editor.getValue();
+						log.warning("MProduct selected from list: " + mProduct.getName());
+						found = true;
+						break;
+					}
+				}
+				if (found ){
+					if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " - found: " + instance);
+				} else {
+					log.warning("Attribute=" + partType.getName() + " #" + values.length + " - NOT found: " + instance);
+				}
+			}	//	setComboBox
+			else
+				if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " no instance");
+		} else {
 			if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " no instance");
 	}
+}
 
 	/**
 	 *	dispose
