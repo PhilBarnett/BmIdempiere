@@ -21,25 +21,25 @@ import java.sql.Timestamp;
 import org.compiere.model.*;
 import org.compiere.util.KeyNamePair;
 
-/** Generated Interface for BLD_Product_PartType
+/** Generated Interface for BLD_Mtm_Scan
  *  @author iDempiere (generated) 
- *  @version Release 5.1
+ *  @version Release 6.1
  */
 @SuppressWarnings("all")
-public interface I_BLD_Product_PartType 
+public interface I_BLD_Mtm_Scan 
 {
 
-    /** TableName=BLD_Product_PartType */
-    public static final String Table_Name = "BLD_Product_PartType";
+    /** TableName=BLD_Mtm_Scan */
+    public static final String Table_Name = "BLD_Mtm_Scan";
 
     /** AD_Table_ID=1000059 */
     public static final int Table_ID = MTable.getTable_ID(Table_Name);
 
     KeyNamePair Model = new KeyNamePair(Table_ID, Table_Name);
 
-    /** AccessLevel = 7 - System - Client - Org 
+    /** AccessLevel = 4 - System 
      */
-    BigDecimal accessLevel = BigDecimal.valueOf(7);
+    BigDecimal accessLevel = BigDecimal.valueOf(4);
 
     /** Load Meta Data */
 
@@ -64,35 +64,58 @@ public interface I_BLD_Product_PartType
 	  */
 	public int getAD_Org_ID();
 
-    /** Column name BLD_Product_PartType_ID */
-    public static final String COLUMNNAME_BLD_Product_PartType_ID = "BLD_Product_PartType_ID";
-    
-    /** Column name BLD_Product_PartType_ID */
-    public static final String COLUMNNAME_M_Product__ID = "M_Product_ID";
+    /** Column name AD_User_ID */
+    public static final String COLUMNNAME_AD_User_ID = "AD_User_ID";
 
-	/** Set BLD Product PartType	  */
-	public void setBLD_Product_PartType_ID (int BLD_Product_PartType_ID);
+	/** Set User/Contact.
+	  * User within the system - Internal or Business Partner Contact
+	  */
+	public void setAD_User_ID (int AD_User_ID);
 
-	/** Get BLD Product PartType	  */
-	public int getBLD_Product_PartType_ID();
-	
-	/**Column name COLUMNNAME_BLD__M_PartType_ID */
-	public static final String COLUMNNAME_BLD_M_PartType_ID = "M_PartType_ID";
-	
-	/**Set BLD_M_PartType_ID */
-	public void setBLD_M_PartType_ID (int BLD_M_PartType_ID);
-	
-	/**Get BLD_M_PartType_ID */
-	public int getBLD_M_PartType_ID();
+	/** Get User/Contact.
+	  * User within the system - Internal or Business Partner Contact
+	  */
+	public int getAD_User_ID();
 
-    /** Column name BLD_Product_PartType_UU */
-    public static final String COLUMNNAME_BLD_Product_PartType_UU = "BLD_Product_PartType_UU";
+	public org.compiere.model.I_AD_User getAD_User() throws RuntimeException;
 
-	/** Set BLD_Product_PartType_UU	  */
-	public void setBLD_Product_PartType_UU (String BLD_Product_PartType_UU);
+    /** Column name barcode */
+    public static final String COLUMNNAME_barcode = "barcode";
 
-	/** Get BLD_Product_PartType_UU	  */
-	public String getBLD_Product_PartType_UU();
+	/** Set barcode	  */
+	public void setbarcode (String barcode);
+
+	/** Get barcode	  */
+	public String getbarcode();
+
+    /** Column name BLD_Mtm_Scan_ID */
+    public static final String COLUMNNAME_BLD_Mtm_Scan_ID = "BLD_Mtm_Scan_ID";
+
+	/** Set BLD_Mtm_Scan	  */
+	public void setBLD_Mtm_Scan_ID (int BLD_Mtm_Scan_ID);
+
+	/** Get BLD_Mtm_Scan	  */
+	public int getBLD_Mtm_Scan_ID();
+
+    /** Column name BLD_Mtm_Scanpoint_ID */
+    public static final String COLUMNNAME_BLD_Mtm_Scanpoint_ID = "BLD_Mtm_Scanpoint_ID";
+
+	/** Set BLD_Mtm_Scanpoint	  */
+	public void setBLD_Mtm_Scanpoint_ID (int BLD_Mtm_Scanpoint_ID);
+
+	/** Get BLD_Mtm_Scanpoint	  */
+	public int getBLD_Mtm_Scanpoint_ID();
+
+	public I_BLD_Mtm_Scanpoint getBLD_Mtm_Scanpoint() throws RuntimeException;
+
+    /** Column name BLD_Mtm_Scan_UU */
+    public static final String COLUMNNAME_BLD_Mtm_Scan_UU = "BLD_Mtm_Scan_UU";
+
+	/** Set BLD_Mtm_Scan_UU	  */
+	public void setBLD_Mtm_Scan_UU (String BLD_Mtm_Scan_UU);
+
+	/** Get BLD_Mtm_Scan_UU	  */
+	public String getBLD_Mtm_Scan_UU();
 
     /** Column name Created */
     public static final String COLUMNNAME_Created = "Created";
@@ -135,8 +158,30 @@ public interface I_BLD_Product_PartType
 	  * The record is active in the system
 	  */
 	public boolean isActive();
-	
-	   /** Column name Line */
+
+    /** Column name IsError */
+    public static final String COLUMNNAME_IsError = "IsError";
+
+	/** Set Error.
+	  * An Error occurred in the execution
+	  */
+	public void setIsError (boolean IsError);
+
+	/** Get Error.
+	  * An Error occurred in the execution
+	  */
+	public boolean isError();
+
+    /** Column name isprocessed */
+    public static final String COLUMNNAME_isprocessed = "isprocessed";
+
+	/** Set isprocessed	  */
+	public void setisprocessed (boolean isprocessed);
+
+	/** Get isprocessed	  */
+	public boolean isprocessed();
+
+    /** Column name Line */
     public static final String COLUMNNAME_Line = "Line";
 
 	/** Set Line No.
@@ -149,33 +194,20 @@ public interface I_BLD_Product_PartType
 	  */
 	public int getLine();
 
-    /** Column name IsMandatory */
-    public static final String COLUMNNAME_IsMandatory = "IsMandatory";
+    /** Column name M_Locator_ID */
+    public static final String COLUMNNAME_M_Locator_ID = "M_Locator_ID";
 
-	/** Set Mandatory.
-	  * Data entry is required in this column
+	/** Set Locator.
+	  * Warehouse Locator
 	  */
-	public void setIsMandatory (boolean IsMandatory);
+	public void setM_Locator_ID (int M_Locator_ID);
 
-	/** Get Mandatory.
-	  * Data entry is required in this column
+	/** Get Locator.
+	  * Warehouse Locator
 	  */
-	public boolean isMandatory();
+	public int getM_Locator_ID();
 
-    /** Column name M_Product_ID */
-    public static final String COLUMNNAME_M_Product_ID = "M_Product_ID";
-
-	/** Set Product.
-	  * Product, Service, Item
-	  */
-	public void setM_Product_ID (int M_Product_ID);
-
-	/** Get Product.
-	  * Product, Service, Item
-	  */
-	public int getM_Product_ID();
-
-	public org.compiere.model.I_M_Product getM_Product() throws RuntimeException;
+	public I_M_Locator getM_Locator() throws RuntimeException;
 
     /** Column name Updated */
     public static final String COLUMNNAME_Updated = "Updated";
@@ -192,19 +224,4 @@ public interface I_BLD_Product_PartType
 	  * User who updated this records
 	  */
 	public int getUpdatedBy();
-	
-	/**COLUMN NAME_m_parttype_id*/
-	public static final String COLUMNNAME_MPartTypeID = "m_parttype_id";
-	
-	/**
-	 * Get MPartype ID
-	 * @return
-	 */
-	public int getM_PartTypeID();
-	
-	/**
-	 * Set MPrtType ID
-	 * 
-	 */
-	public void setM_PartTypeId(int mPartTypeID);
 }

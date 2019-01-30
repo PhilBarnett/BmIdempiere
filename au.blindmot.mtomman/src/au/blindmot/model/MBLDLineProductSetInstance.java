@@ -97,6 +97,7 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) 
 	sql.append("FROM bld_product_parttype ");
 		sql.append("WHERE M_Product_ID=?");
 		sql.append(" AND isactive = 'Y'");
+		sql.append(" ORDER BY line");
 	PreparedStatement pstmt = null;
 	ResultSet rs = null;
 	try
@@ -140,6 +141,7 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) 
 		sql.append("FROM bld_product_parttype ");
 		sql.append("WHERE M_Product_ID=?");
 		sql.append(" AND isactive = 'Y'");
+		sql.append(" ORDER BY line");
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try
