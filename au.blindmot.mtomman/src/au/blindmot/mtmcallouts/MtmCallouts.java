@@ -1,6 +1,8 @@
 package au.blindmot.mtmcallouts;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -12,17 +14,17 @@ import org.adempiere.model.GridTabWrapper;
 import org.adempiere.webui.window.FDialog;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
-import org.compiere.model.I_C_Invoice;
-import org.compiere.model.I_C_Order;
 import org.compiere.model.I_C_OrderLine;
+import org.compiere.model.MDiscountSchema;
 import org.compiere.model.MInvoice;
+import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
 import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProduct;
+import org.compiere.model.MProductPricing;
 import org.compiere.model.MRole;
 import org.compiere.model.MUOMConversion;
-import org.compiere.model.PO;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -36,6 +38,9 @@ public class MtmCallouts implements IColumnCallout {
 	int tabNum = 0;
 	GridTab tab = null;
 	GridField gridField = null;
+	private boolean m_discountSchema;
+	private boolean isGridPrice = false;
+	private boolean isSalesTrx;
 	
 	
 	
@@ -67,7 +72,7 @@ public class MtmCallouts implements IColumnCallout {
 		if(mTab.getAD_Table_ID() == MOrderLine.Table_ID)
 		{
 			//If it's an mtm product
-			
+			isGridPrice = false;
 			if(mTab.getValue(MOrderLine.COLUMNNAME_M_Product_ID) != null)
 			{
 			int mProduct_ID = (int) mTab.getValue(MOrderLine.COLUMNNAME_M_Product_ID);
@@ -75,7 +80,8 @@ public class MtmCallouts implements IColumnCallout {
 			MProduct mProduct = new MProduct(ctx, mProduct_ID, null);
 			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
 			{
-				if(mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_M_AttributeSetInstance_ID))
+				if(mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_M_AttributeSetInstance_ID)/*||
+						mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_Discount)*/)
 				{
 					/*
 					 * How to know if there's grid pricing? Check if value_one, value_two are not null? Have an explicitly set column 'isgridprice' in m_product table? Make protocol that all
@@ -112,7 +118,7 @@ public class MtmCallouts implements IColumnCallout {
 					{
 						if(mProduct.get_ValueAsBoolean("isgridprice"))//Set qty from pricelist - grid pricing.
 						{
-							
+							isGridPrice = true;
 							setQtyReadOnly(mTab);//We set the qty to read only so user can't adjust grid price.
 							//int mPriceListVersionID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_Version_ID", true);
 							int M_PriceList_ID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_ID", true);
@@ -320,7 +326,7 @@ public class MtmCallouts implements IColumnCallout {
 		int StdPrecision = MPriceList.getStandardPrecision(ctx, M_PriceList_ID);
 		MPriceList pl = new MPriceList(ctx, M_PriceList_ID, null);
 		boolean isEnforcePriceLimit = pl.isEnforcePriceLimit();
-		BigDecimal QtyEntered, QtyOrdered, PriceEntered, PriceActual, PriceLimit, Discount, PriceList;
+		BigDecimal QtyEntered, QtyOrdered, PriceEntered, PriceActual, PriceLimit, Discount, PriceList, bpDiscount;
 		//	get values
 			QtyEntered = (BigDecimal)mTab.getValue("QtyEntered");
 		if (QtyEntered == null)
@@ -372,6 +378,9 @@ public class MtmCallouts implements IColumnCallout {
 				QtyOrdered = QtyEntered;
 			I_C_OrderLine orderLine = GridTabWrapper.create(mTab, I_C_OrderLine.class);
 			IProductPricing pp = Core.getProductPricing();
+			MOrder order = new MOrder(Env.getCtx(), orderLine.getC_Order_ID(), null);
+			isSalesTrx = order.isSOTrx();
+			
 			pp.setOrderLine(orderLine, null);
 			pp.setQty(QtyOrdered);
 			pp.setM_PriceList_ID(M_PriceList_ID);
@@ -383,18 +392,23 @@ public class MtmCallouts implements IColumnCallout {
 			if (PriceEntered == null)
 				PriceEntered = pp.getPriceStd();
 			//
+			
+			Discount = calculateDiscount(orderLine, M_Product_ID, isSalesTrx);
+			if(Discount == Env.ZERO)
+			{
+				Discount = pp.getDiscount();
+			}
 			if (log.isLoggable(Level.FINE)) log.fine("QtyChanged -> PriceActual=" + pp.getPriceStd()
-				+ ", PriceEntered=" + PriceEntered + ", Discount=" + pp.getDiscount());
+				+ ", PriceEntered=" + PriceEntered + ", Discount=" + Discount);
 			PriceActual = pp.getPriceStd();
 			PriceEntered = pp.getPriceStd();
-			Discount = pp.getDiscount();
 			PriceLimit = pp.getPriceLimit();
 			PriceList = pp.getPriceList();
 			mTab.setValue("PriceList", pp.getPriceList());
 			mTab.setValue("PriceLimit", pp.getPriceLimit());
 			mTab.setValue("PriceActual", pp.getPriceStd());
 			mTab.setValue("PriceEntered", pp.getPriceStd());
-			mTab.setValue("Discount", pp.getDiscount());
+			mTab.setValue("Discount", Discount);
 			mTab.setValue("PriceEntered", PriceEntered);
 			Env.setContext(ctx, WindowNo, "DiscountSchema", pp.isDiscountSchema() ? "Y" : "N");
 		}
@@ -424,7 +438,7 @@ public class MtmCallouts implements IColumnCallout {
 		}
 
 		//  Discount entered - Calculate Actual/Entered
-		if (mField.getColumnName().equals("Discount"))
+		if (mField.getColumnName().equals("Discount")||mField.getColumnName().equals("M_AttributeSetInstance_ID"))
 		{
 			if ( PriceList.doubleValue() != 0 )
 				PriceActual = BigDecimal.valueOf((100.0 - Discount.doubleValue()) / 100.0 * PriceList.doubleValue());
@@ -441,7 +455,20 @@ public class MtmCallouts implements IColumnCallout {
 		else
 		{
 			if (PriceList.compareTo(Env.ZERO) == 0)
+			{
 				Discount = Env.ZERO;
+			}
+			/*
+			else
+			if(isGridPrice)
+				{
+					I_C_OrderLine orderLine = GridTabWrapper.create(mTab, I_C_OrderLine.class);
+					if(orderLine != null)
+					{
+						Discount = calculateDiscount(orderLine, M_Product_ID, isSalesTrx);
+					}
+					
+				} */
 			else
 				Discount = BigDecimal.valueOf((PriceList.doubleValue() - PriceActual.doubleValue()) / PriceList.doubleValue() * 100.0);
 			if (Discount.scale() > 2)
@@ -487,5 +514,59 @@ public class MtmCallouts implements IColumnCallout {
 		//
 		return "";
 	}	//	amt
+	
+	private BigDecimal calculateDiscount(I_C_OrderLine orderLine, int m_M_Product_ID, boolean m_isSOTrx)
+	{
+		m_discountSchema = false;
+		//BigDecimal m_PriceStd;
+		int m_C_BPartner_ID = orderLine.getC_BPartner_ID();
+		if (m_C_BPartner_ID == 0 || m_M_Product_ID == 0)
+			return Env.ZERO;
+		
+		int M_DiscountSchema_ID = 0;
+		BigDecimal FlatDiscount = null;
+		String sql = "SELECT COALESCE(p.M_DiscountSchema_ID,g.M_DiscountSchema_ID),"
+			+ " COALESCE(p.PO_DiscountSchema_ID,g.PO_DiscountSchema_ID), p.FlatDiscount "
+			+ "FROM C_BPartner p"
+			+ " INNER JOIN C_BP_Group g ON (p.C_BP_Group_ID=g.C_BP_Group_ID) "
+			+ "WHERE p.C_BPartner_ID=?";
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try
+		{
+			pstmt = DB.prepareStatement (sql, null);
+			pstmt.setInt (1, m_C_BPartner_ID);
+			rs = pstmt.executeQuery ();
+			if (rs.next ())
+			{
+				M_DiscountSchema_ID = rs.getInt(m_isSOTrx ? 1 : 2);
+				FlatDiscount = rs.getBigDecimal(3);
+				if (FlatDiscount == null)
+					FlatDiscount = Env.ZERO;
+			}
+		}
+		catch (Exception e)
+		{
+			log.log(Level.SEVERE, sql, e);
+		}
+		finally
+		{
+			DB.close(rs, pstmt);
+			rs = null;
+			pstmt = null;
+		}
+		//	No Discount Schema
+		if (M_DiscountSchema_ID == 0)
+			return Env.ZERO;
+		
+		//MDiscountSchema sd = MDiscountSchema.get(Env.getCtx(), M_DiscountSchema_ID);	//	not correct
+		//if (sd.get_ID() == 0 || (MDiscountSchema.DISCOUNTTYPE_Breaks.equals(sd.getDiscountType()) && !MDiscountSchema.CUMULATIVELEVEL_Line.equals(sd.getCumulativeLevel())))
+			return FlatDiscount;
+		//
+		//m_discountSchema = true;		
+		/*m_PriceStd = sd.calculatePrice(m_Qty, m_PriceStd, m_M_Product_ID, 
+			m_M_Product_Category_ID, FlatDiscount);*/
+		
+	}	//	calculateDiscount
 
 }

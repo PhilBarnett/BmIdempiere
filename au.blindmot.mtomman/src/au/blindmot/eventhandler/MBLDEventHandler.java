@@ -141,6 +141,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					copyBldProductInstance(copyFromOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),  orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), mProductID);
 					System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
+					setDiscount(copyFromOrderLine, orderLine);
 					orderLine.saveEx();
 					}
 					else
@@ -422,6 +423,15 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			}
 		
 		
+	}
+	
+	private void setDiscount(MOrderLine fromOrderLine, X_C_OrderLine toOrderLine) {
+		int mProductID = fromOrderLine.getM_Product_ID();
+		MProduct fromProduct = new MProduct(Env.getCtx(), mProductID, trxName);
+		if(fromProduct.get_ValueAsBoolean("isgridprice"))
+		{
+			toOrderLine.setDiscount(fromOrderLine.getDiscount());
+		}
 	}
 	
 }
