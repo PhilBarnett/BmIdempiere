@@ -3,7 +3,6 @@
  */
 package au.blindmot.mtmbtn;
 
-import au.blindmot.model.MBLDMtomItemLine;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -44,6 +43,8 @@ import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
 import org.zkoss.zk.ui.util.Clients;
 import org.zkoss.zul.Vbox;
+
+import au.blindmot.model.MBLDMtomItemLine;
 
 
 /**
