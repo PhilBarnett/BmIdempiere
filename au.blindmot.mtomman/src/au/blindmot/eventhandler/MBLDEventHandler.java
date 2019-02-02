@@ -40,8 +40,9 @@ public class MBLDEventHandler extends AbstractEventHandler {
 
 	private CLogger log = CLogger.getCLogger(MBLDEventHandler.class);
 	private X_M_ProductionLine mProductionLine = null;
-	private X_C_OrderLine orderLine = null;
+	private BLDMOrderLine orderLine = null;
 	private MBLDMtomItemLine mToMProductionParent = null;
+	private int prevOrderLineID = 0;
 	private boolean DocVoidReverse = false; 
 	String trxName = null;
 	
@@ -94,7 +95,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		log.warning("---------event: " + event);
 		trxName = po.get_TrxName();
 		System.out.println(Env.getCtx().toString());
-		orderLine = (MOrderLine)po;//The new OrderLine to copy the attribute instances to.
+		orderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
+		
 		log.warning("---------Line 83");
 		log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
 		
@@ -102,6 +104,10 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		{
 			//Check if there's a BLD Line ProductSetInstance; if none, create and set.
 			int mProductID = orderLine.getM_Product_ID();
+			int refID = orderLine.get_ValueAsInt("copypk");
+			prevOrderLineID = refID;
+			orderLine.setPrevMOrderID(refID);
+			
 			MProduct currOrderLineProduct;
 			boolean isMadeToMeasure = false;
 			if (mProductID > 0) 
@@ -121,13 +127,13 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			
 			log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
 			
-			if(orderLine.get_Value("reference_id") == null)//It's a new record.
+			if(orderLine.get_Value("copypk") == null)//It's a new record.
 				{
-					orderLine.set_ValueNoCheck("reference_id", orderLine.get_ID());
+					orderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
 					orderLine.saveEx(trxName);
 				}
 			
-			int refID = orderLine.get_ValueAsInt("reference_id");
+			
 			int orderLineID = orderLine.get_ID();
 			if(orderLine.getM_AttributeSetInstance_ID() > 0 && refID == orderLineID) return;//Everything is OK.
 			
@@ -141,7 +147,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					copyBldProductInstance(copyFromOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),  orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), mProductID);
 					System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
-					setDiscount(copyFromOrderLine, orderLine);
+					//setDiscount(copyFromOrderLine, orderLine);
 					orderLine.saveEx();
 					}
 					else
@@ -181,7 +187,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				}
 			
 			
-			orderLine.set_ValueOfColumn("reference_id", orderLine.get_ID());
+			orderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
 			log.warning("-set_ValueOfColumn---line 127-----orderLine.get_ID: " + orderLine.get_ID());
 			orderLine.save(trxName);
 			return;
@@ -304,12 +310,12 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		int toMproductID = mProduct.getM_Product_ID();
 		log.warning("---------Line 224 toMproductID = " + toMproductID);
 		
-			fromOrderLineID = toOrderLine.get_ValueAsInt("reference_id");
+			fromOrderLineID = toOrderLine.get_ValueAsInt("copypk");
 			log.warning("---------Line 227 fromOrderLineID = " + fromOrderLineID);
-		   if(fromOrderLineID != 0)
+		   if(fromOrderLineID!= 0)
 			{
 			   log.warning("--------- line 230 fromOrderLineID does not equal 0");
-			   fromOrderLine = new MOrderLine(Env.getCtx(),fromOrderLineID, trxName);
+			   fromOrderLine = new MOrderLine(Env.getCtx(),prevOrderLineID, trxName);
 				int fromMProductID = fromOrderLine.getM_Product_ID();
 				if(fromMProductID != toMproductID)
 				{
