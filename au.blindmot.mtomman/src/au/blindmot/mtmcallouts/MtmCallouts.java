@@ -185,12 +185,15 @@ public class MtmCallouts implements IColumnCallout {
 						else //It's a regular non gridprice MTM product
 						{
 							BigDecimal sqmMtr = new BigDecimal("1000000");
-							BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2).divide(sqmMtr);
-							System.out.println(area);	
-							log.warning("-------MtmCallouts setting field with: " + l_by_w);
-							setField(area, mTab);
-							amt(Env.getCtx(), windowNum, tab, gridField, area);
-							setLocked(true, mTab);
+							if(l_by_w != null)
+							{
+								BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2).divide(sqmMtr);
+								System.out.println(area);	
+								log.warning("-------MtmCallouts setting field with: " + l_by_w);
+								setField(area, mTab);
+								amt(Env.getCtx(), windowNum, tab, gridField, area);
+								setLocked(true, mTab);
+							}
 						}
 						
 						/*
