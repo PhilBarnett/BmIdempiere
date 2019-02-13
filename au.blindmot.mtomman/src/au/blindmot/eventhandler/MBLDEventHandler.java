@@ -40,7 +40,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 
 	private CLogger log = CLogger.getCLogger(MBLDEventHandler.class);
 	private X_M_ProductionLine mProductionLine = null;
-	private BLDMOrderLine orderLine = null;
+	private BLDMOrderLine BMorderLine = null;
+	private MOrderLine orderLine = null;
 	private MBLDMtomItemLine mToMProductionParent = null;
 	private int prevOrderLineID = 0;
 	private boolean DocVoidReverse = false; 
@@ -64,6 +65,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	
 	PO po = getPO(event);
 	trxName = po.get_TrxName();
+	MOrderLine copyFromOrderLine = null;
 	
 	if(po instanceof MProductionLine && po != null)
 		{
@@ -95,8 +97,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		log.warning("---------event: " + event);
 		trxName = po.get_TrxName();
 		System.out.println(Env.getCtx().toString());
-		orderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
-		
+		BMorderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
+		orderLine = new MOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
 		log.warning("---------Line 83");
 		log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
 		
@@ -106,7 +108,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			int mProductID = orderLine.getM_Product_ID();
 			int refID = orderLine.get_ValueAsInt("copypk");
 			prevOrderLineID = refID;
-			orderLine.setPrevMOrderID(refID);
+			BMorderLine.setPrevMLineOrderLineID(refID);
 			
 			MProduct currOrderLineProduct;
 			boolean isMadeToMeasure = false;
@@ -115,6 +117,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					currOrderLineProduct = new MProduct(Env.getCtx(), mProductID , trxName);
 					isMadeToMeasure = currOrderLineProduct .get_ValueAsBoolean("ismadetomeasure");
 				}
+			
+			log.warning("-------In MBLDEventHandler.dohandleevent -> orderLine.get_Value(bld_line_productsetinstance_id) = " + orderLine.get_Value("bld_line_productsetinstance_id"));
 			if(orderLine.get_Value("bld_line_productsetinstance_id") == null && isMadeToMeasure)//User didn't set bLDLineProductSetInstanceID 
 				
 				{
@@ -133,7 +137,6 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					orderLine.saveEx(trxName);
 				}
 			
-			
 			int orderLineID = orderLine.get_ID();
 			if(orderLine.getM_AttributeSetInstance_ID() > 0 && refID == orderLineID) return;//Everything is OK.
 			
@@ -141,13 +144,12 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			MProduct mProduct = new MProduct(Env.getCtx(), orderLine.getM_Product_ID(), trxName);
 			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
 				{
-				MOrderLine copyFromOrderLine = copyAttributeInstance(orderLine, mProduct);
+				copyFromOrderLine = copyAttributeInstance(orderLine, mProduct);
 				if(copyFromOrderLine != null)//Then it's a new record, not a copied record.
 					{
 					copyBldProductInstance(copyFromOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),  orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), mProductID);
 					System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
-					//setDiscount(copyFromOrderLine, orderLine);
 					orderLine.saveEx();
 					}
 					else
@@ -190,6 +192,13 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			orderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
 			log.warning("-set_ValueOfColumn---line 127-----orderLine.get_ID: " + orderLine.get_ID());
 			orderLine.save(trxName);
+			
+			if(copyFromOrderLine != null)
+			{
+				setDiscount(copyFromOrderLine, BMorderLine);
+				log.warning("BMorderLine discount: " + BMorderLine.getDiscount());
+				BMorderLine.saveEx();
+			}
 			return;
 		}
 		
@@ -402,6 +411,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		 * create a new Instance from the from psi
 		 * 
 		 */
+		log.warning("--------In MBLDEventHandler.copyBldProductInstance()");
+		log.warning("fromBldPIID = " + fromBldPIID + ", toBldPIID = " + toBldPIID + ", mProductID = " + mProductID);
 		StringBuilder sb = new StringBuilder();
 		MBLDLineProductInstance[] fromInstance = MBLDProductPartType.getmBLDLineProductInstance(fromBldPIID, trxName);
 		if(toBldPIID > 0)
