@@ -7,6 +7,7 @@ import org.compiere.model.GridTab;
 import org.compiere.util.CLogger;
 
 import au.blindmot.editor.WBldMtmPartsEditor;
+import au.blindmot.editor.WNonSelectProductEditor;
 
 public class BLDEditorFactory implements IEditorFactory {
 	
@@ -25,6 +26,11 @@ public class BLDEditorFactory implements IEditorFactory {
         if(displayType == BLDDisplayTypeFactory.BldMtmParts){
 	        log.warning("-------MY CUSTOM BldMtmParts DISPLAYTYPE");
 	        editor = new WBldMtmPartsEditor(gridTab, gridField);
+        }
+        
+        if(displayType == BLDDisplayTypeFactory.BldMtmProduct){
+	        log.warning("-------MY CUSTOM BldMtmParts DISPLAYTYPE");
+	        editor = new WNonSelectProductEditor(gridField, gridTab);
         }
         if(editor != null)
 	        editor.setTableEditor(tableEditor);

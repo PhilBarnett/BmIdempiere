@@ -40,7 +40,7 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 	{
 		//	Make sure we have a Product Set
 		log.warning("--------In MBLDLineProductSetInstance.setDescription(int mProductID)");
-		MBLDProductPartType[] pps = getProductPartSet(mProductID, get_TrxName());
+		MBLDProductPartType[] pps = getProductPartSet(mProductID, get_TrxName(), true);
 		log.warning("--------In MBLDLineProductSetInstance.setDescription pps == " + pps.toString() + "mProductID == " + mProductID);
 		
 		if (pps == null)
@@ -77,9 +77,18 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 	 * @param trxName
 	 * @return
 	 */
-public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) {
+public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName, boolean isUserSelect) {
 	//mProductID is finished product ID.
 	String tranName;
+	String userSelect;
+	if(isUserSelect)
+	{
+		userSelect = "Y";
+	}
+	else
+	{
+		userSelect = "N";
+	}
 	if(trxName != null)
 	{
 		tranName = trxName;
@@ -96,7 +105,8 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName) 
 	StringBuffer sql = new StringBuffer("SELECT bld_product_parttype_id ");
 	sql.append("FROM bld_product_parttype ");
 		sql.append("WHERE M_Product_ID=?");
-		sql.append(" AND isactive = 'Y'");
+		sql.append(" AND isactive = 'Y' ");
+		sql.append(" AND is_user_select = '" + userSelect + "'");
 		sql.append(" ORDER BY line");
 	PreparedStatement pstmt = null;
 	ResultSet rs = null;

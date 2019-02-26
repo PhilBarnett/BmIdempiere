@@ -207,4 +207,13 @@ public interface I_BLD_Product_PartType
 	 * 
 	 */
 	public void setM_PartTypeId(int mPartTypeID);
+	
+	/** Column name is_user_select */
+    public static final String COLUMNNAME_is_user_select = "is_user_select";
+
+	/** Set is_user_select	  */
+	public void setis_user_select (boolean is_user_select);
+
+	/** Get is_user_select	  */
+	public boolean is_user_select();
 }

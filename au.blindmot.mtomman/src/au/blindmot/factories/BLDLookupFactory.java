@@ -6,6 +6,7 @@ import org.compiere.model.Lookup;
 import org.compiere.util.CLogger;
 
 import au.blindmot.editor.BldLookup;
+import au.blindmot.editor.BldProdLookup;
 
 public class BLDLookupFactory implements ILookupFactory {
 	
@@ -16,6 +17,11 @@ public class BLDLookupFactory implements ILookupFactory {
 			log.warning("--------BLD lookup loaded");
 			return new BldLookup(gridFieldVO.ctx, gridFieldVO.WindowNo);
 		}
+		
+		if(gridFieldVO.displayType == BLDDisplayTypeFactory.BldMtmProduct) {
+			log.warning("--------BLD lookup loaded");
+			return new BldProdLookup(gridFieldVO.ctx, gridFieldVO.WindowNo);
+		}
 				
 		return null;
 	}
@@ -23,6 +29,10 @@ public class BLDLookupFactory implements ILookupFactory {
 	@Override
 	public boolean isLookup(GridFieldVO gridFieldVO) {
 		if (gridFieldVO.displayType == BLDDisplayTypeFactory.BldMtmParts)
+		{
+			return true;
+		}
+		if (gridFieldVO.displayType == BLDDisplayTypeFactory.BldMtmProduct)
 		{
 			return true;
 		}

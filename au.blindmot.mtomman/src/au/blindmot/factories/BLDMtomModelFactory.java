@@ -13,6 +13,7 @@ import au.blindmot.model.MBLDMtmScan;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
+import au.blindmot.model.MBLDProductNonSelect;
 import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.model.MBLDProductionLog;
 
@@ -49,6 +50,9 @@ public class BLDMtomModelFactory implements IModelFactory {
 		if(tableName.equalsIgnoreCase(MBLDMtmScan.Table_Name))
 			return MBLDMtmScan.class;
 		
+		if(tableName.equalsIgnoreCase(MBLDProductNonSelect.Table_Name))
+			return MBLDProductNonSelect.class;
+		
 		return null;
 	}
 
@@ -82,6 +86,12 @@ public class BLDMtomModelFactory implements IModelFactory {
 		if(tableName.equalsIgnoreCase(MBLDMtmScan.Table_Name))
 			return new MBLDMtmScan(Env.getCtx(), Record_ID, trxName);
 		
+		if(tableName.equalsIgnoreCase(MBLDProductNonSelect.Table_Name))
+			return new MBLDProductNonSelect(Env.getCtx(), Record_ID, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDProductNonSelect.Table_Name))
+			return new MBLDProductNonSelect(Env.getCtx(), Record_ID, trxName);
+		
 		return null;
 	}
 
@@ -114,6 +124,9 @@ public class BLDMtomModelFactory implements IModelFactory {
 		
 		if(tableName.equalsIgnoreCase(MBLDMtmScan.Table_Name))
 			return new MBLDMtmScan(Env.getCtx(), rs, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDProductNonSelect.Table_Name))
+			return new MBLDProductNonSelect(Env.getCtx(), rs, trxName);
 		
 		return null;
 	}

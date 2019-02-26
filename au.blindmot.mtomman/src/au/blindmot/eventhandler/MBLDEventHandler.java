@@ -5,8 +5,6 @@ package au.blindmot.eventhandler;
 import java.io.File;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.sql.RowSet;
 
@@ -18,9 +16,7 @@ import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductionLine;
-import org.compiere.model.MQualityTest;
 import org.compiere.model.PO;
-import org.compiere.model.Query;
 import org.compiere.model.X_C_OrderLine;
 import org.compiere.model.X_M_ProductionLine;
 import org.compiere.util.CLogger;
@@ -32,6 +28,7 @@ import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
+import au.blindmot.model.MBLDProductNonSelect;
 import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.model.X_BLD_Line_ProductSetInstance;
 import au.blindmot.utils.MtmUtils;

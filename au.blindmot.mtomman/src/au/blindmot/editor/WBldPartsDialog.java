@@ -317,7 +317,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			MBLDLineProductSetInstance mbps = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
 			log.warning("mbs == :" + mbps.toString());
-			MBLDProductPartType[] partTypes1 =  mbps.getProductPartSet(m_M_Product_ID , null);
+			MBLDProductPartType[] partTypes1 =  mbps.getProductPartSet(m_M_Product_ID , null, true);
 			log.warning ("Part Types= " + partTypes1.length);
 			for (int i = 0; i < partTypes1.length; i++)
 				addAttributeLine (rows, partTypes1[i], false, false);
@@ -686,7 +686,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			// Get Part Set
 			
 			MBLDLineProductSetInstance mbps = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
-			MBLDProductPartType[] attributes = mbps.getProductPartSet(m_M_Product_ID, null);
+			MBLDProductPartType[] attributes = mbps.getProductPartSet(m_M_Product_ID, null, true);
 			if (log.isLoggable(Level.FINE)) log.fine ("Product Attributes=" + attributes.length);
 			for (int i = 0; i < attributes.length; i++)
 				
@@ -905,7 +905,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		//	Save Instance Attributes
 		//MAttribute[] attributes = as.getMAttributes(!m_productWindow);
 		MBLDLineProductSetInstance mbps = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
-		MBLDProductPartType[] productPartSet = mbps.getProductPartSet(m_M_Product_ID, null);
+		MBLDProductPartType[] productPartSet = mbps.getProductPartSet(m_M_Product_ID, null, true);
 		
 		for (int i = 0; i < productPartSet.length; i++)
 		{
@@ -1075,3 +1075,4 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	
 	
 } //	WPAttributeDialog
+

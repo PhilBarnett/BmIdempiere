@@ -222,4 +222,25 @@ public class X_BLD_Product_PartType extends PO implements I_BLD_Product_PartType
 			 return 0;
 		return ii.intValue();
 	}
+	
+	/** Set is_user_select.
+	@param is_user_select is_user_select	  */
+public void setis_user_select (boolean is_user_select)
+{
+	set_Value (COLUMNNAME_is_user_select, Boolean.valueOf(is_user_select));
+}
+
+/** Get is_user_select.
+	@return is_user_select	  */
+public boolean is_user_select () 
+{
+	Object oo = get_Value(COLUMNNAME_is_user_select);
+	if (oo != null) 
+	{
+		 if (oo instanceof Boolean) 
+			 return ((Boolean)oo).booleanValue(); 
+		return "Y".equals(oo);
+	}
+	return false;
+}
 }

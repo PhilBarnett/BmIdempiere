@@ -17,7 +17,6 @@ import org.compiere.model.MProductCategory;
 import org.compiere.model.MProductionLine;
 import org.compiere.model.MQualityTest;
 import org.compiere.model.MStorageOnHand;
-import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.process.DocumentEngine;
 import org.compiere.util.AdempiereUserError;

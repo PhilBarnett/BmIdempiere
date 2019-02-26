@@ -67,6 +67,7 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts {
 		msg.append(deductionType);
 		msg.append(" for product: ");
 		msg.append(m_Product.getName());
+		msg.append(" or the deduction is -ve");
 		throw new AdempiereUserError(msg.toString());
 	}
 	

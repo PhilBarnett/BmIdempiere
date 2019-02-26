@@ -109,7 +109,7 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
  */
 public static PO  getMBLDProductPartType  (int mPartTypeID, int mProductID, Properties ctx, String trxName)
 {
-	final String whereClause = I_BLD_Product_PartType.COLUMNNAME_BLD_Product_PartType_ID +"=? AND " + I_BLD_Product_PartType.COLUMNNAME_M_Product__ID+"=?";
+	final String whereClause = I_BLD_Product_PartType.COLUMNNAME_BLD_Product_PartType_ID +"=? AND " + I_BLD_Product_PartType.COLUMNNAME_M_Product_ID+"=?";
 	PO retValue = new Query(ctx,I_BLD_Product_PartType.Table_Name, whereClause,trxName)
 	.setParameters(mPartTypeID, mProductID)
 	.first();
@@ -167,7 +167,7 @@ public void setMBLDLineProductInstance(int m_MbldLineProductsetInstanceID, MProd
 	}
 	
 	System.out.println("MBLDProductPartType.get_ID(): " + get_ID());
-	System.out.println("MBLDProductPartType.getBLD_M_PartType_ID()(): " + getBLD_M_PartType_ID());
+	System.out.println("MBLDProductPartType.getBLD_M_PartType_ID()(): " + getBLD_Product_PartType_ID());
 	MBLDLineProductInstance mBLDLineProductInstance = getMBldLineProductInstance(m_MbldLineProductsetInstanceID);
 
 	if (mBLDLineProductInstance == null && keep)//Doesn't exist yet - create new if we want to keep it.
@@ -229,5 +229,43 @@ public static MBLDLineProductInstance[] getmBLDLineProductInstance(int bld_Line_
 	return mBPSI.toArray(retValueArray);
 	
 	}
+
+public MBLDProductNonSelect[] getMBLDProductNonSelectLines(int mBLDProductPartTypeID, String trxn) {
+	
+	StringBuilder sql = new StringBuilder();
+	sql.append("SELECT bld_product_non_select_id ");
+	sql.append("FROM bld_product_non_select ");
+	sql.append("WHERE bld_product_parttype_id = ? ");
+	sql.append("ORDER BY bld_product_parttype_id");
+	MBLDProductNonSelect[] retValueArray  = null;
+	PreparedStatement pstmt = null;
+	ResultSet rs = null;
+	ArrayList<MBLDProductNonSelect> mPNS = new ArrayList<MBLDProductNonSelect>();
+	
+	try
+	{
+		pstmt = DB.prepareStatement(sql.toString(), null);
+		pstmt.setInt(1, mBLDProductPartTypeID);
+		rs = pstmt.executeQuery();
+		while(rs.next())
+		{
+			int mBLDProductNonSelectID = rs.getInt(1);
+			MBLDProductNonSelect addValue = new MBLDProductNonSelect (Env.getCtx(), mBLDProductNonSelectID, trxn);
+			mPNS.add(addValue);
+		}
+	}
+	catch (SQLException ex)
+	{
+		s_log.log(Level.SEVERE, sql.toString(), ex);
+	}
+	finally
+	{
+		DB.close(rs, pstmt);
+		rs = null; pstmt = null;
+	}
+	retValueArray = new MBLDProductNonSelect[mPNS.size()];
+	return mPNS.toArray(retValueArray);
+	
+}
 
 }

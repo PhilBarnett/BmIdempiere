@@ -158,6 +158,7 @@ public class Pelmet extends MadeToMeasureProduct {
 		return itemID;
 	}
 
+	/*DELETE AFTER TESTING
 	private void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {
 		MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
 		mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
@@ -167,6 +168,7 @@ public class Pelmet extends MadeToMeasureProduct {
 		if(description != null)mBomDerived.setDescription(description);
 		mBomDerived.saveEx();
 	}
+	*/
 	
 	/**
 	 * set MProductID of angle to make pelmet from.

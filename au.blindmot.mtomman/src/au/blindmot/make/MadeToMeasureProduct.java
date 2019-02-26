@@ -12,6 +12,7 @@ import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.util.Env;
 
+import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.utils.MtmUtils;
@@ -238,4 +239,17 @@ protected String trxName;
 	 * this.leftMech = theLeftMech;//set the product_iD of the left mech
 	 */ 
 
+	public void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {
+		log.warning("---------In addMBLDBomDerived(int mProductId, BigDecimal qty, String description) with mProductId: " + mProductId + " qty:" + qty + " description: " + description);
+		if(mProductId > 0 && qty.compareTo(BigDecimal.ZERO) > 0)
+		{
+			MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
+			mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
+			mBomDerived.setM_Product_ID(mProductId);
+			qty.setScale(2, BigDecimal.ROUND_CEILING);
+			mBomDerived.setQty(qty);
+			if(description != null)mBomDerived.setDescription(description);
+			mBomDerived.saveEx();
+		}
+	}
 }

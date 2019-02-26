@@ -23,6 +23,7 @@ import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
+import au.blindmot.model.MBLDProductNonSelect;
 import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
@@ -202,6 +203,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 		/*
 		 * /TODO: get the fabricID, rollerTubeID, bottomBarID from BOM lines in case they've been edited by user.
+		 * TODO: Modify to iterate through BOM derived and 
 		 */
 		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
 	    pattern = Pattern.compile(patternString);
@@ -333,6 +335,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 */
 		//Get fields setup
 		setUserSelectedPartIds();
+		setAutoSelectedPartIds();
 		setChainControl(controlID);
 		addMtmInstancePartsToBomDerived();
 		populatePartTypes(m_product_id) ;
@@ -363,6 +366,19 @@ public class RollerBlind extends MadeToMeasureProduct{
 		//Tube selection: create static utility method in MtmUtils? Need to determine bending moment in tube centre.
 		
 		return true;
+	}
+
+	/**
+	 * Should be in superclass
+	 */
+	public void setAutoSelectedPartIds() {
+		/*Get a list of auto selected parttypes
+		 * iterate through list - for each item, 
+		 * get the MBLDProductNonSelect[] MBLDProductPartType.getMBLDProductNonSelectLines(int mBLDProductPartTypeID, String trxn))
+		 * Determine if the MBLDProductNonSelect matches the size of current item. 
+		 * If it does, call a method based on each MBLDProductNonSelect operation type to modify BOM lines
+		 * EG performSubstitution(subProduct, addProduct) performAdd(addProduct) performConditionSet(conditionSet)
+		 */
 	}
 
 	@Override
@@ -564,7 +580,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			
 			/**
 			 * Set roller tube ID based on blind width only
-			 * 
+			 * DELETE ONCE setAutoSelectedPartIds() is in use
 			*/
 			String tubeDuty = "";
 			if(wide > 2500)tubeDuty = "HD";
@@ -647,22 +663,10 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 	}
 	
-	private void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {
-		log.warning("---------In addMBLDBomDerived(int mProductId, BigDecimal qty, String description) with mProductId: " + mProductId + " qty:" + qty + " description: " + description);
-		if(mProductId > 0 && qty.compareTo(BigDecimal.ZERO) > 0)
-		{
-			MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
-			mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
-			mBomDerived.setM_Product_ID(mProductId);
-			qty.setScale(2, BigDecimal.ROUND_CEILING);
-			mBomDerived.setQty(qty);
-			if(description != null)mBomDerived.setDescription(description);
-			mBomDerived.saveEx();
-		}
-	}
+
 	
 	/**
-	 * 
+	 * TODO: deprecate this
 	 * @param parts
 	 * @param instanceParse
 	 * @return
