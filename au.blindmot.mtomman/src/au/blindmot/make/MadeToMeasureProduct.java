@@ -10,11 +10,14 @@ import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
+import org.compiere.model.MProductionLine;
+import org.compiere.model.Query;
 import org.compiere.util.Env;
 
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
+import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
 /**
@@ -251,5 +254,16 @@ protected String trxName;
 			if(description != null)mBomDerived.setDescription(description);
 			mBomDerived.saveEx();
 		}
+	}
+	
+	public MBLDProductPartType[] getMBLDProductPartTypeLines() {
+		 {
+			 	final String whereClause = "bld_product_parttype.m_product_id"+"=?"; 
+			 	List<MProductionLine> list = new Query(Env.getCtx(), MBLDProductPartType.Table_Name, whereClause, trxName)
+			 		.setParameters(new Object[]{m_product_id})
+			 		.setOrderBy(MBLDProductPartType.COLUMNNAME_M_Product__ID)
+			 		.list();
+			 	return list.toArray(new MBLDProductPartType[list.size()]);
+			 }
 	}
 }

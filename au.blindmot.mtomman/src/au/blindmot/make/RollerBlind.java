@@ -203,15 +203,17 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 		/*
 		 * /TODO: get the fabricID, rollerTubeID, bottomBarID from BOM lines in case they've been edited by user.
-		 * TODO: Modify to iterate through BOM derived and 
+		 * TODO: Modify to iterate through BOM derived and cut as appropriate:
+		 * getBomDerived
+		 * iterate -> get cut based on parttype
 		 */
-		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
-	    pattern = Pattern.compile(patternString);
+		//patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
+	   //pattern = Pattern.compile(patternString);
 	    //setInstanceFields();//Sets instance fields from the instance_string column
 	    setUserSelectedPartIds();
 	    setChainControl(controlID);
 		populatePartTypes(m_product_id);//Gets the ArrayLists of parts
-		setValueProductID();//Currently Set roller tube ID based on blind width only
+		//setValueProductID();//Currently Set roller tube ID based on blind width only
 		
 		//Get a value for field fabricWidth & fabricDrop
 		BigDecimal fabricWidth = getFabricWidth();
@@ -232,7 +234,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		if(fabIdToUse !=0 )
 
 			{
-				addBldMtomCuts(fabIdToUse, fabricWidth, fabricDrop/*TODO: Remove when tested .add(new BigDecimal(fabricLengthAddition))*/, 0);	
+				addBldMtomCuts(fabIdToUse, fabricWidth, fabricDrop, 0);	
 			}
 		
 		int rollerTID = getBomProductID(ROLLER_TUBE);
@@ -265,7 +267,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		if(bottombarIDToUse !=0 )
 
 			{
-				addBldMtomCuts(bottombarIDToUse,Env.ZERO,bottomBarCut ,0);
+				addBldMtomCuts(bottombarIDToUse,Env.ZERO,bottomBarCut,0);
 			}
 		
 		return true;
@@ -335,11 +337,12 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 */
 		//Get fields setup
 		setUserSelectedPartIds();
-		setAutoSelectedPartIds();
-		setChainControl(controlID);
 		addMtmInstancePartsToBomDerived();
 		populatePartTypes(m_product_id) ;
-		setValueProductID();//Chain accessory BOM lines are added here.
+		setAutoSelectedPartIds();
+		setChainControl(controlID);
+		
+		//setValueProductID();//Chain accessory BOM lines are added here.
 		//setInstanceFields();
 		/*
 		addMtmInstancePartsToBomDerived();//Creates BOM lines from the products in the 'instance_string' column.
@@ -357,19 +360,25 @@ public class RollerBlind extends MadeToMeasureProduct{
 				
 			}
 		
-		//BOM derived rollertube
+		//BOM derived rollertube - remove once auto select working.
+		/*
 		BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
-		BigDecimal rollerTubeQty = getRollerTubeQty();
+		BigDecimal rollerTubeQty = getRollerTubeQty(rollerTubeID);
 		addMBLDBomDerived(rollerTubeID, rollerTubeQty, "Procesed with waste factor of: " + (rollerTubeQty.multiply(waste)));
+		*/
 		
 		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
-		//Tube selection: create static utility method in MtmUtils? Need to determine bending moment in tube centre.
 		
 		return true;
 	}
 
 	/**
-	 * Should be in superclass
+	 * Get a list of auto selected parttypes
+		 * iterate through list - for each item, 
+		 * get the MBLDProductNonSelect[] MBLDProductPartType.getMBLDProductNonSelectLines(int mBLDProductPartTypeID, String trxn))
+		 * Determine if the MBLDProductNonSelect matches the size of current item. 
+		 * If it does, call a method based on each MBLDProductNonSelect operation type to modify BOM lines
+		 * EG performSubstitution(subProduct, addProduct) performAdd(addProduct) performConditionSet(conditionSet)
 	 */
 	public void setAutoSelectedPartIds() {
 		/*Get a list of auto selected parttypes
@@ -379,6 +388,82 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 * If it does, call a method based on each MBLDProductNonSelect operation type to modify BOM lines
 		 * EG performSubstitution(subProduct, addProduct) performAdd(addProduct) performConditionSet(conditionSet)
 		 */
+		MBLDProductPartType[] mBLDProductPartTypeArray = getMBLDProductPartTypeLines();
+		for(int j = 0; j < mBLDProductPartTypeArray.length; j++)
+		{
+			 MBLDProductNonSelect[] mBLDPNonSelectArray = mBLDProductPartTypeArray[j].getMBLDProductNonSelectLines(mBLDProductPartTypeArray[j].get_ID(), trxName);
+			 for(int x = 0; x < mBLDPNonSelectArray.length; x++)
+			 {
+				 //Looping through Non Selectable Part Types -> auto set BOMderived parts based on widths and drops.
+				 //Determine if this item matches width and drop criteria
+				 if(mBLDPNonSelectArray[x].isWidthDropMatch(wide, high))
+				 {
+					 String operation = mBLDPNonSelectArray[x].getoperation_type();
+					 if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_ADDITION ))
+					 {
+						 //perform addition
+						 int addID = Integer.parseInt(mBLDPNonSelectArray[x].getaddtionalproduct().toString());
+						 X_M_PartType addPartType = new X_M_PartType(Env.getCtx(), mBLDProductPartTypeArray[j].getM_PartTypeID(), null);
+						 
+						 if(addPartType != null)
+						 {
+							 if(addPartType.getName().equalsIgnoreCase("Roller tube"))
+							 {
+								log.warning("Roller tube cut = " + getRollerTubeCut(wide));
+								BigDecimal waste = new BigDecimal(getWaste(addID));
+								BigDecimal rollerTubeQty = getRollerTubeQty(addID);
+								addMBLDBomDerived(addID, rollerTubeQty, "Procesed with waste factor of: " + (rollerTubeQty.multiply(waste)));
+							 }
+							 else if(addPartType.getName().equalsIgnoreCase("Bottom bar"))
+							 {
+								 addMBLDBomDerived(addID, getBottomBarCut(), trxName);
+							 }
+							 else
+							 {
+								 addMBLDBomDerived(addID, getBomQty(addID), trxName);
+							 }
+							 	
+						 }
+					 }
+					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_SUBSTITUTION))
+					 {
+						 //perform substitution
+						 //get BOM line with substitute product & swap productID with Additional product
+						 int addID = Integer.parseInt(mBLDPNonSelectArray[x].getaddtionalproduct().toString());
+						 int subID = Integer.parseInt(mBLDPNonSelectArray[x].getsubstituteproduct().toString());
+						 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
+						 for(int z = 0; z < bomDerived.length; z++)
+						 {
+							 if(bomDerived[z].getM_Product_ID() == subID)
+							 {
+								 bomDerived[z].setM_Product_ID(addID);
+								 bomDerived[z].saveEx();
+							 }
+						 }
+						 
+					 }
+					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_CONDITION_SET))
+					 {
+						 //perform conditon set
+					 }
+					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_DELETE))
+					 {
+						 //perform delete
+						 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
+						 int subID = Integer.parseInt(mBLDPNonSelectArray[x].getsubstituteproduct().toString());
+						 for(int z = 0; z < bomDerived.length; z++)
+						 {
+							 if(bomDerived[z].getM_Product_ID() == subID)
+							 {
+								 bomDerived[z].delete(true, trxName);
+							 }
+						 }
+						 
+					 }
+				 }
+			 }
+		}
+		
 	}
 
 	@Override
@@ -460,26 +545,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 				{
 					miscItem.add(new KeyNamePair(productIDs[i], names[i]));;
 				}
-				/*else if(partType.equalsIgnoreCase(CONTROL_COMP))
-				{
-					controlType.add(new KeyNamePair(productIDs[i], names[i]));
-				}
-				else if(partType.equalsIgnoreCase(BOTTOM_BAR))
-				{
-					bottomBar.add(new KeyNamePair(productIDs[i], names[i]));
-				}
-				else if(partType.equalsIgnoreCase(NON_CONTROL_MECH))
-				{
-					TubularNCM.add(new KeyNamePair(productIDs[i], names[i]));
-				}
-				else if(partType.equalsIgnoreCase(ROLLER_BRACKET))
-				{
-					rollerBracket.add(new KeyNamePair(productIDs[i], names[i]));
-				}
-				else if(partType.equalsIgnoreCase(CHAIN_SAFE))
-				{
-					chainSafe.add(new KeyNamePair(productIDs[i], names[i]));
-				}*/
 				else if(partType.equalsIgnoreCase(CHAIN_ACC))
 				{
 					chainAcc.add(new KeyNamePair(productIDs[i], names[i]));
@@ -582,6 +647,9 @@ public class RollerBlind extends MadeToMeasureProduct{
 			 * Set roller tube ID based on blind width only
 			 * DELETE ONCE setAutoSelectedPartIds() is in use
 			*/
+		
+		/*
+		
 			String tubeDuty = "";
 			if(wide > 2500)tubeDuty = "HD";
 			else {
@@ -600,6 +668,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 				msg.append(" the tube is medium duty or heavy duty. FATAL ERROR CAN'T CONTINUE!");
 				throw new AdempiereUserError(msg.toString());
 			}
+			
+			*/
 			 
 			 /* TODO: Resolve rollerTubeID via calculation
 			 * There's a method MtmUtils.getBendingMoment(int length, int fabricProductId, int basebarProductId)
@@ -621,7 +691,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		BigDecimal qty = BigDecimal.ZERO;
 		if(mProductBomid == rollerTubeID)
 			{
-				qty = getRollerTubeQty();
+				qty = getRollerTubeQty(rollerTubeID);
 				if(qty != BigDecimal.ZERO)
 				{
 					return qty;
@@ -811,41 +881,24 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 	}
 
-	
-	/* private String[] getInstanceArray() {
-		 
-		 if(mtmInstanceParts!=null && mtmInstanceParts.toString().contains("_")) 
-		 {
-			//Split the value of the mtm_attribute column, first value id fabric, second is chain, third is bottom bar
-			String[] products = mtmInstanceParts.toString().split("_");
-			return products;
-		 } 
-		 else return null;
-
-	 } */
-	 
-	/**Deprecate / delete 
-	 
-	 private void setInstanceFields() {	
-	 
-	 String[] products = getInstanceArray();
-	 if(products != null)
-	 {
-		for(int s = 0; s < products.length; s++)//Set the Productids from the bldmtomlineiem instance_string column
-		{
-			int mProductId = Integer.parseInt(products[s]);
-			if(s == 0)fabricID = mProductId;
-			//if(s == 1)
-			if(s == 2)bottomBarID = mProductId;
-		}
-	}
-	 }*/
 	 
 	 public ArrayList <Integer> getHeadRailComps() {
 	 ArrayList <Integer> headRailComps = new ArrayList <Integer>();
 	 
 	 //Allow blinds to be built without brackets but not without control and non control mechs.
+	 
+	 //TODO: Add headrail comps from bomlines
+	 
 	 	MBLDMtomItemLine item = new MBLDMtomItemLine(Env.getCtx(), mtom_item_line_id, trxName);
+	 	MBLDBomDerived[] bomDLines = item.getBomDerivedLines(Env.getCtx(), mtom_item_line_id);
+	 	for(int i = 0; i < bomDLines.length; i++)
+	 	{
+	 		if(bomDLines[i].hasDeduction(MtmUtils.MTM_HEAD_RAIL_DEDUCTION))
+	 			headRailComps.add(bomDLines[i].getM_Product_ID());
+	 		log.warning("--------Adding product to HeadrailComps: " + new MProduct(Env.getCtx(), bomDLines[i].getM_Product_ID(), trxName).getName());
+	 	}
+	 	
+	 	/*
 		if(nonControlBracketID > 0) headRailComps.add(nonControlBracketID);
 		if(controlBracketID > 0) headRailComps.add(controlBracketID);
 		if(controlID > 0)
@@ -872,6 +925,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 		log.warning("--------In RollerBlind.getHeadRailComps.");
 		log.warning("--------Headrail comps are: " + headRailComps.toString());
+		*/
 		return headRailComps;
 	 }
 	 
@@ -928,9 +982,9 @@ public class RollerBlind extends MadeToMeasureProduct{
 			return qty;
 	 }
 	 
-	 public BigDecimal getRollerTubeQty() {
+	 public BigDecimal getRollerTubeQty(int rtubeID) {
 		 	BigDecimal qty = getRollerTubeCut(wide);
-			BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
+			BigDecimal waste = new BigDecimal(getWaste(rtubeID));
 			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
 			return qty;
 	 }

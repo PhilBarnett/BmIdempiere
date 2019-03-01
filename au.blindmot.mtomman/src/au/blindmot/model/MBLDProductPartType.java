@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.logging.Level;
 
+import org.adempiere.webui.window.FDialog;
 import org.compiere.model.MProduct;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
@@ -230,7 +231,16 @@ public static MBLDLineProductInstance[] getmBLDLineProductInstance(int bld_Line_
 	
 	}
 
+/**
+ * 
+ * @param mBLDProductPartTypeID
+ * @param trxn
+ * @return
+ */
 public MBLDProductNonSelect[] getMBLDProductNonSelectLines(int mBLDProductPartTypeID, String trxn) {
+	log.warning("getName(): " + getName() + " is_user_select = " + get_ValueAsString("is_user_select") + " is_user_select = " + get_ValueAsBoolean("is_user_select"));
+	
+	if(get_ValueAsBoolean("is_user_select")) return new MBLDProductNonSelect[0];
 	
 	StringBuilder sql = new StringBuilder();
 	sql.append("SELECT bld_product_non_select_id ");
@@ -268,4 +278,24 @@ public MBLDProductNonSelect[] getMBLDProductNonSelectLines(int mBLDProductPartTy
 	
 }
 
+
+
+/**
+ * @override
+ */
+protected boolean beforeSave(boolean newRecord){
+	MBLDProductNonSelect[] mBLDProductNonSelectArray = getMBLDProductNonSelectLines(get_ID(), get_TrxName());
+	int currentID = get_ID();
+	for(int i = 0; i < mBLDProductNonSelectArray.length; i++)
+	{
+		if(currentID != mBLDProductNonSelectArray[i].getM_PartType_ID())
+		{
+			X_M_PartType partType = new X_M_PartType(getCtx(), getM_PartTypeID(), null);
+			FDialog.warn(0, "There are Non Selectable Part Types attached to this record that do not have the part Type: " + partType.getName() + ". This may cause unexpected results");
+		}
+	}
+	
+	return true;
+
+	}
 }
