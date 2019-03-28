@@ -280,7 +280,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 						
 						for(int ii = 0; ii < mBldItemLines.length; ii++)
 						{
-							mBldItemLines[ii].cleanupProductionLines(false);
+							mBldItemLines[ii].cleanupProductionLines(false, true);
 						}
 		
 		setProcessed(true);
@@ -395,7 +395,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 
 		m_processMsg = reversal.getDocumentNo();
 		
-		reverseEndProduct();
+		reverseEndProduct(reversal);
 
 		return true;
 	}
@@ -440,7 +440,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 					}
 				}
 			}
-			reverseEndProduct();
+			//reverseEndProduct(true, false);
 		}
 		
 		
@@ -803,12 +803,61 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		return linesToRet;
 	}
 	
-	private void reverseEndProduct() {
+	private void reverseEndProduct(MBLDMtomProduction reversal) {
+		MBLDMtomItemLine[] lines = reversal.getLines();
+		
+		for(int i = 0; i < lines.length; i++)
+		{
+			int mProductID = lines[i].getM_Product_ID();
+			MProductionLine[] prodLines = lines[i].getLines(p_ctx, lines[i].get_ID());
+			int count = 0;
+			for(int j = 0; j < prodLines.length; j++)
+			{
+				if(prodLines[j].getM_Product_ID() == mProductID)
+				{
+					count++;
+					if(count > 1)//There's duplicate finished product
+					{
+						prodLines[j].deleteEx(true);
+					}
+					else
+					{
+						//prodLines[j].setMovementQty(prodLines[j].getMovementQty().negate());
+						BigDecimal productionQty = prodLines[j].getMovementQty().negate();
+					
+						//mToMProductionParent = new MBLDMtomItemLine(pobj.getCtx(), getmBLDMtomItemLineID(), pobj.get_TrxName());
+						StringBuilder sql = new StringBuilder("UPDATE ");
+						sql.append("m_productionline SET ");
+						sql.append("isendproduct = 'Y'");
+						sql.append(", movementqty = " + productionQty);
+						sql.append(" WHERE m_productionline.bld_mtom_item_line_id = ");
+						sql.append(prodLines[j].get_ValueAsInt("bld_mtom_item_line_id"));
+						sql.append(" AND m_product_id = ");
+						sql.append(prodLines[j].getM_Product_ID());
+						log.warning("Attempting to DB.executeUpdate. Success is greater than 0 or Yes: " + (DB.executeUpdate(sql.toString(), get_TrxName())>0));
+						
+					log.warning("At end of MBLDMtomItemLine.cleanupProductionLines()");
+						prodLines[j].save(get_TrxName());
+					}
+				}
+			} 
+		}
+		
+		/*iterate through lines 
+		 * remove duplicate end product
+		 * Set movement qty end product to -1 
+		 * 
+		 */
+		
+		
+		/*
+		log.warning("Is new: " + is_new());
 		MBLDMtomItemLine[] lines = getLines();
 		for(int ii = 0; ii < lines.length; ii++)
 		{
-			lines[ii].cleanupProductionLines(true);
+			lines[ii].cleanupProductionLines(isReversal, isfirst);
 		}
+		*/
 	}
 
 }

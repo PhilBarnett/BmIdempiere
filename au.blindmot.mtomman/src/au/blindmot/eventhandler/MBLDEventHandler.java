@@ -80,7 +80,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			log.warning("Errors: " + errors.toString());
 			if(errors.contains("java.lang.NullPointerException")) return;
 			*/
-			handleMProductionLineEvent(po);//Handle all events with the same method
+			//handleMProductionLineEvent(po);//Handle all events with the same method
 		}
 	
 	if(po instanceof MBLDMtomProduction && po != null)//The parent production is being voided or reversed.

@@ -79,12 +79,6 @@ public class RollerBlind extends MadeToMeasureProduct{
     Pattern pattern = null;
     BigDecimal oneHundred = new BigDecimal("100");
 	BigDecimal oneThousand = new BigDecimal("1000");
-	
-/*General thoughts:
- * Addition of parts is either hard coded or part of the 'selectable part types' - eg warning tags. Perhaps add an attribute like
- * BOM add: default for all that flags this BOm part to be added to all finished parent items?
- * 
- */
 
 	public RollerBlind (int product_id, int bld_mtom_item_line_id, String trxn) {
 		super(product_id, bld_mtom_item_line_id, trxn);
@@ -106,48 +100,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		{
 			mInstance = attributePair[i].getInstance();
 			mInstanceValue = attributePair[i].getInstanceValue();
-			/*
-			 * TODO: Decide if the column 'location' in the mtmitem table will ever be used.
-			if(mInstance.equalsIgnoreCase("Location"))
-			{
-				if(mtmrolleritem.getlocation() == null || mtmrolleritem.getlocation().length()<1)
-				mtmrolleritem.setlocation(mInstanceValue);
-			}
-			
-			else*/ 
-			//TODO: Is if(mInstance.equalsIgnoreCase("Blind control")) required?
-			
-			/*
-			if(mInstance.equalsIgnoreCase("Blind control"))
-			{	
-				blindControlIns = mInstanceValue;
-				if(mInstanceValue.equalsIgnoreCase("Chain control"))
-				{
-					isChainControl = true;
-				}
-				
-			}	
-			*/
-			/*else if(mInstance.equalsIgnoreCase("Blind non control mech"))
-			{
-				tNCMIns = mInstanceValue;
-			}*/
-			/*else if(mInstance.equalsIgnoreCase("Roller bracket"))
-			{
-				rollerBracketIns = mInstanceValue;
-			}*/
-			/*else if(mInstance.equalsIgnoreCase("Mech colour"))
-			{
-				mechColIns = mInstanceValue;
-			}*/
-			/*else if(mInstance.equalsIgnoreCase("Bracket colour"))
-			{
-				rollerBracketColIns = mInstanceValue;
-			}*/
-			/*else if(mInstance.equalsIgnoreCase("Chain safe"))
-			{
-				chainSafeIns = mInstanceValue;
-			}*/
+	
 			if(mInstance.equalsIgnoreCase("Roll type"))
 			{
 				rollTypeIns = mInstanceValue;
@@ -158,41 +111,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 			}
 		}
 		
-		//addColoursToBracketsControls();
-		//mtmrolleritem.saveEx();
 	}
 	
-	/*TODO: Deprecate this
-	 * What a horrible way to accomplish this!
-	 * /Handle colours
-	 *
-	private void addColoursToBracketsControls() {
-		
-		//Add colour to the non control mech
-		if(mechColIns != null || mechColIns != "")
-		{
-			//Add colour to the non control mech
-			StringBuilder newtNCMIns = new StringBuilder(tNCMIns);
-			newtNCMIns.append(" " + mechColIns);
-			tNCMIns = newtNCMIns.toString();
-		}
-		
-		//Add colour to the brackets
-		if(rollerBracketColIns != null || rollerBracketColIns != "")
-		{
-			StringBuilder newrollerBracketIns = new StringBuilder(rollerBracketIns);
-			newrollerBracketIns.append(" " + rollerBracketColIns);
-			rollerBracketIns = newrollerBracketIns.toString();
-		}
-		
-		//Add colour to any chain control only if it's chain driven
-		if(isChainControl && (mechColIns != null || mechColIns != " "))
-		{
-			StringBuilder newblindControlIns = new StringBuilder(blindControlIns);
-			newblindControlIns.append(" " + mechColIns);
-			blindControlIns = newblindControlIns.toString();
-		}
-	}*/
 
 	@Override
 	/**
@@ -342,31 +262,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 		setAutoSelectedPartIds();
 		setChainControl(controlID);
 		
-		//setValueProductID();//Chain accessory BOM lines are added here.
-		//setInstanceFields();
-		/*
-		addMtmInstancePartsToBomDerived();//Creates BOM lines from the products in the 'instance_string' column.
-		addBomDerivedLines(controlID, null);
-		addBomDerivedLines(nonControlID, null);
-		addBomDerivedLines(nonControlBracketID, null);
-		addBomDerivedLines(controlBracketID, null);
-		addBomDerivedLines(chainSafeID, null);
-		addBomDerivedLines(endCapID, null);
-		*/
-		if(isChainControl) 
-			{
-				int liftID = getLiftSpring();
-				if(liftID  > 0)addBomDerivedLines(liftID, null);
-				
-			}
-		
-		//BOM derived rollertube - remove once auto select working.
-		/*
-		BigDecimal waste = new BigDecimal(getWaste(rollerTubeID));
-		BigDecimal rollerTubeQty = getRollerTubeQty(rollerTubeID);
-		addMBLDBomDerived(rollerTubeID, rollerTubeQty, "Procesed with waste factor of: " + (rollerTubeQty.multiply(waste)));
-		*/
-		
 		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
 		
 		return true;
@@ -445,6 +340,14 @@ public class RollerBlind extends MadeToMeasureProduct{
 					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_CONDITION_SET))
 					 {
 						 //perform conditon set
+						 if(mBLDPNonSelectArray[x].getcondition_set().equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_CONDITION_HAS_LIFT_SPRING))
+						 {
+							 if(isChainControl) 
+								{
+									int liftID = getLiftSpring(false);
+									if(liftID  > 0)addBomDerivedLines(liftID, null);	
+								}
+						 }
 					 }
 					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_DELETE))
 					 {
@@ -457,13 +360,11 @@ public class RollerBlind extends MadeToMeasureProduct{
 							 {
 								 bomDerived[z].delete(true, trxName);
 							 }
-						 }
-						 
+						 } 
 					 }
 				 }
 			 }
-		}
-		
+		}	
 	}
 
 	@Override
@@ -567,30 +468,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 			
 			
 		}
-	
-	/*
-	 * Some business logic to consider:
-	 * Tube sizes vary in relation to finished size. This can hard coded then made a setting
-	 * Each tube requires different mechs - the tube size for each mech will be in it's description field
-	 * so it can easily found.
-	 * Each bottom bar requires different end caps.
-	 * Rollers with chains get 'chain accessory' part types.
-	 */
-		
-		
-		/*Get the type part that the 1st partid is.
-		 * 
-		 * Iterate through the 3 arrays while where still on the same partID
-		 * Create a keynamePair from the name and productid.
-		 * Append/make the appropriate ListBox items from the keynamepair
-		 * when the partID changes, repeat from beginning.
-		 * 
-		 * 
-		 * DB.getRowSet(sql) or getKeynamePair()?
-		*Get BOM: SELECT mp.m_parttype_id, mp.m_product_id FROM m_product mp INNER JOIN m_product_bom mpb ON mp.m_product_id = mpb.m_productbom_id AND mpb.m_product_id = '1000010';
-		*or SELECT mp.name, mp.m_product_id, mp.m_parttype_id FROM m_product mp INNER JOIN m_product_bom mpb ON mp.m_product_id = mpb.m_productbom_id AND mpb.m_product_id = '1000010';
-		*Figure out which BOM items are: Chain, control, roller bracket, bottom bar, TNCM (tubular non control mech)
-		*/
 	
 	
 	private void setValueProductID() {
@@ -768,32 +645,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 		return part_ID;
 	}
 	
-	/*
-	private int resolveComponents(ArrayList<KeyNamePair> parts, String instanceParse, String instanceParse2) {
-		
-		int part_ID = 0;
-		
-		for(KeyNamePair partPair : parts) 
-		{
-			part_ID = partPair.getKey();
-			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, trxName);
-			String partDescription = productToExamine.getDescription().toLowerCase();
-			
-		if(instanceParse != null && instanceParse2 != null)
-		  {
-			if(partDescription.contains(instanceParse.toLowerCase()) && partDescription.contains(instanceParse2.toLowerCase()))
-			{
-				break;//part_ID should now contain the right MProductID
-			}
-		  }
-		}
-		if(part_ID == 0)//The bracket couldn't be found.
-	{
-		log.warning(instanceParse + "---------------Could not resolve control from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
-	}
-		return part_ID;
-	}*/
-	
 	/**
 	 * Sets fields from parts that users can select from the part dialog selection.
 	 */
@@ -833,27 +684,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 					bottomBarID = mProductId;
 				}
 		}
-		
-		/*
-		patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
-	    pattern = Pattern.compile(patternString);
-		if(mtmInstanceParts != null)//Add the parts stored in the bldmtomlineiem instance_string column
-	{
-		String[] products = getInstanceArray();
-		 if(products != null)
-		
-		for(int i = 0; i < products.length; i++)
-		{
-			Matcher matcher = pattern.matcher(products[i]);
-			boolean matches = matcher.matches();
-			if(matches)
-			{
-				int mProductId = Integer.parseInt(products[i]);
-				BigDecimal qty = getBomQty(mProductId);
-				addMBLDBomDerived(mProductId, qty, trxName);
-			}
-		}
-	 }*/
     }
 	
 	private void addBomDerivedLines(int partProduct_id, String description){
@@ -898,34 +728,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 		log.warning("--------Adding product to HeadrailComps: " + new MProduct(Env.getCtx(), bomDLines[i].getM_Product_ID(), trxName).getName());
 	 	}
 	 	
-	 	/*
-		if(nonControlBracketID > 0) headRailComps.add(nonControlBracketID);
-		if(controlBracketID > 0) headRailComps.add(controlBracketID);
-		if(controlID > 0)
-			{
-				headRailComps.add(controlID);
-			}
-		else
-			{
-			StringBuilder msg = new StringBuilder("No Control mech for item with line number: ");
-			msg.append(item.getLine());
-			throw new AdempiereUserError(msg.toString());
-			}
-		
-		if(nonControlID > 0)
-			{
-				headRailComps.add(nonControlID);
-			}
-		else
-			{
-				StringBuilder msg = new StringBuilder("No Non Control mech for item with line number: ");
-				msg.append(item.getLine());
-				throw new AdempiereUserError(msg.toString());
-			}
-		
-		log.warning("--------In RollerBlind.getHeadRailComps.");
-		log.warning("--------Headrail comps are: " + headRailComps.toString());
-		*/
 		return headRailComps;
 	 }
 	 
@@ -1038,7 +840,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			return rowset;
 		}
 	 
-	 private int getLiftSpring() {
+	 private int getLiftSpring(boolean useWeight) {
 		/*
 		 * How heavy is the blind?
 		 * What is its rotation?
@@ -1047,7 +849,12 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 * Only specify a spring if the BOM has one that has a range that the blind weight falls into,
 		 * IE no spring unless blind is heavy enough for the available springs
 		 */
-		 BigDecimal weight = MtmUtils.getHangingMass(wide, high, fabricID, bottomBarID, trxName);
+		 BigDecimal weight = Env.ZERO;
+		 if(useWeight)
+		 {
+			 weight = MtmUtils.getHangingMass(wide, high, fabricID, bottomBarID, trxName);
+		 }
+		 
 		 String rotation = MtmUtils.getRotation(rollTypeIns, controlSide);
 		 if(rotation == null || rotation == "")
 			 {

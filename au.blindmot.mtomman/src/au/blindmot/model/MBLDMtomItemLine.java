@@ -26,7 +26,6 @@ import org.compiere.util.Util;
 
 import au.blindmot.factories.BLDMtomMakeFactory;
 import au.blindmot.make.MadeToMeasureProduct;
-import au.blindmot.model.MBLDMtomCuts;
 
 public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 
@@ -612,7 +611,7 @@ return false;
  * 
  * @param pobj
  */
-	public void cleanupProductionLines(boolean isReversal) {
+	public void cleanupProductionLines(boolean isReversal, boolean isfirst) {
 		
 		log.warning("---------- In MBLDMtomItemLine.cleanupProductionLines()");
 		
@@ -637,7 +636,7 @@ return false;
 			}
 		}
 		BigDecimal productionQty = getProductionQty();
-		if(isReversal) 
+		if(isReversal && !isfirst)
 		{
 			productionQty = getProductionQty().negate();
 		}
@@ -654,5 +653,6 @@ return false;
 			
 		log.warning("At end of MBLDMtomItemLine.cleanupProductionLines()");
 	}
+
 	
 }

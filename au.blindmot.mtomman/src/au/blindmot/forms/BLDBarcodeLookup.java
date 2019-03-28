@@ -1,20 +1,16 @@
 package au.blindmot.forms;
 
-import org.adempiere.webui.adwindow.ADWindow;
-import org.adempiere.webui.adwindow.ADWindowContent;
 import org.adempiere.webui.apps.AEnv;
+import org.adempiere.webui.component.Label;
+import org.adempiere.webui.component.Textbox;
 import org.adempiere.webui.panel.ADForm;
-import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.window.FDialog;
-import org.compiere.model.GridTab;
 import org.compiere.model.MQuery;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
-import org.compiere.util.Env;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.Events;
-import org.zkoss.zul.Label;
-import org.zkoss.zul.Textbox;
+
 
 import au.blindmot.model.I_BLD_mtom_cuts;
 import au.blindmot.model.I_BLD_mtom_item_line;
@@ -49,7 +45,7 @@ public class BLDBarcodeLookup extends ADForm {
 		String id = barcodeText.substring(2);
 		if(id.length() != 7)
 		{
-			throw new AdempiereUserError("Barcode length incorrect.", "Is this is a Made to measure barcode?");
+			throw new AdempiereUserError("Barcode length incorrect. Is this is a Made to measure barcode?");
 		}
 		if(prefix.equalsIgnoreCase(MtmUtils.MTM_PRODUCTION_PREFIX))
 		{
