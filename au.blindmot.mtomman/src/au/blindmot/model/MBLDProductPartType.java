@@ -69,7 +69,7 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
 	sql.append("JOIN bld_product_parttype bpt ON bpt.m_parttype_id = mpt.m_parttype_id ");
 	sql.append("WHERE mpb.m_product_id = ? ");
 	sql.append("AND bpt.m_parttype_id = ? ");
-	sql.append("ORDER BY mp.name");
+	sql.append("ORDER BY mp.value");
 
 	PreparedStatement pstmt = null;
 	ResultSet rs = null;

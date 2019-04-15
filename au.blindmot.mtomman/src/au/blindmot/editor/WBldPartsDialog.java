@@ -51,6 +51,7 @@ import org.compiere.model.MProductCategory;
 import org.compiere.model.MQuery;
 import org.compiere.model.SystemIDs;
 import org.compiere.model.X_M_MovementLine;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -71,6 +72,7 @@ import org.zkoss.zul.impl.InputElement;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDProductPartType;
+import au.blindmot.utils.MtmUtils;
 
 
 /**
@@ -179,6 +181,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private Button		bSelect = new Button(); 
 	private Listbox		ctrlBox = null;
 	private Listbox		nCtrlBox = null;
+	private Listbox 	linkBox = null;
+	private Listbox		bracketBox = null;
 	private Listbox fieldLot = new Listbox();
 	//	Lot Popup
 	Menupopup 					popupMenu = new Menupopup();
@@ -194,7 +198,14 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private String m_columnName = null;
 	private boolean isChainControl = false;
 	private boolean isDualRoller = false;
+	private boolean isLink = false;
+	//private boolean isIdleLink = false;
 	private static String IS_CHAIN_CONTROL = "Is chain control";
+	private static String TUBULAR_NON_CONTROL = "TNCM";
+	private static String TUBULAR_BLIND_CONTROL = "Tubular blind control";
+	private static String BRACKET = "Roller bracket";
+	private static String LINK_BRACKET = "Roller link bracket";
+	private static String IS_LINK = "Is link";
 	private ArrayList<Listbox> chainArray = new ArrayList<Listbox>();
 
 	/**
@@ -294,6 +305,11 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			return false;
 		}
 		
+		/*
+		 * TODO Get the controlID here
+		 * Check if it's dual or single and set flag
+		 */
+		
 		else	//	Set Instance Attributes
 		{
 			Row row = new Row();
@@ -313,6 +329,9 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			rows.appendChild(row);
 			
 			MProductCategory  mProductCategory = new MProductCategory(Env.getCtx(),mProduct.getM_Product_Category_ID(), null);
+			
+			if(mProductCategory != null && mProduct != null)
+			{
 			if(mProduct.getClassification().equalsIgnoreCase("roller")||mProductCategory.getName().equalsIgnoreCase("Roller Blind"))
 			{
 				Row row1 = new Row();
@@ -320,6 +339,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				cbDualRoller.setLabel("Dual Roller");
 				cbDualRoller.addEventListener(Events.ON_CHECK, this);
 				rows.appendChild(row1);
+			}
 			}
 			
 			//	All Attributes
@@ -391,39 +411,69 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 
 	/**
 	 * 	Add Attribute Line
-	 *	@param partType attribute
+	 *	@param mBLDpartType attribute
 	 * 	@param product product level attribute
 	 * 	@param readOnly value is read only
 	 */
-	private void addAttributeLine (Rows rows, MBLDProductPartType partType, boolean product, boolean readOnly)
+	private void addAttributeLine (Rows rows, MBLDProductPartType mBLDpartType, boolean product, boolean readOnly)
 	{
-		log.warning("--------In WBldPartsDialog.addAttributeLine()) start --- partType: " + partType.toString());
-		log.warning("--------partType.getName(): " + partType.getName() + " partType.getDescription(): " + partType.getDescription());
+		log.warning("--------In WBldPartsDialog.addAttributeLine()) start --- partType: " + mBLDpartType.toString());
+		log.warning("--------partType.getName(): " + mBLDpartType.getName() + " partType.getDescription(): " + mBLDpartType.getDescription());
 		boolean tubularBlindControl = false;
 		boolean tNCM = false;
+		boolean isLinkControl = false;
+		boolean bracket = false;
 		//TODO: Change Attribute object to MBLDProductPartType
-		if (log.isLoggable(Level.FINE)) log.fine(partType + ", Product=" + product + ", R/O=" + readOnly);
+		if (log.isLoggable(Level.FINE)) log.fine(mBLDpartType + ", Product=" + product + ", R/O=" + readOnly);
 		
 		m_row++;
-		Label label = new Label (partType.getName());
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, mBLDpartType.getBLD_M_PartType_ID(), null);	//	optional = null
+		Label label = new Label (mBLDpartType.getName());
 		if (product)
 			label.setStyle("font-weight: bold");
-		log.warning("--------In WBldPartsDialog.addAttributeLine() Before if (partType.getDescription() != null) String desc = partType.getDescription() == " + partType.getDescription());	
-		if (partType.getName() != null)
+		log.warning("--------In WBldPartsDialog.addAttributeLine() Before if (partType.getDescription() != null) String desc = partType.getDescription() == " + mBLDpartType.getDescription());	
+		if (mBLDpartType.getName() != null)
 		{
-			String desc = partType.getName();
+			String desc = mBLDpartType.getName();
 			if(desc == null)
 			label.setTooltiptext(desc);
 			log.warning("--------In WBldPartsDialog.addAttributeLine() String desc = partType.getDescription() == " + desc);
-			if(desc.equalsIgnoreCase("Tubular Blind Control") || partType.getName().equalsIgnoreCase("Tubular blind control"))
+			if(desc.equalsIgnoreCase(TUBULAR_BLIND_CONTROL) || mBLDpartType.getName().equalsIgnoreCase(TUBULAR_BLIND_CONTROL))
 			{
 				log.warning("--------In WBldPartsDialog.addAttributeLine() tubularBlindControl = true");
 				tubularBlindControl = true;
+				//setIsDualFlag(mBLDpartType.get_ID());
+				//values = modifyDualTypes(values, isDualRoller);
 			}
-			if(desc.equalsIgnoreCase("TNCM") || partType.getName().equalsIgnoreCase("TNCM"))
+			if(desc.equalsIgnoreCase(TUBULAR_NON_CONTROL) || mBLDpartType.getName().equalsIgnoreCase(TUBULAR_NON_CONTROL))
 			{
 				log.warning("--------In WBldPartsDialog.addAttributeLine() TNCM = true");
+				//setIsDualFlag(mBLDpartType.get_ID());
 				tNCM = true;
+				//setIsLinkControlFlag();
+				//values = modifyDualTypes(values, isDualRoller);
+			}
+			if(desc.equalsIgnoreCase(LINK_BRACKET) || mBLDpartType.getName().equalsIgnoreCase(LINK_BRACKET))
+			{
+				log.warning("--------In WBldPartsDialog.addAttributeLine() isLinkControl = true");
+				setIsDualFlag(mBLDpartType.get_ID());
+				isLink = true;
+				values = modifyDualTypes(values, isDualRoller);
+			}
+			
+			if(desc.equalsIgnoreCase(IS_LINK) || mBLDpartType.getName().equalsIgnoreCase(IS_LINK))//Probably wont work
+			{
+				log.warning("--------In WBldPartsDialog.addAttributeLine() IS_LINK = true");
+				setIsDualFlag(mBLDpartType.get_ID());
+				isLink = true;
+				values = modifyDualTypes(values, isDualRoller);
+			}
+			if(desc.equalsIgnoreCase(BRACKET) || mBLDpartType.getName().equalsIgnoreCase(BRACKET))
+			{
+				log.warning("--------In WBldPartsDialog.addAttributeLine() IS_LINK = true");
+				setIsDualFlag(mBLDpartType.get_ID());
+				bracket = true;
+				values = modifyDualTypes(values, isDualRoller);
 			}
 			
 			
@@ -445,7 +495,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 		//TODO: Change to MProduct[] partType.getPartSetProducts(int mProductID, int mPartypeID, String trxName) 
 		
-			MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.getBLD_M_PartType_ID(), null);	//	optional = null
 			Listbox editor = new Listbox();
 			
 			if(tubularBlindControl == true)
@@ -460,18 +509,15 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				log.warning("---------line 458 editor");
 				ctrlBox = editor;
 				tubularBlindControl = false;
-				//TODO 
-				if(isDualRoller)
-				{
-					//Remove single bracket parts from MProduct[] values
-				}
-				else
-				{
-					//Remove dual bracket parts from MProduct[] values
-				}
+				
+				//modify/remove bracket parts from MProduct[] values
+				//values = modifyDualTypes(values, isDualRoller);
 				
 			}
 			
+			/**
+			 * Delete or deprecate
+			 */
 			if(tNCM == true)
 			{
 				log.warning("---------In WBldPartsDialog.addAttributeLine TNCM == true");
@@ -482,21 +528,48 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				editor.setId("TNCMBox");
 				editor.addEventListener(Events.ON_SELECT, this); 	
 				nCtrlBox  = editor;
-				tubularBlindControl = false;
-				if(isDualRoller)
-				{
-					//Remove single bracket parts from MProduct[] values
-				}
-				else
-				{
-					//Remove dual bracket parts from MProduct[] values
-				}
+				tNCM = false;
+			
+				//modify/remove bracket parts from MProduct[] values
+				//values = modifyDualTypes(values, isDualRoller);
 				
 			}
 			
+			if(isLink == true)
+			{
+				log.warning("---------In WBldPartsDialog.addAttributeLine IS_LINK == true");
+				if(editor != null)
+				{
+					log.warning("---------In WBldPartsDialog.addAttributeLine IS_LINK  == true, editor != null");
+				}
+				editor.setId("LinkBox");
+				editor.addEventListener(Events.ON_SELECT, this); 	
+				linkBox  = editor;
+				isLink = false;
+			
+				//modify/remove bracket parts from MProduct[] values
+				//values = modifyDualTypes(values, isDualRoller);
+				
+			}
+			
+			if(bracket == true)
+			{
+				log.warning("---------In WBldPartsDialog.addAttributeLine bracket == true");
+				if(editor != null)
+				{
+					log.warning("---------In WBldPartsDialog.addAttributeLine bracket  == true, editor != null");
+				}
+				editor.setId("bracketBox");
+				editor.addEventListener(Events.ON_SELECT, this); 	
+				bracketBox  = editor;
+				bracket = false;
+			}
+			
+			
+			
 			
 			//Add any chain related rows to chainArray
-			if(editor != null && partType.getName().contains("Chain"))
+			if(editor != null && mBLDpartType.getName().contains("Chain"))
 			{
 				chainArray.add(editor);
 			}
@@ -512,23 +585,23 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				m_editors.add (editor);
 			row.appendChild(editor);
 			ZKUpdateUtil.setHflex(editor, "1");
-			setListAttribute(partType, editor);
+			setListAttribute(mBLDpartType, editor);
 			
 			
 			
 		
 	}	//	addAttributeLine
 	
-	private ListItem getControlId()
+	private ListItem getControlId(Listbox ctrlOrTNCM)
 	{
-		if(ctrlBox == null)
+		if(ctrlOrTNCM == null)
 		{
 			log.warning("---------In WBldPartsDialog.getControlID(), ctrlBox == null");
 		}
 		
-		if(ctrlBox != null)
+		if(ctrlOrTNCM != null)
 		{
-			return ctrlBox.getSelectedItem();
+			return ctrlOrTNCM.getSelectedItem();
 		}
 		log.warning("---------In WBldPartsDialog.getControlID() returning null");
 		return null;
@@ -581,16 +654,20 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 * -> bld_product_parttype_id gets  m_product_id  which is list value.
 	 * 
 	 */
-	private void setListAttribute(MBLDProductPartType partType, Listbox editor) {
+	private void setListAttribute(MBLDProductPartType mBLDpartType, Listbox editor) {
 		boolean found = false;
 		
-		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partType.getBLD_M_PartType_ID(), null);	//	optional = null
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, mBLDpartType.getBLD_M_PartType_ID(), null);	//	optional = null
+			if(mBLDpartType.getName().equalsIgnoreCase(TUBULAR_BLIND_CONTROL) || mBLDpartType.getName().equalsIgnoreCase(TUBULAR_NON_CONTROL))
+			{
+				values = modifyDualTypes(values, isDualRoller);
+			}
 		
 		if(m_MbldLineProductsetInstanceID > 1)
 		{	
 			MBLDLineProductSetInstance mBLDlPSI  = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
 			MBLDLineProductInstance instance = 
-					mBLDlPSI.getMBLDLineProductInstance(m_MbldLineProductsetInstanceID, partType.get_ID());
+					mBLDlPSI.getMBLDLineProductInstance(m_MbldLineProductsetInstanceID, mBLDpartType.get_ID());
 		/*instance var below should be the instance for this parttype and m_MbldLineProductsetInstanceID
 		 * 
 		 */	
@@ -636,26 +713,50 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 								MProduct mProduct = (MProduct)setValue;
 								if(mProduct.get_ID() == prodID)
 								{		
+									found = true;
 									break;
 								}
 							}					
 						}
-						MProduct mProduct = (MProduct)editor.getValue();
-						log.warning("MProduct selected from list: " + mProduct.getName());
-						found = true;
+						
+						if(editor != null)
+						{
+							if(editor.getItemCount() > 0)
+							{
+								MProduct mProduct = (MProduct)editor.getValue();
+								log.warning("MProduct selected from list: " + mProduct.getName());
+							}
+							
+						}
+						
 						break;
 					}
 				}
 				if (found ){
-					if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " - found: " + instance);
+					
+					if(editor.getId().equalsIgnoreCase("bracketBox") || editor.getId().equalsIgnoreCase("linkBox"))
+					{
+						//Set IsDual flag
+						String isProductDual = (String) MtmUtils.getMattributeInstanceValue(prodID, MtmUtils.MTM_IS_DUAL, null);
+						if(isProductDual.equalsIgnoreCase("Yes"))
+						{
+							isDualRoller = true;
+						}
+						else 
+						{
+							isDualRoller = false;
+						}
+						cbDualRoller.setSelected(isDualRoller);
+					}
+					if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + mBLDpartType.getName() + " #" + values.length + " - found: " + instance);
 				} else {
-					log.warning("Attribute=" + partType.getName() + " #" + values.length + " - NOT found: " + instance);
+					log.warning("Attribute=" + mBLDpartType.getName() + " #" + values.length + " - NOT found: " + instance);
 				}
 			}	//	setComboBox
 			else
-				if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " no instance");
+				if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + mBLDpartType.getName() + " #" + values.length + " no instance");
 		} else {
-			if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + partType.getName() + " #" + values.length + " no instance");
+			if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + mBLDpartType.getName() + " #" + values.length + " no instance");
 	}
 }
 
@@ -705,13 +806,18 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		{
 			cmd_existingCombo();
 		}
-		else if (e.getTarget().getId().equalsIgnoreCase("controlBox"))
+		else if (e.getTarget().getId().equalsIgnoreCase("controlBox")/* || e.getTarget().getId().equalsIgnoreCase("TNCMBox")*/)
 		{
-			
 			log.warning("---------In WBldPartsDialog.onEvent()---e.getTarget().getId().equalsIgnoreCase(\"controlBox\")");
 			setChainControlFlag();
-			setActive();//Set the chain related Listboxes inactive	
+			setIsLinkControlFlag();
+			setChainEditorsActive();//Set the chain related Listboxes inactive	
+			setBracketEditorActive();
 			
+		}
+		else if (e.getTarget().getId().equalsIgnoreCase("LinkBox"))
+		{
+			//Set 
 		}
 		
 		//	OK
@@ -743,7 +849,38 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 */
 	private void cmd_dualRoller() {
 		isDualRoller = cbDualRoller.isChecked();
-		
+		MBLDLineProductSetInstance mbps = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
+		MBLDProductPartType[] partTypes1 =  mbps.getProductPartSet(m_M_Product_ID , null, true);
+		for(int q = 0; q < partTypes1.length; q++)
+		{
+			/*
+			if(partTypes1[q].getName().equalsIgnoreCase("TNCM"))
+			{
+				resetControlEditor(nCtrlBox, partTypes1[q].getBLD_M_PartType_ID());
+				setListAttribute(partTypes1[q], nCtrlBox);
+			}
+			*/
+			/*
+			else if(partTypes1[q].getName().equalsIgnoreCase(TUBULAR_BLIND_CONTROL))
+			{
+				resetControlEditor(ctrlBox, partTypes1[q].getBLD_M_PartType_ID());
+				setListAttribute(partTypes1[q], ctrlBox);
+			}
+			*/
+			/*else*/ if(partTypes1[q].getName().equalsIgnoreCase(BRACKET))
+			{
+				resetEditor(bracketBox, partTypes1[q].getBLD_M_PartType_ID());
+				setListAttribute(partTypes1[q], bracketBox);
+			}
+			else if(partTypes1[q].getName().equalsIgnoreCase(LINK_BRACKET))
+			{
+				resetEditor(linkBox, partTypes1[q].getBLD_M_PartType_ID());
+				setListAttribute(partTypes1[q], linkBox);
+			}	
+			
+		}
+		setChainEditorsActive();
+		setBracketEditorActive();
 		
 	}
 
@@ -799,7 +936,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			}
 		}
 		fieldDescription.setText("");
-		setActive();
+		setChainEditorsActive();
 	}
 
 	private void cmd_edit() {
@@ -816,7 +953,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		}
 		if(check)
 		{
-			setActive();
+			setChainEditorsActive();
+			setBracketEditorActive();
 		}
 		
 		
@@ -913,7 +1051,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		cbDualRoller.setEnabled(rw);
 		if(rw)
 		{
-			setActive();
+			setChainEditorsActive();
+			setBracketEditorActive();
 		}
 		
 	}	//	cmd_newEdit
@@ -1001,6 +1140,16 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 					//Don't save or create new and delete existing if it's chain control and a chain part type
 					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
 				}
+				if(editor.getId().equalsIgnoreCase("linkBox") && !isLink)
+				{
+					//Don't save or create new and delete existing if it's the link bracker listbox and it's not a link
+					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
+				}
+				if(editor.getId().equalsIgnoreCase("bracketBox") && isLink)
+				{
+					//Don't save or create new and delete existing if it's bracket and is a link
+					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
+				}
 				
 			//}
 				
@@ -1037,7 +1186,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				
 		}
 		return false;
-	}
+	}	//isChainPartType
 
 	/**************************************************************************
 	 * 	Get Instance ID
@@ -1081,7 +1230,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private void setChainControlFlag() 
 	{
 		log.warning("--------In WBldPartsDialog.setChainControlFlag()");
-		ListItem item = getControlId();
+		ListItem item = getControlId(ctrlBox);
 		if(item == null)
 		{
 			log.warning("--------In WBldPartsDialog.setChainControlFlag() isChainControl = false");
@@ -1090,14 +1239,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		}
 		
 		log.warning("---------setChainControlFlag(): " + item.toString());
-		//m_masi.setM_Lot_ID((Integer)pp.getValue());
 		MProduct value = item != null ? (MProduct)item.getValue() : null;
 		int controlID = value.get_ID();
 		if(controlID > 0)
 		{
 			MProduct product = new MProduct(Env.getCtx(), controlID, null);
 			int prodID = product.get_ID();
-			String attribute = getAttributeString(prodID, IS_CHAIN_CONTROL);
+			String attribute = (String) MtmUtils.getMattributeInstanceValue(prodID, IS_CHAIN_CONTROL, null);
 			if(attribute.equalsIgnoreCase("Yes")) 
 			{
 				log.warning("--------In WBldPartsDialog.setChainControlFlag()--- isChainControl = true;");
@@ -1111,30 +1259,61 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		}
 		
 		}
-	/**
-	 * 
-	 * @param mProductID
-	 * @param attributeName
-	 * @return
-	 */
-	public String getAttributeString (int mProductID, String attributeName) {
-
-		StringBuilder sql = new StringBuilder	("	SELECT value FROM m_attributeinstance ma ");
-		sql.append("WHERE ma.m_attributesetinstance_id = ");
-		sql.append("(SELECT m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ? ");
-		//sql.append(mProductID);
-		//sql.append(") ");
-		sql.append("AND ma.m_attribute_id = ");
-		sql.append("(SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name LIKE '");
-		sql.append(attributeName);
-		sql.append("'))");
-				
-		String attributeValue = DB.getSQLValueString(null, sql.toString(),mProductID);
-		
-		return attributeValue;
-		}
 	
-	private void setActive() {
+	private void setIsLinkControlFlag() {
+		
+		log.warning("--------In WBldPartsDialog.setIsLinkControlFlag()");
+		ListItem ctrlItem = getControlId(ctrlBox);
+		ListItem nonCtrlItem = getControlId(nCtrlBox);
+		if(ctrlItem != null && nonCtrlItem != null)
+		{
+			log.warning("--------In WBldPartsDialog.setIsLinkControlFlag()");
+		}
+		else
+		{
+			log.warning("--------In WBldPartsDialog.setIsLinkControlFlag() setIsLinkControl = false");
+			isLink = false;
+			return;
+		}
+		
+		log.warning("---------setIsLinkControlFlag(): " + ctrlItem.toString());
+		MProduct value = ctrlItem != null ? (MProduct)ctrlItem.getValue() : null;
+		MProduct ncValue = nonCtrlItem != null ? (MProduct)nonCtrlItem.getValue() : null;
+		int controlID = value.get_ID();
+		int nonControlID = ncValue.get_ID();
+		if(controlID > 0 && nonControlID > 0)
+		{
+			//MProduct product = new MProduct(Env.getCtx(), controlID, null);
+			int prodID = value.get_ID();
+			int ncProdID = ncValue.get_ID();
+			String attribute = (String) MtmUtils.getMattributeInstanceValue(prodID, IS_LINK, null);
+			String ncAttribute = (String) MtmUtils.getMattributeInstanceValue(ncProdID, IS_LINK, null);
+			if(attribute != null && attribute.equalsIgnoreCase("Yes")) 
+			{
+				log.warning("--------In WBldPartsDialog.setIsLinkControlFlag() setIsLinkControl = true;");
+				isLink = true;
+			}
+			else
+			{
+				log.warning("--------In WBldPartsDialog.setIsLinkControlFlag() setIsLinkControl = false;");
+				isLink = false;
+			}
+			/*
+			if(ncAttribute != null && ncAttribute.equalsIgnoreCase("Yes"))
+			{
+				log.warning("--------In WBldPartsDialog.setIsLinkControlFlag() setIsIdleLink = true;");
+				isIdleLink = true;
+			}
+			else
+			{
+				log.warning("--------In WBldPartsDialog.setIsLinkControlFlag() setIsIdleLink = false;");
+				isIdleLink = false;
+			}
+			*/
+		}
+	}
+
+	private void setChainEditorsActive() {
 		log.warning("--------In WBldPartsDialog.setActive()");
 		setChainControlFlag();
 		
@@ -1144,21 +1323,101 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		}
 	}
 	
-	private MProduct[] removeDualTypes(MProduct[] values, boolean isDual)
-	{
-		/*
-		 * /TODO: fill method
-		 * Cycle through array
-		 * get the partype
-		 * Use MtMUtils.getMattributeInstanceValue(int mProductID, String mAttributeName, String trxName) to determine if 
-		 * it's dual or otherwise
-		 * Add the values to keep to new ArrayList
-		 * convert ArrayList to array and return
-		 */
-		return values;
+	private void setBracketEditorActive() {
+		log.warning("--------In WBldPartsDialog.setBracketEditorActive()");
+		setIsLinkControlFlag();
+		
+		log.warning("--------In WBldPartsDialog.setBracketEditorActive()... isLink = " + isLink);
+		
+		if(bracketBox != null) 
+		{
+			bracketBox.setEnabled(!isLink);
+			log.warning("--------In WBldPartsDialog.setBracketEditorActive()... bracketBox = " + bracketBox.toString());
+		}
+		else
+		{
+			log.warning("--------In WBldPartsDialog.setBracketEditorActive()... bracketBox = NULL - check partype Roller bracket = 'Roller bracket' exactly");
+		}
+		if(linkBox != null)
+		{
+			linkBox.setEnabled(isLink);
+			log.warning("--------In WBldPartsDialog.setBracketEditorActive()... linkBox = " + linkBox.toString());
+		}
+		else
+		{
+			log.warning("--------In WBldPartsDialog.setBracketEditorActive()... linkBox = NULL - check partype Roller link bracket = 'Roller link bracket' exactly");
+		}
 		
 	}
 	
+	private MProduct[] modifyDualTypes(MProduct[] values, boolean isDual)
+	{
+		ArrayList<MProduct> modifiedList = new ArrayList<MProduct>();
+		for(int j = 0; j< values.length; j++)
+		{
+			String isProductDual = (String) MtmUtils.getMattributeInstanceValue(values[j].getM_Product_ID(), MtmUtils.MTM_IS_DUAL, null);
+			if(isProductDual != null)
+			{
+				if(isDual && (isProductDual.equalsIgnoreCase("Yes")||isProductDual.equalsIgnoreCase("Both")))
+				{
+					modifiedList.add(values[j]);
+				}
+				else if(!isDual && (isProductDual.equalsIgnoreCase("No")||isProductDual.equalsIgnoreCase("Both")))
+				{
+					modifiedList.add(values[j]);
+				}
+			}
+			else
+			{
+				MProduct noIsDualAttribute = new MProduct(Env.getCtx(), values[j].getM_Product_ID(), null);
+				throw new AdempiereUserError("No Is Dual Roller attribute found for BOM Product: " + noIsDualAttribute.getName() 
+				+ ". Check this product's attribute setup before continuing.");
+			}
+		}
+		
+		MProduct[] retValues = new MProduct[modifiedList.size()];
+		return modifiedList.toArray(retValues);
+	}
+	
+	
+	/**
+	 * Deprecate/delete
+	 * @param editor
+	 * @param partTypeID
+	 */
+	private void resetEditor(Listbox editor, int partTypeID) {
+		
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partTypeID, null);
+		values = modifyDualTypes(values, isDualRoller);
+		editor.removeAllItems();
+		for (MProduct value : values) 
+		{
+			ListItem item = new ListItem(value != null ? value.getName() : "", value);
+			editor.appendChild(item);
+		}
+		
+	}
+	 private void setIsDualFlag(int mbldpartTypeID) {
+		 MBLDProductPartType controlPart = new MBLDProductPartType(Env.getCtx(), mbldpartTypeID, null);
+		 MBLDLineProductInstance controlInstance = controlPart.getMBldLineProductInstance(m_MbldLineProductsetInstanceID);
+		 if(controlInstance != null)//will default to false if null
+		 {
+			 
+			 int intialControlID = controlInstance.getM_Product_ID();
+			 String isDualCtrl = (String) MtmUtils.getMattributeInstanceValue(intialControlID, MtmUtils.MTM_IS_DUAL, null);
+			 if(isDualCtrl != null)
+			 {
+				 if(isDualCtrl.equalsIgnoreCase("Yes"))
+				 {
+					 isDualRoller = true;
+				 }
+				 else
+				 {
+					 isDualRoller = false;
+				 }
+			 }
+		 }
+	 }
 	
 } //	WPAttributeDialog
 

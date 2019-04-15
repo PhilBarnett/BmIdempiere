@@ -22,7 +22,7 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts {
 	public static final String MTM_HEAD_RAIL_DEDUCTION = "Head Rail Deduction";
 	public static final String MTM_FABRIC_DEDUCTION = "Fabric deduction";
 	public static final String MTM_FABRIC_ADDITION = "Fabric length addition";
-	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar deduction";
+	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar addition";
 	final String transName = get_TrxName();
 	public MBLDMtomCuts(Properties ctx, ResultSet rs, String trxName) {
 		super(ctx, rs, trxName);
@@ -59,8 +59,8 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts {
 	sql.append(deductionType);
 	sql.append("')");
 			
-	BigDecimal deduction = new BigDecimal(DB.getSQLValueEx(trxName, sql.toString()));
-	if(deduction == null || deduction.compareTo(Env.ZERO) < 0)
+	int intDeduction = DB.getSQLValueEx(trxName, sql.toString());
+	if(intDeduction == -1 || intDeduction < 0)
 	{
 		MProduct m_Product = new MProduct(null, mProductID, trxName);
 		StringBuilder msg = new StringBuilder("There is no ");
@@ -70,8 +70,11 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts {
 		msg.append(" or the deduction is -ve");
 		throw new AdempiereUserError(msg.toString());
 	}
-	
-	return deduction;
+	else
+	{
+		BigDecimal deduction = new BigDecimal(intDeduction);
+		return deduction;
 	}
+ }
 
 }

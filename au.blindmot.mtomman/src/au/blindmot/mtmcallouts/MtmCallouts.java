@@ -12,17 +12,16 @@ import org.adempiere.base.IColumnCallout;
 import org.adempiere.base.IProductPricing;
 import org.adempiere.model.GridTabWrapper;
 import org.adempiere.webui.window.FDialog;
+import org.apache.commons.lang.StringUtils;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
 import org.compiere.model.I_C_OrderLine;
-import org.compiere.model.MDiscountSchema;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
 import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductPricing;
 import org.compiere.model.MRole;
 import org.compiere.model.MUOMConversion;
 import org.compiere.util.CLogger;
@@ -109,17 +108,51 @@ public class MtmCallouts implements IColumnCallout {
 					* ->Check for duplicates for the product.
 					*
 					*/
-					if(isPriceLocked(mTab)) return "";//Don't change qty fields if price is locked - no change to qty, no change to price.
+					
+					I_C_OrderLine orderLine = GridTabWrapper.create(mTab, I_C_OrderLine.class);
+					
+					//String lineID = Env.getContext(ctx, "copypk");
+					//int lineID = orderLine.getC_OrderLine_ID();
+					
+					
+					
+					
+					String context = ctx.toString();
+					
+					int index;
+					while(StringUtils.countMatches(context, "copypk") > 1)
+					{
+						index = context.indexOf("copypk");
+						context = context.substring(index+6);
+					}
+					
+					index = context.indexOf("copypk");
+					char[] destArray = new char[7];
+					context.getChars(index+7, index+14, destArray, 0);
+					String idstring = String.valueOf(destArray);
+					//int orderLineID = Integer.parseInt(String.valueOf(destArray));
+					
+					//TODO figure out if this is a copied record HINT: the above goes crazy if it's a new record
+					
+					/*
+					 * /TODO: Below needs to be if(isPriceLocked(mTab) && !isNewRecord) tricky bit is to determine if it's a new record
+					 * Try and just set field with old value?
+					 */
+					isGridPrice = mProduct.get_ValueAsBoolean("isgridprice");
+					if(isPriceLocked(mTab))
+						{
+							return "";//Don't change qty fields if price is locked - no change to qty, no change to price.
+						}
 					System.out.println("---------It's MASI column.");
 					BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth((int)value);
 			
 					if(l_by_w != null)
 						log.warning("------MTM Callouts Length: " + l_by_w[0] + " Width: " + l_by_w[1]);	
 					{
-						if(mProduct.get_ValueAsBoolean("isgridprice"))//Set qty from pricelist - grid pricing.
+						if(isGridPrice)//Set qty from pricelist - grid pricing.
 						{
 							isGridPrice = true;
-							setQtyReadOnly(mTab);//We set the qty to read only so user can't adjust grid price.
+							//setQtyReadOnly(mTab);//We set the qty to read only so user can't adjust grid price.
 							//int mPriceListVersionID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_Version_ID", true);
 							int M_PriceList_ID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_ID", true);
 							MPriceList pl = MPriceList.get(ctx, M_PriceList_ID, null);
@@ -282,7 +315,10 @@ public class MtmCallouts implements IColumnCallout {
 		}
 	}
 	
-	
+	/**
+	 * Possibly not required
+	 * @param mTab
+	 */
 	private void setQtyReadOnly(GridTab mTab) {
 		GridField[] fields = mTab.getFields();
 		for(int i=0; i<fields.length; i++)

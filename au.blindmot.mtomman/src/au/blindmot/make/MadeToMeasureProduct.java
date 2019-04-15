@@ -220,10 +220,10 @@ protected String trxName;
 		
 		log.warning("--------Calling MtmUtils.attributePreCheck(\"Waste\")");
 		MtmUtils.attributePreCheck("Waste");
-		log.warning("--------Calling MtmUtils.attributePreCheck(\"waste%\")");
-		MtmUtils.attributePreCheck("waste%");
-		log.warning("--------Calling MtmUtils.attributePreCheck(\"waste\")");
-		MtmUtils.attributePreCheck("waste");
+		//log.warning("--------Calling MtmUtils.attributePreCheck(\"waste%\")");
+		//MtmUtils.attributePreCheck("waste%");
+		//log.warning("--------Calling MtmUtils.attributePreCheck(\"waste\")");
+		//MtmUtils.attributePreCheck("waste");
 		int checkWaste = DB.getSQLValue(trxName, sql.toString());
 		if(checkWaste > 0) return checkWaste;
 		log.warning("---------No waste attribute found for MProuctID: " + mprodID + " Returning waste = " + waste);

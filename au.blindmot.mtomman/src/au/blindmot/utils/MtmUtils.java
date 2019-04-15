@@ -26,9 +26,10 @@ public class MtmUtils {
 	public static final String MTM_HEAD_RAIL_DEDUCTION = "Head Rail Deduction";
 	public static final String MTM_FABRIC_DEDUCTION = "Fabric deduction";
 	public static final String MTM_FABRIC_ADDITION = "Fabric length addition";
-	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar deduction";
+	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar addition";
 	public static final String MTM_CLOCKWISE = "Clockwise";
 	public static final String MTM_ANTI_CLOCKWISE = "Anti clockwise";
+	public static final String MTM_IS_DUAL = "Is dual";
 	private static CLogger log = CLogger.getCLogger(MtmUtils.class);
 	
 	public MtmUtils() {
@@ -168,10 +169,10 @@ public class MtmUtils {
 	
 	public static String getRotation(String rollTypeIns, String controlSide) {
 		if(rollTypeIns==null || controlSide==null)return "";
-		if(rollTypeIns.equalsIgnoreCase("NR")&&controlSide.equalsIgnoreCase("Left")) return MTM_CLOCKWISE;
-		if(rollTypeIns.equalsIgnoreCase("RR")&&controlSide.equalsIgnoreCase("Left")) return MTM_ANTI_CLOCKWISE;
-		if(rollTypeIns.equalsIgnoreCase("NR")&&controlSide.equalsIgnoreCase("Right")) return MTM_ANTI_CLOCKWISE;
-		if(rollTypeIns.equalsIgnoreCase("RR")&&controlSide.equalsIgnoreCase("Right"))return MTM_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("NR")||rollTypeIns.equalsIgnoreCase("Normal roll")&&controlSide.equalsIgnoreCase("Left")) return MTM_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("RR")||rollTypeIns.equalsIgnoreCase("Reverse roll")&&controlSide.equalsIgnoreCase("Left")) return MTM_ANTI_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("NR")||rollTypeIns.equalsIgnoreCase("Normal roll")&&controlSide.equalsIgnoreCase("Right")) return MTM_ANTI_CLOCKWISE;
+		if(rollTypeIns.equalsIgnoreCase("RR")||rollTypeIns.equalsIgnoreCase("Reverse roll")&&controlSide.equalsIgnoreCase("Right"))return MTM_CLOCKWISE;
 		return "";
 	}
 
@@ -284,7 +285,7 @@ public static BigDecimal hasLength(int masi_id) {
 
 public static Object getMattributeInstanceValue(int mProductID, String mAttributeName, String trxName) {
 	
-	List<Object> params = new ArrayList<Object>();
+List<Object> params = new ArrayList<Object>();
 	params.add(mProductID);
 	params.add(mAttributeName);
 	StringBuilder sql = new StringBuilder("SELECT mai.value ");
@@ -326,13 +327,13 @@ public static void attributePreCheck(String attributeType) {
 	 sql.append("' ");
 	 sql.append("AND m_attribute.isactive = 'Y'");
 	 
-	 if(getRowCount(sql.toString()) > 1)
+	 if(getRowCount(sql.toString()) != 1)
 		 {
-		 StringBuilder msg = new StringBuilder("There is more than one Attribute for the attibute type: ");
+		 StringBuilder msg = new StringBuilder("There is NONE or more than one Attribute for the attibute type: ");
 		 msg.append(attributeType);
 		 msg.append(". Check the Attributes that match or are close to ");
 		 msg.append(attributeType);
-		 msg.append(" and reconfigure so there is only one.");
+		 msg.append(" and reconfigure so there is one only.");
 		 throw new AdempiereUserError(msg.toString());
 		 }
 	 

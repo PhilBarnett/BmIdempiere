@@ -131,6 +131,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			if(orderLine.get_Value("copypk") == null)//It's a new record.
 				{
 					orderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
+					log.warning("-------Setting column copypk with value: " + orderLine.get_ID());
 					orderLine.saveEx(trxName);
 				}
 			
@@ -146,6 +147,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					{
 					copyBldProductInstance(copyFromOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),  orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), mProductID);
 					System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
+					orderLine.setLineNetAmt(copyFromOrderLine.getLineNetAmt());
 					orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.saveEx();
 					}
@@ -166,12 +168,16 @@ public class MBLDEventHandler extends AbstractEventHandler {
 								return result;
 							 */
 							BigDecimal l_by_w[] = MtmUtils.hasLengthAndWidth((int)mAttributeInstanceID);
-							if(l_by_w != null)
+							if(!mProduct.get_ValueAsBoolean("isgridprice"))//Don't set the qtyentered for grid price items
+							{
+								
+								if(l_by_w != null)
 								{
 									BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2);
 									System.out.println(area);	
 									orderLine.setQtyEntered(area);	
 								}
+							}
 							
 							if(l_by_w == null)//Check if it has length only
 								{

@@ -120,7 +120,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 * 
 	 */
 	public boolean getCuts() {
-		
+		log.warning("---------In getCuts()");
 		/*
 		 * /TODO: get the fabricID, rollerTubeID, bottomBarID from BOM lines in case they've been edited by user.
 		 * TODO: Modify to iterate through BOM derived and cut as appropriate:
@@ -132,7 +132,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	    //setInstanceFields();//Sets instance fields from the instance_string column
 	    setUserSelectedPartIds();
 	    setChainControl(controlID);
-		populatePartTypes(m_product_id);//Gets the ArrayLists of parts
+		populatePartTypes(m_product_id);//Gets the ArrayLists of partsget
 		//setValueProductID();//Currently Set roller tube ID based on blind width only
 		
 		//Get a value for field fabricWidth & fabricDrop
@@ -158,6 +158,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			}
 		
 		int rollerTID = getBomProductID(ROLLER_TUBE);
+		log.warning("--------Roller tube ID found: " + rollerTID);
 		int rollerIDToUse = 0;
 		if(rollerTID > 0)
 		{
@@ -170,7 +171,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 		if(rollerIDToUse !=0 )
 			{
-				addBldMtomCuts(rollerIDToUse,Env.ZERO,getRollerTubeCut(wide),0);			
+				addBldMtomCuts(rollerIDToUse,Env.ZERO,getRollerTubeCut(wide),0);
+				log.warning("--------addBldMtomCuts Adding roller tube to cuts: " + rollerIDToUse);
 			}
 		
 		int bottombarIDToUse = 0;
@@ -259,8 +261,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 		setUserSelectedPartIds();
 		addMtmInstancePartsToBomDerived();
 		populatePartTypes(m_product_id) ;
+		setChainControl(controlID);//Must be called before setAutoSelectedPartIds()
 		setAutoSelectedPartIds();
-		setChainControl(controlID);
 		
 		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
 		
@@ -749,7 +751,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 MtmUtils.attributePreCheck(MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
 		//Note: MTM_BOTTOM_BAR_DEDUCTION is part of parent product non instance attribute.
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
-		 fabricWidth = fabricWidth.subtract(MBLDMtomCuts.getDeduction(m_product_id, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName));
+		 fabricWidth = fabricWidth.add(MBLDMtomCuts.getDeduction(m_product_id, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName));
 		 return fabricWidth;
 	 }
 	 
@@ -805,8 +807,10 @@ public class RollerBlind extends MadeToMeasureProduct{
 	  * @return
 	  */
 	 public int getBomProductID(String partType) {
+		 log.warning("---------In getBomProductID(String partType)---> String partType = " + partType);
 		 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
-		
+		 log.warning("--------In getBomProductID() bomDerived: " + bomDerived.toString());
+		 
 		 for(int p = 0; p < bomDerived.length; p++)
 		 {
 			 int productID = bomDerived[p].getM_Product_ID();
@@ -818,7 +822,11 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 			 if(partName != null)
 			 {
-				if(partName.equalsIgnoreCase(partType)) return productID; 
+				 if(partName.equalsIgnoreCase(partType)) 
+				 {
+					 log.warning("---------returning mProduct: " + mProduct.getName() + "For parttype: " + partType);
+					 return productID; 
+				 }
 			 }
 			 else
 			 {
@@ -861,7 +869,9 @@ public class RollerBlind extends MadeToMeasureProduct{
 			 	log.warning("Could not determine rotation of ID: " + mtom_item_line_id + ", check control side.");
 			 	return 0;
 			 }
-		 
+		 MtmUtils.attributePreCheck("Lift Spring capacity lower");
+		 MtmUtils.attributePreCheck("Lift Spring capacity upper");
+		 MtmUtils.attributePreCheck("Lift Spring rotation");
 		 if(liftSpring.isEmpty())return 0;
 		 for(KeyNamePair spring : liftSpring) 
 		 {
@@ -869,20 +879,26 @@ public class RollerBlind extends MadeToMeasureProduct{
 			 String lowerLimit = (String) MtmUtils.getMattributeInstanceValue(springID, "Lift Spring capacity lower", trxName);
 			 String upperLimit = (String) MtmUtils.getMattributeInstanceValue(springID, "Lift Spring capacity upper", trxName);
 			 String springRotation = (String) MtmUtils.getMattributeInstanceValue(springID, "Lift Spring rotation", trxName);
+		     if(springRotation != null && upperLimit != null && lowerLimit != null)
+		     {
 		     BigDecimal lower = new  BigDecimal(lowerLimit); 
 		     BigDecimal upper = new  BigDecimal(upperLimit);
 		     int retval = weight.compareTo(lower);
 		     int retval2 = weight.compareTo(upper);
-		     if(retval > 0 && retval2 <0)//The blind weight is in the correct range of the spring
-		     {
-		    	 if(springRotation.equalsIgnoreCase(rotation))
-		    	 {
-		    		return springID; 
-		    	 }
-		    	 
+		     if(!useWeight || retval > 0 && retval2 <0)//The blind weight is in the correct range of the spring or we're not using weight
+			     { 
+			    	 if(rotation != null || rotation != "")
+			    	 {
+				    	 if(springRotation.equalsIgnoreCase(rotation))
+					    	 {
+					    		return springID; 
+					    	 }
+				     }
+			     }
 		     }
+			 
 		 }
-		 
+		 log.warning("Could not resolve lift spring for product: " +  m_product_id + ". Check the attributes for BOM lift springs for this product");
 		 return 0;
 		 
 	 }
@@ -929,6 +945,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 * m_parttype_id
 		 * @param m_product_id
 		 */
+	 /*
 		private void setPartIDs(int m_product_id) 
 		{
 			StringBuilder sql = new StringBuilder("SELECT mp.m_parttype_id, mp.m_product_id, mp.name ");
@@ -951,7 +968,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			 * 
 			 */
 			
-		
+		/*
 			
 			List<String> mpName = new ArrayList<String>();
 			List<Integer> partIDs = new ArrayList<Integer>();
@@ -1033,7 +1050,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 				}
 				
 				
-	}
+	} */
 		
 private MBLDLineProductInstance[] getMBLDLineProductInstance() {
 	int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
@@ -1075,7 +1092,7 @@ public void setChainControl(int controlProductID) {
 @Override
 public List<String> getConfig() {
 	ArrayList <String> config = new ArrayList<String>();
-	config.add("Attribute: Bottom bar deduction - The negative number to add to fabric to get the bottom bar length.");
+	config.add("Attribute: Bottom bar addition - The number to add to fabric to get the bottom bar length.");
 	config.add("Attribute: Fabric deduction - Deduction relative to tube, usually -ve");
 	config.add("Attribute: Fabric length addition - How much extra to add to fabric cut relative to the length of a blind.");
 	config.add("Instance Attribute: Width");
