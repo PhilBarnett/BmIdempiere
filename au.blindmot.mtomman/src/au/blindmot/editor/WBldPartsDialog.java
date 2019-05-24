@@ -332,14 +332,14 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			if(mProductCategory != null && mProduct != null)
 			{
-			if(mProduct.getClassification().equalsIgnoreCase("roller")||mProductCategory.getName().equalsIgnoreCase("Roller Blind"))
-			{
-				Row row1 = new Row();
-				row1.appendChild(cbDualRoller);
-				cbDualRoller.setLabel("Dual Roller");
-				cbDualRoller.addEventListener(Events.ON_CHECK, this);
-				rows.appendChild(row1);
-			}
+				if(mProduct.getClassification().equalsIgnoreCase("roller")||mProductCategory.getName().equalsIgnoreCase("Roller Blind"))
+				{//Add dual roller option if it's a roller blind.
+					Row row1 = new Row();
+					row1.appendChild(cbDualRoller);
+					cbDualRoller.setLabel("Dual Roller");
+					cbDualRoller.addEventListener(Events.ON_CHECK, this);
+					rows.appendChild(row1);
+				}
 			}
 			
 			//	All Attributes

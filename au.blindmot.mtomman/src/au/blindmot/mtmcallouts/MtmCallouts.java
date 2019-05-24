@@ -176,6 +176,7 @@ public class MtmCallouts implements IColumnCallout {
 							sql.append(mMproductID);
 							sql.append(" AND mb.m_pricelist_version_id = ");
 							sql.append(mPriceListVersionID);
+							sql.append(" ORDER BY mb.value_two ASC, mb.value_one ASC");
 							sql.append(" FETCH FIRST 1 ROWS ONLY");
 							
 							BigDecimal breakval = null;
