@@ -284,6 +284,16 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 * Determine if the MBLDProductNonSelect matches the size of current item. 
 		 * If it does, call a method based on each MBLDProductNonSelect operation type to modify BOM lines
 		 * EG performSubstitution(subProduct, addProduct) performAdd(addProduct) performConditionSet(conditionSet)
+		 * A basic form of this perhaps should go in the abstract class MadeToMeasureProduct? And handle 
+		 * stuff like 
+		 * if(addPartType.getName().equalsIgnoreCase("Roller tube"))
+							 {
+								log.warning("Roller tube cut = " + getRollerTubeCut(wide));
+								BigDecimal waste = new BigDecimal(getWaste(addID));
+								BigDecimal rollerTubeQty = getRollerTubeQty(addID);
+								addMBLDBomDerived(addID, rollerTubeQty, "Procesed with waste factor of: " + (rollerTubeQty.multiply(waste)));
+							 }
+							 inside the RollerBlind class?
 		 */
 		MBLDProductPartType[] mBLDProductPartTypeArray = getMBLDProductPartTypeLines();
 		for(int j = 0; j < mBLDProductPartTypeArray.length; j++)
@@ -344,7 +354,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 						 //perform conditon set
 						 if(mBLDPNonSelectArray[x].getcondition_set().equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_CONDITION_HAS_LIFT_SPRING))
 						 {
-							 if(isChainControl) 
+							 if(isChainControl)//Add a lift spring if it's chain controlled
 								{
 									int liftID = getLiftSpring(false);
 									if(liftID  > 0)addBomDerivedLines(liftID, null);	
