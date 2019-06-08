@@ -43,7 +43,7 @@ import org.compiere.util.EMail;
 /**
  * Print Remittance Advices on paper or send PDFs
  * 
- * @author Nikunj
+ * @author Nikunj Idempiere port Phil Barnett
  *
  */
 public class RemittanceAdvicesPrint extends SvrProcess {
