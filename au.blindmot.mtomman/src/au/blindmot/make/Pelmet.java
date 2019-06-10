@@ -42,7 +42,7 @@ public class Pelmet extends MadeToMeasureProduct {
 		setUserSelectedPartIds();
 		if(pelmetAngleID != 0)
 		{
-			addBldMtomCuts(pelmetAngleID, wide, 0, 0);
+			addBldMtomCuts(pelmetAngleID, 0, wide, 0);
 			
 		}
 		//Pelmet has only one bom line plus returns?
@@ -82,7 +82,7 @@ public class Pelmet extends MadeToMeasureProduct {
 		return false;
 	}
 
-	@Override
+	@Override//Necessary?
 	public void interpretMattributeSetInstance() {
 			AttributePair[] attributePair = getMAttributeSetInstance();
 			String mInstance;
