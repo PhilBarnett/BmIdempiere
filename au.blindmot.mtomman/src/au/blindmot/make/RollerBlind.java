@@ -205,7 +205,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 *will need to be set.
 		 */
 		
-	}
+	}//getCuts
 
 	private int getFabricLengthAddition(int m_product_id) {
 
@@ -237,7 +237,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 				throw new AdempiereUserError("Could not find attribute; " + FABRIC_LENGTH_ADDITION + "In product:" + mProduct.getName());
 			}   
 			   return value;
-	}
+	}//getFabricLengthAddition
 
 
 	@Override
@@ -262,12 +262,12 @@ public class RollerBlind extends MadeToMeasureProduct{
 		addMtmInstancePartsToBomDerived();
 		populatePartTypes(m_product_id) ;
 		setChainControl(controlID);//Must be called before setAutoSelectedPartIds()
-		setAutoSelectedPartIds();
+		//setAutoSelectedPartIds();//Moved method call to MBLDMtomItemLine
 		
 		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
 		
 		return true;
-	}
+	}//createBomDerived()
 
 	/**
 	 * Get a list of auto selected parttypes
@@ -276,8 +276,10 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 * Determine if the MBLDProductNonSelect matches the size of current item. 
 		 * If it does, call a method based on each MBLDProductNonSelect operation type to modify BOM lines
 		 * EG performSubstitution(subProduct, addProduct) performAdd(addProduct) performConditionSet(conditionSet)
+	 * @return 
 	 */
-	public void setAutoSelectedPartIds() {
+	@Override
+	public boolean setAutoSelectedPartIds() {
 		/*Get a list of auto selected parttypes
 		 * iterate through list - for each item, 
 		 * get the MBLDProductNonSelect[] MBLDProductPartType.getMBLDProductNonSelectLines(int mBLDProductPartTypeID, String trxn))
@@ -376,14 +378,15 @@ public class RollerBlind extends MadeToMeasureProduct{
 					 }
 				 }
 			 }
-		}	
-	}
+		}
+		return true;
+	}//setAutoSelectedPartIds()
 
 	@Override
 	public boolean deleteBomDerived() {
 		// TODO Auto-generated method stub
 		return true;
-	}
+	}//deleteBomDerived
 
 
 	@Override
@@ -399,7 +402,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	}
 
 		return true;
-	}
+	}//deleteCuts
 	
 	/**
 	 * Searches for all the BOM parts from product with m_product_id
@@ -407,8 +410,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 * m_parttype_id
 	 * @param m_product_id
 	 */
-	private void populatePartTypes(int m_product_id) 
-	{
+	private void populatePartTypes(int m_product_id) {
 		StringBuilder sql = new StringBuilder("SELECT mp.m_parttype_id, mp.m_product_id, mp.name ");
 		sql.append("FROM m_product mp INNER JOIN m_product_bom mpb ");
 		sql.append("ON mp.m_product_id = mpb.m_productbom_id ");
@@ -479,9 +481,12 @@ public class RollerBlind extends MadeToMeasureProduct{
 			}
 			
 			
-		}
+		}//populatePartTypes
 	
 	
+	/**
+	 * 
+	 */
 	private void setValueProductID() {
 		
 		/*Following need to be determined
@@ -588,7 +593,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 				
 			} else if(mProductBomid == fabricID)
 			{
-				qty = getFabricQty();//TODO: Change fabricQty to getFabricQty() as fabricQty is set in getCuts() which is poor coding.
+				qty = getFabricQty();
 				if(qty != BigDecimal.ZERO)
 				{
 					return qty;
@@ -620,7 +625,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 		return bigQty;
 		
-	}
+	}//getBomQty
 	
 
 	
@@ -630,6 +635,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 * @param instanceParse
 	 * @return
 	 */
+	/*
 	private int resolveComponents(ArrayList<KeyNamePair> parts, String instanceParse) {
 	
 		int part_ID = 0;
@@ -655,7 +661,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 		log.warning(instanceParse + partDescription + "---------------Could not resolve component from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
 	}
 		return part_ID;
-	}
+	}//resolveComponents
+	*/
 	
 	/**
 	 * Sets fields from parts that users can select from the part dialog selection.
@@ -696,7 +703,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 					bottomBarID = mProductId;
 				}
 		}
-    }
+    }//setUserSelectedPartIds
 	
 	private void addBomDerivedLines(int partProduct_id, String description){
 		if(partProduct_id != 0)
@@ -704,7 +711,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			addMBLDBomDerived(partProduct_id, getBomQty(partProduct_id), description);
 		}
 		
-	}
+	}//addBomDerivedLines
 	
 	protected void addBldMtomCuts(int mProductID, BigDecimal width, BigDecimal length, int height){
 		BigDecimal bigWidth = width;
@@ -721,7 +728,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			cut.saveEx();
 		}
 		
-	}
+	}//addBldMtomCuts
 
 	 
 	 public ArrayList <Integer> getHeadRailComps() {
@@ -741,7 +748,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 	}
 	 	
 		return headRailComps;
-	 }
+	 }//getHeadRailComps
 	 
 	 public BigDecimal getRollerTubeCut(int width) {
 		 BigDecimal bigWidth = new BigDecimal(width);
@@ -753,7 +760,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 log.warning("---------In getRollerTubeCut() Deductions from MBLDMtomCuts.getDeductions(getHeadRailComps(), MtmUtils.MTM_HEAD_RAIL_DEDUCTION, trxName: " + deductions.toString());
 		 bigWidth = bigWidth.subtract(deductions);
 		 return bigWidth;
-	 }
+	 }//getRollerTubeCut
 	 
 	 public BigDecimal getBottomBarCut() {
 		 BigDecimal fabricWidth = getFabricWidth();
@@ -763,7 +770,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 log.warning("About to call static method MBLDMtomCuts.getDeduction with deduction type: " + MtmUtils.MTM_BOTTOM_BAR_DEDUCTION);
 		 fabricWidth = fabricWidth.add(MBLDMtomCuts.getDeduction(m_product_id, MtmUtils.MTM_BOTTOM_BAR_DEDUCTION, trxName));
 		 return fabricWidth;
-	 }
+	 }//getBottomBarCut
 	 
 	 public BigDecimal getFabricWidth() {
 		 BigDecimal fabWidth = getRollerTubeCut(wide);
@@ -774,7 +781,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		  * as a non instance attribute.*/
 		 fabWidth = fabWidth.subtract(MBLDMtomCuts.getDeduction(m_product_id, MtmUtils.MTM_FABRIC_DEDUCTION,trxName));
 		 return fabWidth;
-	 }	
+	 }//getFabricWidth
 
 	 public BigDecimal getFabricDrop() {
 		 BigDecimal bigHigh = new BigDecimal(high);
@@ -784,7 +791,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 //Note: MTM_FABRIC_ADDITION is part of parent product non instance attribute.
 		 bigHigh = bigHigh.add(MBLDMtomCuts.getDeduction(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName));
 		 return  bigHigh;
-	 }
+	 }//getFabricDrop
 	 
 	 public BigDecimal getFabricQty() {
 		 	BigDecimal fwidth = getFabricWidth().divide(oneThousand);
@@ -794,7 +801,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
 			qty.setScale(4, BigDecimal.ROUND_CEILING);
 			return qty;
-	 }
+	 }//getFabricQty
 	 
 	 public BigDecimal getRollerTubeQty(int rtubeID) {
 		 	BigDecimal qty = getRollerTubeCut(wide);
@@ -808,7 +815,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			BigDecimal waste = new BigDecimal(getWaste(bottomBarID));
 			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
 			return qty;
-	 }
+	 }//getRollerTubeQty
 	 
 	 /**
 	  * This method gets the BOM line product IDs and was part of a refactor 
@@ -845,7 +852,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			 
 		 }
 		 return 0;
-	 }
+	 }//getBomProductID
 	 
 	 private RowSet getmAttributeInstances(int mAttributeSetinstanceID)
 		{
@@ -856,7 +863,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			
 			RowSet rowset = DB.getRowSet(sql.toString());
 			return rowset;
-		}
+		}//getmAttributeInstances
 	 
 	 private int getLiftSpring(boolean useWeight) {
 		/*
@@ -911,43 +918,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 log.warning("Could not resolve lift spring for product: " +  m_product_id + ". Check the attributes for BOM lift springs for this product");
 		 return 0;
 		 
-	 }
-	 private void deductionPreCheck(String deductionType) {
-		 StringBuilder sql = new StringBuilder();
-		 sql.append("SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name = '");
-		 sql.append(deductionType);
-		 sql.append("'");
-		 
-		 if(getRowCount(sql.toString()) > 1)
-			 {
-			 StringBuilder msg = new StringBuilder("There is more than one Attribute for the deduction type: ");
-			 msg.append(deductionType);
-			 msg.append(". Check the Attributes that match or are close to ");
-			 msg.append(deductionType);
-			 msg.append(" and reconfigure.");
-			 throw new AdempiereUserError(msg.toString());
-			 }
-		 
-		
-	 }
+	 }//getLiftSpring
 	 
-	 private int getRowCount(String sql) {
-		 RowSet rowset = DB.getRowSet(sql.toString());
-		 int rowCount = 0;
-		 try
-		 {
-			 while(rowset.next() )
-				{
-				 rowCount++;
-				}
-		 }
-		 catch (SQLException e)
-		 {
-			 log.severe("Could not get values for query" + e.getMessage());
-				e.printStackTrace();
-		 } 
-		 return rowCount;
-	 }
 	 
 	 /**
 		 * Searches for all the BOM parts from product with m_product_id
@@ -1062,24 +1034,30 @@ public class RollerBlind extends MadeToMeasureProduct{
 				
 	} */
 		
-private MBLDLineProductInstance[] getMBLDLineProductInstance() {
+/*private MBLDLineProductInstance[] getMBLDLineProductInstance() {
 	int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
 	MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
 	return mBLDLineProductInstance;
-}
-
-private void addMtmInstancePartsToBomDerived() {
+}//getMBLDLineProductInstance
+*/
+	 
+	 
+/**
+ * 
+ */
+public boolean addMtmInstancePartsToBomDerived() {
 	MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance();
-	
+														
 	for(int i = 0; i < mBLDLineProductInstance.length; i++)
 	{
 		int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
 		BigDecimal qty = getBomQty(mProductId);
 		addMBLDBomDerived(mProductId, qty, trxName);
 	}
-}
+	return true;
+}//addMtmInstancePartsToBomDerived
 /**
- * //TODO: Possibly should be a boolean field in the m_product table ischaincontrol
+ *
  * @param controlProductID
  */
 
@@ -1097,19 +1075,19 @@ public void setChainControl(int controlProductID) {
 			isChainControl = false;
 		}
 	}
-}
+}//setChainControl
 
 @Override
 public List<String> getConfig() {
-	ArrayList <String> config = new ArrayList<String>();
-	config.add("Attribute: Bottom bar addition - The number to add to fabric to get the bottom bar length.");
-	config.add("Attribute: Fabric deduction - Deduction relative to tube, usually -ve");
-	config.add("Attribute: Fabric length addition - How much extra to add to fabric cut relative to the length of a blind.");
-	config.add("Instance Attribute: Width");
-	config.add("Instance Attribute: Drop");
-	config.add("Instance Attribute: Blind control side - List: Left, Right");
-	config.add("Instance Attribute: Roll Type - List: NR, RR");
-	return config;
-}
+		ArrayList <String> config = new ArrayList<String>();
+		config.add("Attribute: Bottom bar addition - The number to add to fabric to get the bottom bar length.");
+		config.add("Attribute: Fabric deduction - Deduction relative to tube, usually -ve");
+		config.add("Attribute: Fabric length addition - How much extra to add to fabric cut relative to the length of a blind.");
+		config.add("Instance Attribute: Width");
+		config.add("Instance Attribute: Drop");
+		config.add("Instance Attribute: Blind control side - List: Left, Right");
+		config.add("Instance Attribute: Roll Type - List: NR, RR");
+		return config;
+	}//getConfig()
 
-}
+}//RollerBlind

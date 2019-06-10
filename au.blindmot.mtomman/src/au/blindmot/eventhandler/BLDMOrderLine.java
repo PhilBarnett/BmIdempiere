@@ -27,7 +27,7 @@ public class BLDMOrderLine extends MOrderLine {
 	 *	@return true if it can be saved
 	 */
 	
-	
+	@Override
 	protected boolean beforeSave (boolean newRecord)
 	{
 		return true;

@@ -143,7 +143,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 	
 	public boolean addBomDerived() {
 		MadeToMeasureProduct mTmProduct = BLDMtomMakeFactory.getMtmProduct(getM_Product_ID(), getbld_mtom_item_line_ID(), get_TrxName());
-		if(mTmProduct.createBomDerived()) return true;
+		if(mTmProduct.createBomDerived() && mTmProduct.setAutoSelectedPartIds()) return true;
 		return false;
 	}
 	

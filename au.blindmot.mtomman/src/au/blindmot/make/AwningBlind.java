@@ -52,4 +52,22 @@ public class AwningBlind extends MadeToMeasureProduct {
 		return null;
 	}
 
+	/* (non-Javadoc)
+	 * @see au.blindmot.make.MadeToMeasureProduct#setAutoSelectedPartIds()
+	 */
+	@Override
+	public boolean setAutoSelectedPartIds() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	/* (non-Javadoc)
+	 * @see au.blindmot.make.MadeToMeasureProduct#addMtmInstancePartsToBomDerived()
+	 */
+	@Override
+	public boolean addMtmInstancePartsToBomDerived() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 }

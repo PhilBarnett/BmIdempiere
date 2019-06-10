@@ -118,6 +118,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			options[index++] = DocumentEngine.ACTION_Complete;
 			options[index++] = DocumentEngine.ACTION_Prepare;
 			options[index++] = DocumentEngine.ACTION_Void;
+			options[index++] = DocumentEngine.ACTION_Unlock;
 
 			// If the document is already completed, we also want to be able to void it instead of only closing it
 		} else if (docStatus.equals(DocumentEngine.STATUS_Completed)) {

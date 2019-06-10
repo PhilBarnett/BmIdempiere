@@ -330,7 +330,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			MProductCategory  mProductCategory = new MProductCategory(Env.getCtx(),mProduct.getM_Product_Category_ID(), null);
 			
-			if(mProductCategory != null && mProduct != null)
+			if(mProductCategory.getName() != null && mProduct.getClassification() != null)
 			{
 				if(mProduct.getClassification().equalsIgnoreCase("roller")||mProductCategory.getName().equalsIgnoreCase("Roller Blind"))
 				{//Add dual roller option if it's a roller blind.

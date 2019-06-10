@@ -3,8 +3,10 @@
  */
 package au.blindmot.factories;
 
+import org.compiere.model.MProduct;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
+import org.compiere.util.Env;
 
 import au.blindmot.make.AwningBlind;
 import au.blindmot.make.MadeToMeasureProduct;
@@ -32,7 +34,12 @@ public class BLDMtomMakeFactory {
 		 
 		 if(classification == null)
 		 {
-			 throw new AdempiereUserError("Classisfication cannot be resolved, check the 'classification' field in the product window.");
+			 String name = "";
+			 if(m_Product_ID > 0)
+			 {
+				 name = new MProduct(Env.getCtx(), m_Product_ID, null).getName();
+			 }
+			 throw new AdempiereUserError("Classisfication cannot be resolved, check the 'classification' field in the product window." + name);
 		 }
 		 int mProduct_ID = m_Product_ID;
 		 int mtom_item_line_id = bld_mtom_item_line_id;

@@ -15,6 +15,7 @@ import org.compiere.model.Query;
 import org.compiere.util.Env;
 
 import au.blindmot.model.MBLDBomDerived;
+import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDProductPartType;
@@ -85,6 +86,8 @@ protected String trxName;
 	public abstract boolean createBomDerived();//Return true if successful, delete created records if fail.
 	public abstract boolean deleteBomDerived();
 	public abstract boolean deleteCuts(); 
+	public abstract boolean setAutoSelectedPartIds();
+	public abstract boolean addMtmInstancePartsToBomDerived();
 	
 	public int getWide() {
 		return wide;
@@ -214,7 +217,7 @@ protected String trxName;
 		sql.append(" (SELECT mp.m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");
 		sql.append(mprodID + ")");
 		sql.append(" AND ma.m_attribute_id =");
-		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name = 'Waste%' AND mat.isactive = 'Y')");
+		sql.append(" (SELECT mat.m_attribute_id FROM m_attribute mat WHERE mat.name = 'Waste' AND mat.isactive = 'Y')");
 		int waste = 0;
 		//Note attribute must be called "Waste%" and nothing else.
 		
@@ -266,4 +269,11 @@ protected String trxName;
 			 	return list.toArray(new MBLDProductPartType[list.size()]);
 			 }
 	}
+	
+	public MBLDLineProductInstance[] getMBLDLineProductInstance() {
+		int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
+		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
+		return mBLDLineProductInstance;
+	}//getMBLDLineProductInstance
+	
 }

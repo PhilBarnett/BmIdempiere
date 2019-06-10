@@ -13,6 +13,7 @@ import org.adempiere.base.event.IEventTopics;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSetInstance;
+import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductionLine;
@@ -28,7 +29,6 @@ import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
-import au.blindmot.model.MBLDProductNonSelect;
 import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.model.X_BLD_Line_ProductSetInstance;
 import au.blindmot.utils.MtmUtils;
@@ -47,6 +47,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	@Override
 	protected void initialize() {
 		//register EventTopics and TableNames   
+		//TODO: Add registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MOrder.Table_Name); and add code to warn of uncheckmeasured MtoM items.
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MProductionLine.Table_Name); 
 				registerTableEvent(IEventTopics.PO_POST_UPADTE, MProductionLine.Table_Name); 
 				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MProductionLine.Table_Name);
@@ -200,6 +201,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			{
 				setDiscount(copyFromOrderLine, BMorderLine);
 				log.warning("BMorderLine discount: " + BMorderLine.getDiscount());
+				BMorderLine.beforeSave(po.is_new());
 				BMorderLine.saveEx();
 			}
 			return;
