@@ -115,98 +115,6 @@ public class Pelmet extends MadeToMeasureProduct {
 		// TODO Auto-generated method stub
 		return null;
 	}
-
-	/* (non-Javadoc)
-	 * @see au.blindmot.make.MadeToMeasureProduct#setAutoSelectedPartIds()
-	 */
-	@Override
-	public boolean setAutoSelectedPartIds() {
-		/*Get a list of auto selected parttypes
-		 * iterate through list - for each item, 
-		 * get the MBLDProductNonSelect[] MBLDProductPartType.getMBLDProductNonSelectLines(int mBLDProductPartTypeID, String trxn))
-		 * Determine if the MBLDProductNonSelect matches the size of current item. 
-		 * If it does, call a method based on each MBLDProductNonSelect operation type to modify BOM lines
-		 */
-		MBLDProductPartType[] mBLDProductPartTypeArray = getMBLDProductPartTypeLines();
-		for(int j = 0; j < mBLDProductPartTypeArray.length; j++)
-		{
-			 MBLDProductNonSelect[] mBLDPNonSelectArray = mBLDProductPartTypeArray[j].getMBLDProductNonSelectLines(mBLDProductPartTypeArray[j].get_ID(), trxName);
-			 for(int x = 0; x < mBLDPNonSelectArray.length; x++)
-			 {
-				 //Looping through Non Selectable Part Types -> auto set BOMderived parts based on widths and drops.
-				 //Determine if this item matches width and drop criteria
-				 if(mBLDPNonSelectArray[x].isWidthDropMatch(wide, high))
-				 {
-					 String operation = mBLDPNonSelectArray[x].getoperation_type();
-					 if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_ADDITION ))
-					 {
-						 //perform addition
-						 int addID = Integer.parseInt(mBLDPNonSelectArray[x].getaddtionalproduct().toString());
-						 X_M_PartType addPartType = new X_M_PartType(Env.getCtx(), mBLDProductPartTypeArray[j].getM_PartTypeID(), null);
-						 
-						 if(addPartType != null)
-						 {
-							if(addPartType.getName().equalsIgnoreCase("Cut to length item"))
-							 {
-								 addMBLDBomDerived(addID, getPelmetCut(), trxName);
-							 }
-							 else
-							 {
-								 addMBLDBomDerived(addID, getBomQty(addID), trxName);
-							 }
-							 	
-						 }
-					 }
-					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_SUBSTITUTION))
-					 {
-						 //perform substitution
-						 //get BOM line with substitute product & swap productID with Additional product
-						 int addID = Integer.parseInt(mBLDPNonSelectArray[x].getaddtionalproduct().toString());
-						 int subID = Integer.parseInt(mBLDPNonSelectArray[x].getsubstituteproduct().toString());
-						 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
-						 for(int z = 0; z < bomDerived.length; z++)
-						 {
-							 if(bomDerived[z].getM_Product_ID() == subID)
-							 {
-								 bomDerived[z].setM_Product_ID(addID);
-								 bomDerived[z].saveEx();
-							 }
-						 }
-						 
-					 }
-					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_CONDITION_SET))
-					 {
-						 //perform conditon set
-						 
-						 /*
-						 if(mBLDPNonSelectArray[x].getcondition_set().equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_CONDITION_HAS_LIFT_SPRING))
-						 {
-							 if(isChainControl)//Add a lift spring if it's chain controlled
-								{
-									int liftID = getLiftSpring(false);
-									if(liftID  > 0)addBomDerivedLines(liftID, null);	
-								}
-						 }
-						 */
-					 }
-					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_DELETE))
-					 {
-						 //perform delete
-						 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
-						 int subID = Integer.parseInt(mBLDPNonSelectArray[x].getsubstituteproduct().toString());
-						 for(int z = 0; z < bomDerived.length; z++)
-						 {
-							 if(bomDerived[z].getM_Product_ID() == subID)
-							 {
-								 bomDerived[z].delete(true, trxName);
-							 }
-						 } 
-					 }
-				 }
-			 }
-		}
-		return true;
-	}//setAutoSelectedPartIds()
 	
 	/**
 	 * @return
@@ -309,5 +217,27 @@ public class Pelmet extends MadeToMeasureProduct {
 		return bigQty;
 		
 	}//getBomQty	
+	
+	@Override
+	public boolean performOperationAddition(MBLDProductNonSelect mBLDPNonSelect, MBLDProductPartType mBLDProductPartType) {
+		//perform addition
+		 int addID = Integer.parseInt(mBLDPNonSelect.getaddtionalproduct().toString());
+		 X_M_PartType addPartType = new X_M_PartType(Env.getCtx(), mBLDProductPartType.getM_PartTypeID(), null);
+		 
+		 if(addPartType != null)
+		 {
+			if(addPartType.getName().equalsIgnoreCase("Cut to length item"))
+			 {
+				 addMBLDBomDerived(addID, getPelmetCut(), trxName);
+			 }
+			 else
+			 {
+				 addMBLDBomDerived(addID, getBomQty(addID), trxName);
+			 }
+			 	
+		 }
+		
+		return true;
+	}
 	
 }//Pelmet

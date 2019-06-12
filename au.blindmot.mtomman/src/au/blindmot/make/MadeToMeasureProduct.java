@@ -4,20 +4,23 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
-import org.compiere.util.CLogger;
-import org.compiere.util.DB;
+
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MProductionLine;
 import org.compiere.model.Query;
+import org.compiere.model.X_M_PartType;
+import org.compiere.util.CLogger;
+import org.compiere.util.DB;
 import org.compiere.util.Env;
 
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
+import au.blindmot.model.MBLDProductNonSelect;
 import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
@@ -86,7 +89,62 @@ protected String trxName;
 	public abstract boolean createBomDerived();//Return true if successful, delete created records if fail.
 	public abstract boolean deleteBomDerived();
 	public abstract boolean deleteCuts(); 
-	public abstract boolean setAutoSelectedPartIds();
+	
+	/**
+	 * Called in MBLDMtomItemLine class
+	 * @return
+	 */
+	public boolean setAutoSelectedPartIds() {
+		/*Get a list of auto selected parttypes
+		 * iterate through list - for each item, 
+		 * get the MBLDProductNonSelect[] MBLDProductPartType.getMBLDProductNonSelectLines(int mBLDProductPartTypeID, String trxn))
+		 * Determine if the MBLDProductNonSelect matches the size of current item. 
+		 * If it does, call a method based on each MBLDProductNonSelect operation type to modify BOM lines
+		 * EG performSubstitution(subProduct, addProduct) performAdd(addProduct) performConditionSet(conditionSet)
+		 * Override methods as required.
+		 * 
+		 */
+		MBLDProductPartType[] mBLDProductPartTypeArray = getMBLDProductPartTypeLines();
+		for(int j = 0; j < mBLDProductPartTypeArray.length; j++)
+		{
+			 MBLDProductNonSelect[] mBLDPNonSelectArray = mBLDProductPartTypeArray[j].getMBLDProductNonSelectLines(mBLDProductPartTypeArray[j].get_ID(), trxName);
+			 for(int x = 0; x < mBLDPNonSelectArray.length; x++)
+			 {
+				 //Looping through Non Selectable Part Types -> auto set BOMderived parts based on widths and drops.
+				 //Determine if this item matches width and drop criteria
+				 if(mBLDPNonSelectArray[x].isWidthDropMatch(wide, high))
+				 {
+					 String operation = mBLDPNonSelectArray[x].getoperation_type();
+					 if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_ADDITION )) 
+					 {
+						 //Override method as required in concrete classes.
+						 performOperationAddition(mBLDPNonSelectArray[x], mBLDProductPartTypeArray[j]);
+					 }
+					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_SUBSTITUTION))
+					 {
+						//Override method as required in concrete classes.
+						 performOperationSubstitution(mBLDPNonSelectArray[x]);
+					 }
+					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_CONDITION_SET))
+						 
+					 {
+						//Override method as required in concrete classes.
+						 performOperationConditionSet(mBLDPNonSelectArray[x]);
+					 }
+					 
+					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_DELETE))
+					 {
+						//Override method as required in concrete classes.
+						 performOperationDelete(mBLDPNonSelectArray[x]);
+					 }
+				 }
+			 }
+		}
+		return true;
+	}//setAutoSelectedPartIds()
+	
+	
+	
 	public abstract boolean addMtmInstancePartsToBomDerived();
 	
 	public int getWide() {
@@ -276,4 +334,79 @@ protected String trxName;
 		return mBLDLineProductInstance;
 	}//getMBLDLineProductInstance
 	
-}
+	public  boolean  performOperationDelete(MBLDProductNonSelect mBLDPNonSelect) {
+		 //perform delete. Move to abstract class as separate method?
+		 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
+		 int subID = Integer.parseInt(mBLDPNonSelect.getsubstituteproduct().toString());
+		 for(int z = 0; z < bomDerived.length; z++)
+		 {
+			 if(bomDerived[z].getM_Product_ID() == subID)
+			 {
+				 bomDerived[z].delete(true, trxName);
+			 }
+		 } 
+		 return true;
+	}//performOperationDelete
+	
+	public boolean performOperationSubstitution(MBLDProductNonSelect mBLDPNonSelect) {
+		 //perform substitution
+		 //get BOM line with substitute product & swap productID with Additional product
+		 int addID = Integer.parseInt(mBLDPNonSelect.getaddtionalproduct().toString());
+		 int subID = Integer.parseInt(mBLDPNonSelect.getsubstituteproduct().toString());
+		 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
+		 for(int z = 0; z < bomDerived.length; z++)
+		 {
+			 if(bomDerived[z].getM_Product_ID() == subID)
+			 {
+				 bomDerived[z].setM_Product_ID(addID);
+				 bomDerived[z].saveEx();
+			 }
+		 }
+		return true;
+		 
+	 
+	}//performOperationSubstitution
+	
+	public boolean performOperationAddition(MBLDProductNonSelect mBLDPNonSelect, MBLDProductPartType mBLDProductPartType) {
+		
+		/*//perform addition
+		 int addID = Integer.parseInt(mBLDPNonSelect.getaddtionalproduct().toString());
+		 X_M_PartType addPartType = new X_M_PartType(Env.getCtx(), mBLDProductPartType.getM_PartTypeID(), null);
+		 
+		 if(addPartType != null)
+		 {
+			if(addPartType.getName().equalsIgnoreCase("Cut to length item"))
+			 {
+				 addMBLDBomDerived(addID, getPelmetCut(), trxName);
+			 }
+			 else
+			 {
+				 addMBLDBomDerived(addID, getBomQty(addID), trxName);
+			 }
+			 	
+		 }
+		
+		return true;*/
+		
+		
+		return true;
+	}//performOperationAddition
+	
+	public boolean performOperationConditionSet(MBLDProductNonSelect mBLDPNonSelect) {
+		/*
+		 *  //perform conditon set
+		 if(mBLDPNonSelect.getcondition_set().equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_CONDITION_HAS_LIFT_SPRING))
+		 {
+			 if(isChainControl)//Add a lift spring if it's chain controlled
+				{
+					int liftID = getLiftSpring(false);
+					if(liftID  > 0)addBomDerivedLines(liftID, null);	
+				}
+		 }
+	 
+	return true;
+		 */
+		return true;
+	}//performOperationConditionSet
+	
+}//MadeToMeasureProduct
