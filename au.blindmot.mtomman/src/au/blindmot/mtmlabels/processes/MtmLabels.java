@@ -234,8 +234,8 @@ public class MtmLabels extends SvrProcess{
 	
 	private String addOrderInfo(int lineNo, String string) {
 		StringBuilder orderInfo = new StringBuilder();
-		orderInfo.append(FIELD_ORIGIN + "220,20");
-		orderInfo.append(SCALABLE_FONT_ROTATION + "41,48");
+		orderInfo.append(FIELD_ORIGIN + "200,20");
+		orderInfo.append(SCALABLE_FONT_ROTATION + "35,35");
 		orderInfo.append(CHANGE_INTERNAT_FONT + "13");
 		orderInfo.append(FORMAT_DATA);
 		orderInfo.append(string + "->" + lineNo);
@@ -428,7 +428,7 @@ public class MtmLabels extends SvrProcess{
 		}
 		
 		StringBuilder retSize = new StringBuilder();
-		retSize.append(FIELD_ORIGIN + "300,175");
+		retSize.append(FIELD_ORIGIN + "450,175");
 		retSize.append(SCALABLE_FONT_ROTATION + "30,30");
 		retSize.append(CHANGE_INTERNAT_FONT + "13");
 		retSize.append(FORMAT_DATA);

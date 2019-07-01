@@ -168,6 +168,7 @@ public class MtmUtils {
 	}
 	
 	public static String getRotation(String rollTypeIns, String controlSide) {
+		log.warning("RollTypeIns: " + rollTypeIns + " ControlSide: " + controlSide);
 		if(rollTypeIns==null || controlSide==null)return "";
 		if(rollTypeIns.equalsIgnoreCase("NR")||rollTypeIns.equalsIgnoreCase("Normal roll")&&controlSide.equalsIgnoreCase("Left")) return MTM_CLOCKWISE;
 		if(rollTypeIns.equalsIgnoreCase("RR")||rollTypeIns.equalsIgnoreCase("Reverse roll")&&controlSide.equalsIgnoreCase("Left")) return MTM_ANTI_CLOCKWISE;
@@ -187,7 +188,7 @@ public class MtmUtils {
 	}
 
 	public int getDeduction (int mProductID, String deductionType) {
-
+	log.warning("mProductID: " + mProductID + "DeductionType: " + deductionType);
 	StringBuffer sql = new StringBuffer	("	SELECT value FROM m_attributeinstance ma ");
 	sql.append("WHERE ma.m_attributesetinstance_id = ");
 	sql.append("(SELECT m_attributesetinstance_id FROM m_product mp WHERE mp.m_product_id = ");

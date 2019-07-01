@@ -15,6 +15,8 @@ import org.adempiere.webui.window.FDialog;
 import org.apache.commons.lang.StringUtils;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
+import org.compiere.model.I_C_Invoice;
+import org.compiere.model.I_C_InvoiceLine;
 import org.compiere.model.I_C_OrderLine;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MOrder;
@@ -24,6 +26,7 @@ import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProduct;
 import org.compiere.model.MRole;
 import org.compiere.model.MUOMConversion;
+import org.compiere.model.Query;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -276,6 +279,26 @@ public class MtmCallouts implements IColumnCallout {
 			if(dateEntered.after(now))
 			{
 				FDialog.warn(WindowNo, "Date invoiced is after current date and may be in error.");
+			}
+			boolean isNew = mTab.isNew();
+			String pOInvoiceNo = "";
+			pOInvoiceNo = (String) mTab.getValue("lve_poinvoiceno");
+			
+			if(pOInvoiceNo != "")
+			{
+				Object bpID = mTab.getValue(MInvoice.COLUMNNAME_C_BPartner_ID);
+				Object[] parameters = new Object[2];
+				parameters[0] = bpID;
+				parameters[1] = pOInvoiceNo;
+				int count = 0;
+				count = new Query(ctx, I_C_Invoice.Table_Name,
+						"c_bpartner_id = ? AND lve_poinvoiceno = ?", null).setParameters(parameters)
+						.count();
+				if((count == 1 && isNew)||(count > 1))
+				{
+					FDialog.warn(WindowNo, "PO Invoice No: " + pOInvoiceNo + " has been used before for this Business Partner.");
+				}
+
 			}
 			
 		}

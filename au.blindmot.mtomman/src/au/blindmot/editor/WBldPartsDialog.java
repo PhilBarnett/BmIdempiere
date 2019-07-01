@@ -658,7 +658,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		boolean found = false;
 		
 		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, mBLDpartType.getBLD_M_PartType_ID(), null);	//	optional = null
-			if(mBLDpartType.getName().equalsIgnoreCase(TUBULAR_BLIND_CONTROL) || mBLDpartType.getName().equalsIgnoreCase(TUBULAR_NON_CONTROL))
+		log.warning("List MProducts: " + values.toString());	
+		if(mBLDpartType.getName().equalsIgnoreCase(TUBULAR_BLIND_CONTROL) || mBLDpartType.getName().equalsIgnoreCase(TUBULAR_NON_CONTROL))
 			{
 				values = modifyDualTypes(values, isDualRoller);
 			}

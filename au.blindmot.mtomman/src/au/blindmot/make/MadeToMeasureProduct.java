@@ -39,6 +39,7 @@ protected String mtmInstanceParts = null;
 protected CLogger log;
 protected MBLDMtomItemLine mBLDMtomItemLine = null;
 protected String trxName;
+public static String CONTROL_SIDE = "Control Side";
 
 
 

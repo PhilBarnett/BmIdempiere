@@ -13,6 +13,7 @@ import org.compiere.model.MProduct;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.model.X_M_PartType;
+import org.compiere.model.X_M_Product;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -83,7 +84,12 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
 		{
 			int mProductBomID  = rs.getInt(1);
 			MProduct partToAdd = new MProduct(Env.getCtx(), mProductBomID, null);
-			products.add(partToAdd);
+			//Don't add duplicate product names. Check if product already exists by name in products.
+			if(!hasProduct(products, partToAdd))
+			{
+				products.add(partToAdd);
+			}
+			
 		}
 	}
 	catch (SQLException ex)
@@ -99,6 +105,28 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
 	return products.toArray(partsArray);
 	
 	}
+
+/**
+ * Checks to see if product name is already in the HashSet
+ * @param products
+ * @param toAdd
+ * @return
+ */
+private static boolean hasProduct(HashSet<MProduct> products, MProduct toAdd) {
+	for(Object toCheck : products)
+	{
+		String addName = toAdd.getName();
+		String checkName = ((X_M_Product) toCheck).getName();
+		//toCheck = (MProduct) toCheck;
+		if (addName.equalsIgnoreCase(checkName))
+		{
+			return true;
+		}
+	}
+	
+	return false;
+	
+}
 
 /**
  * 

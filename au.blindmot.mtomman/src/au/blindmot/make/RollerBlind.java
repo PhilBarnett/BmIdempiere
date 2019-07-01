@@ -61,6 +61,10 @@ public class RollerBlind extends MadeToMeasureProduct{
 	private static String LIFT_SPRING = "Lift spring";
 	private static String END_CAP = "End Cap";
 	private static String FABRIC = "Fabric";
+	private static String LIFT_SPRING_CAPACITY_LOWER = "Lift Spring capacity lower";
+	private static String LIFT_SPRING_CAPACITY_UPPER = "Lift Spring capacity upper";
+	private static String LIFT_SPRING_ROTATION = "Lift Spring rotation";
+	
 	
 	//
 	private static String FABRIC_LENGTH_ADDITION = "Fabric length addition";
@@ -105,7 +109,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			{
 				rollTypeIns = mInstanceValue;
 			}
-			else if(mInstance.equalsIgnoreCase("Blind control side"))
+			else if(mInstance.equalsIgnoreCase(CONTROL_SIDE))
 			{
 				controlSide = mInstanceValue;
 			}
@@ -684,7 +688,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 	BigDecimal fwidth = getFabricWidth().divide(oneThousand);
 			BigDecimal fdrop = getFabricDrop().divide(oneThousand);
 			BigDecimal qty = fwidth.multiply(fdrop);
-			BigDecimal waste = new BigDecimal(getWaste(fabricID));
+			BigDecimal waste = new BigDecimal(getWaste(m_product_id ));//fabric waste is in finished product attribute.
 			qty = ((qty.divide(oneHundred).multiply(waste).add(qty)));
 			qty.setScale(4, BigDecimal.ROUND_CEILING);
 			return qty;
@@ -773,9 +777,9 @@ public class RollerBlind extends MadeToMeasureProduct{
 			 	log.warning("Could not determine rotation of ID: " + mtom_item_line_id + ", check control side.");
 			 	return 0;
 			 }
-		 MtmUtils.attributePreCheck("Lift Spring capacity lower");
-		 MtmUtils.attributePreCheck("Lift Spring capacity upper");
-		 MtmUtils.attributePreCheck("Lift Spring rotation");
+		 MtmUtils.attributePreCheck(LIFT_SPRING_CAPACITY_UPPER);
+		 MtmUtils.attributePreCheck(LIFT_SPRING_CAPACITY_UPPER);
+		 MtmUtils.attributePreCheck(LIFT_SPRING_ROTATION);
 		 if(liftSpring.isEmpty())return 0;
 		 for(KeyNamePair spring : liftSpring) 
 		 {
