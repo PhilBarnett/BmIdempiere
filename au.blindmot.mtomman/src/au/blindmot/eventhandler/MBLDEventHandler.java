@@ -13,7 +13,8 @@ import org.adempiere.base.event.IEventTopics;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSetInstance;
-import org.compiere.model.MOrder;
+import org.compiere.model.MBPartner;
+import org.compiere.model.MDiscountSchema;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductionLine;
@@ -190,18 +191,29 @@ public class MBLDEventHandler extends AbstractEventHandler {
 									}
 								}
 						}
+				
+				//set MTM discount here
+				/*
+				 * If it's a BP flat discount, get it and use it, if it's not, get 
+				 * MDiscountSchema flat discount and set it.
+				 */
+				
+				BigDecimal flatDiscount = MtmUtils.calculateDiscount(orderLine, mProductID);
+				BMorderLine.setDiscount(flatDiscount);
+				log.warning("-set_ValueOfColumn---line 218-----orderLine.get_ID: " + orderLine.get_ID());
+				
 				}
+			BMorderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
+			BMorderLine.save(trxName);
 			
-			
-			orderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
-			log.warning("-set_ValueOfColumn---line 127-----orderLine.get_ID: " + orderLine.get_ID());
-			orderLine.save(trxName);
-			
-			if(copyFromOrderLine != null)
+			if(copyFromOrderLine != null)//It's a copied line; ensures that on copied lines, any user set discount is retained.
 			{
 				setDiscount(copyFromOrderLine, BMorderLine);
 				log.warning("BMorderLine discount: " + BMorderLine.getDiscount());
 				BMorderLine.beforeSave(po.is_new());
+				BigDecimal priceActual = BMorderLine.getPriceList().subtract(BMorderLine.getDiscount().divide(Env.ONEHUNDRED).multiply(BMorderLine.getPriceList()));
+				BMorderLine.setPrice(priceActual.setScale(2, BigDecimal.ROUND_HALF_UP));
+				BMorderLine.setLineNetAmt(BMorderLine.getQtyEntered().multiply(priceActual).setScale(2, BigDecimal.ROUND_HALF_UP));
 				BMorderLine.saveEx();
 			}
 			return;
@@ -322,22 +334,22 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		int fromOrderLineID = 0;
 		String trxName = toOrderLine.get_TrxName();
 		int toMproductID = mProduct.getM_Product_ID();
-		log.warning("---------Line 224 toMproductID = " + toMproductID);
+		log.warning("---------Line 341 toMproductID = " + toMproductID);
 		
 			fromOrderLineID = toOrderLine.get_ValueAsInt("copypk");
-			log.warning("---------Line 227 fromOrderLineID = " + fromOrderLineID);
+			log.warning("---------Line 344 fromOrderLineID = " + fromOrderLineID);
 		   if(fromOrderLineID!= 0)
 			{
-			   log.warning("--------- line 230 fromOrderLineID does not equal 0");
+			   log.warning("--------- line 347 fromOrderLineID does not equal 0");
 			   fromOrderLine = new MOrderLine(Env.getCtx(),prevOrderLineID, trxName);
 				int fromMProductID = fromOrderLine.getM_Product_ID();
 				if(fromMProductID != toMproductID)
 				{
-					log.warning("--------- line 235...fromMProductID != toMproductID. fromMProductID:" + fromMProductID + "toMproductID: " + toMproductID);
+					log.warning("--------- line 352...fromMProductID != toMproductID. fromMProductID:" + fromMProductID + "toMproductID: " + toMproductID);
 					fromOrderLine = null;
 					return (MOrderLine)fromOrderLine;//Wrong product, don't copy MAI.
 				}
-				log.warning("--------- line 239");
+				log.warning("--------- line 356");
 		MAttributeSetInstance fromMAttributeSetInstance = MAttributeSetInstance.get(Env.getCtx(), fromOrderLine.getM_AttributeSetInstance_ID(), mProduct.getM_Product_ID());
 		MAttributeSetInstance toMAttributeSetInstance = new MAttributeSetInstance(Env.getCtx(),0,toOrderLine.get_TrxName());
 		toMAttributeSetInstance.save(toOrderLine.get_TrxName());

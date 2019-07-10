@@ -1,12 +1,18 @@
 package au.blindmot.utils;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 
 import javax.sql.RowSet;
 
+import org.compiere.model.I_C_OrderLine;
+import org.compiere.model.MBPartner;
+import org.compiere.model.MDiscountSchema;
 import org.compiere.model.MProduct;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
@@ -358,6 +364,34 @@ private static int getRowCount(String sql) {
 	 } 
 	 return rowCount;
 }
+
+public static BigDecimal calculateDiscount(I_C_OrderLine orderLine, int m_M_Product_ID)
+{
+	//BigDecimal m_PriceStd;
+	int m_C_BPartner_ID = orderLine.getC_BPartner_ID();
+	if (m_C_BPartner_ID == 0 || m_M_Product_ID == 0)
+		return Env.ZERO;
+	
+	MBPartner bPartner = new MBPartner(Env.getCtx(), orderLine.getC_BPartner_ID(), null);
+	MDiscountSchema mDiscountSchema = (MDiscountSchema) bPartner.getM_DiscountSchema();
+	boolean isBPDiscount = false;
+	if(mDiscountSchema == null) return Env.ZERO;
+	
+	isBPDiscount = mDiscountSchema.isBPartnerFlatDiscount();
+	BigDecimal flatDiscount = Env.ZERO;
+	
+	if(isBPDiscount)
+	{
+		flatDiscount = bPartner.getFlatDiscount();
+	}
+	else
+	{
+		flatDiscount = mDiscountSchema.getFlatDiscount();
+	}
+	
+	return flatDiscount;
+	
+  }	//	calculateDiscount
 
 
 }

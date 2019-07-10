@@ -16,7 +16,6 @@ import org.apache.commons.lang.StringUtils;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
 import org.compiere.model.I_C_Invoice;
-import org.compiere.model.I_C_InvoiceLine;
 import org.compiere.model.I_C_OrderLine;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MOrder;
@@ -40,7 +39,6 @@ public class MtmCallouts implements IColumnCallout {
 	int tabNum = 0;
 	GridTab tab = null;
 	GridField gridField = null;
-	private boolean m_discountSchema;
 	private boolean isGridPrice = false;
 	private boolean isSalesTrx;
 	
@@ -456,7 +454,7 @@ public class MtmCallouts implements IColumnCallout {
 				PriceEntered = pp.getPriceStd();
 			//
 			
-			Discount = calculateDiscount(orderLine, M_Product_ID, isSalesTrx);
+			Discount = MtmUtils.calculateDiscount(orderLine, M_Product_ID);
 			if(Discount == Env.ZERO)
 			{
 				Discount = pp.getDiscount();
@@ -578,58 +576,5 @@ public class MtmCallouts implements IColumnCallout {
 		return "";
 	}	//	amt
 	
-	private BigDecimal calculateDiscount(I_C_OrderLine orderLine, int m_M_Product_ID, boolean m_isSOTrx)
-	{
-		m_discountSchema = false;
-		//BigDecimal m_PriceStd;
-		int m_C_BPartner_ID = orderLine.getC_BPartner_ID();
-		if (m_C_BPartner_ID == 0 || m_M_Product_ID == 0)
-			return Env.ZERO;
-		
-		int M_DiscountSchema_ID = 0;
-		BigDecimal FlatDiscount = null;
-		String sql = "SELECT COALESCE(p.M_DiscountSchema_ID,g.M_DiscountSchema_ID),"
-			+ " COALESCE(p.PO_DiscountSchema_ID,g.PO_DiscountSchema_ID), p.FlatDiscount "
-			+ "FROM C_BPartner p"
-			+ " INNER JOIN C_BP_Group g ON (p.C_BP_Group_ID=g.C_BP_Group_ID) "
-			+ "WHERE p.C_BPartner_ID=?";
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
-		try
-		{
-			pstmt = DB.prepareStatement (sql, null);
-			pstmt.setInt (1, m_C_BPartner_ID);
-			rs = pstmt.executeQuery ();
-			if (rs.next ())
-			{
-				M_DiscountSchema_ID = rs.getInt(m_isSOTrx ? 1 : 2);
-				FlatDiscount = rs.getBigDecimal(3);
-				if (FlatDiscount == null)
-					FlatDiscount = Env.ZERO;
-			}
-		}
-		catch (Exception e)
-		{
-			log.log(Level.SEVERE, sql, e);
-		}
-		finally
-		{
-			DB.close(rs, pstmt);
-			rs = null;
-			pstmt = null;
-		}
-		//	No Discount Schema
-		if (M_DiscountSchema_ID == 0)
-			return Env.ZERO;
-		
-		//MDiscountSchema sd = MDiscountSchema.get(Env.getCtx(), M_DiscountSchema_ID);	//	not correct
-		//if (sd.get_ID() == 0 || (MDiscountSchema.DISCOUNTTYPE_Breaks.equals(sd.getDiscountType()) && !MDiscountSchema.CUMULATIVELEVEL_Line.equals(sd.getCumulativeLevel())))
-			return FlatDiscount;
-		//
-		//m_discountSchema = true;		
-		/*m_PriceStd = sd.calculatePrice(m_Qty, m_PriceStd, m_M_Product_ID, 
-			m_M_Product_Category_ID, FlatDiscount);*/
-		
-	}	//	calculateDiscount
 
 }
