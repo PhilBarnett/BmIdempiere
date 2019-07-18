@@ -156,8 +156,8 @@ public class CopyNonSelect extends SvrProcess {
 		toMBLDProductPartType.setIsMandatory(bdlPartTypeFrom.isMandatory());
 		toMBLDProductPartType.setM_PartTypeId(bdlPartTypeFrom.getM_PartTypeID());
 		toMBLDProductPartType.setis_user_select(bdlPartTypeFrom.is_user_select());//Should always be 'N'
-		String sql = "SELECT NVL(MAX(Line),0)+10 FROM BLD_Product_PartType WHERE BLD_Product_PartType_ID=?";
-		int ii = DB.getSQLValue (get_TrxName(), sql, toMBLDProductPartType.getBLD_Product_PartType_ID());
+		String sql = "SELECT NVL(MAX(Line),0)+10 FROM BLD_Product_PartType WHERE M_Product_ID=?";
+		int ii = DB.getSQLValue (get_TrxName(), sql, toMBLDProductPartType.getM_Product_ID());
 		toMBLDProductPartType.setLine(ii);
 		toMBLDProductPartType.saveEx(trx);
 		
@@ -188,8 +188,8 @@ public class CopyNonSelect extends SvrProcess {
 				toMBLDProductNonSelect.setM_Product_Bom_ID(destMProductBomID2);
 			}
 			
-			String sql2 = "SELECT NVL(MAX(Line),0)+10 FROM BLD_Product_Non_Select  WHERE BLD_Product_Non_Select_ID=?";
-			int line = DB.getSQLValue (get_TrxName(), sql2, toMBLDProductNonSelect.getBLD_Product_Non_Select_ID());
+			String sql2 = "SELECT NVL(MAX(Line),0)+10 FROM BLD_Product_Non_Select  WHERE BLD_Product_PartType_ID=?";
+			int line = DB.getSQLValue (get_TrxName(), sql2, toMBLDProductNonSelect.getBLD_Product_PartType_ID());
 			toMBLDProductNonSelect.setLine(line);
 			toMBLDProductNonSelect.save(get_TrxName());
 			
