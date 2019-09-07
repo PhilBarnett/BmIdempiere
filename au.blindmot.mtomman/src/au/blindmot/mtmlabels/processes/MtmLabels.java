@@ -14,6 +14,7 @@ import javax.sql.RowSet;
 import org.apache.commons.lang.StringUtils;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MProduct;
+import org.compiere.model.MProductCategory;
 import org.compiere.model.X_M_PartType;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
@@ -502,8 +503,10 @@ public class MtmLabels extends SvrProcess{
 	
 	private boolean isRollerBlind(int mProductID) {
 		MProduct theProduct = new MProduct(Env.getCtx(), mProductID, get_TrxName());
-		String name = theProduct.getName();
-		if(name.contains("roller") || name.contains("Roller"))return true;
+		int productCategoryID = theProduct.getM_Product_Category_ID();
+		MProductCategory prodCategory = new MProductCategory(getCtx(), productCategoryID, null);
+		String name = prodCategory.getName();
+		if((name.contains("roller") || name.contains("Roller")))return true;
 		return false;
 	}
 	

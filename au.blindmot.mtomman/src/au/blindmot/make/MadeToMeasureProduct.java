@@ -5,19 +5,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
+import org.compiere.model.I_C_OrderLine;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MProductionLine;
+import org.compiere.model.MTimeExpenseLine;
 import org.compiere.model.Query;
-import org.compiere.model.X_M_PartType;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.compiere.util.Util;
 
+import au.blindmot.model.I_BLD_MTM_Product_Bom_Trigger;
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDLineProductInstance;
+import au.blindmot.model.MBLDMtmProductBomAdd;
+import au.blindmot.model.MBLDMtmProductBomTrigger;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDProductNonSelect;
@@ -90,6 +95,7 @@ public static String CONTROL_SIDE = "Control Side";
 	public abstract boolean createBomDerived();//Return true if successful, delete created records if fail.
 	public abstract boolean deleteBomDerived();
 	public abstract boolean deleteCuts(); 
+	public abstract boolean addTriggeredBom(int parentBomID);
 	
 	/**
 	 * Called in MBLDMtomItemLine class
@@ -409,5 +415,51 @@ public static String CONTROL_SIDE = "Control Side";
 		 */
 		return true;
 	}//performOperationConditionSet
+	
+	public boolean processTriggers(MBLDMtomItemLine itemLine) {
+		MBLDMtmProductBomTrigger[] triggers = getTriggers(itemLine);
+		for(int q= 0; q < triggers.length; q++)
+		{
+			int mProductBomID = triggers[q].getM_Product_BOM_ID();
+			boolean isTriggerDelete =triggers[q].isTriggerDelete();
+			
+			MBLDMtmProductBomAdd[] bomsToChange = triggers[q].getLines(null, null);
+			for(int yy = 0; yy < bomsToChange.length; yy++)
+			{
+				int parentBomID = bomsToChange[yy].getM_Product_BOM_ID();
+				if(isTriggerDelete)
+				{
+					//deleteBomDerived();
+				}
+				else
+				{
+					addTriggeredBom(parentBomID);
+				}
+			}
+		}
+		
+		
+		return false;
+		
+	}
+
+	/**
+	 * @return
+	 */
+	private MBLDMtmProductBomTrigger[] getTriggers(MBLDMtomItemLine itemLine) {
+		
+		int mProductID = itemLine.getM_Product_ID();
+		StringBuilder whereClauseFinal = new StringBuilder(MBLDMtmProductBomTrigger.COLUMNNAME_M_Product_BOM_ID+"=? ");
+	
+		List<MBLDMtmProductBomTrigger> list = new Query(Env.getCtx(), I_BLD_MTM_Product_Bom_Trigger.Table_Name, whereClauseFinal.toString(), null)
+										.setParameters(mProductID)
+										.setOrderBy(null)
+										.list();
+		
+		return list.toArray(new MBLDMtmProductBomTrigger[list.size()]);	
+		//	getLines
+		 
+	}
+	
 	
 }//MadeToMeasureProduct

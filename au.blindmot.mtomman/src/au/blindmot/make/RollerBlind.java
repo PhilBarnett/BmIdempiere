@@ -1027,4 +1027,13 @@ public boolean performOperationConditionSet(MBLDProductNonSelect mBLDPNonSelect)
 	return true;
 }//performOperationConditionSet
 
+/* (non-Javadoc)
+ * @see au.blindmot.make.MadeToMeasureProduct#addTriggeredBom(int)
+ */
+@Override
+public boolean addTriggeredBom(int parentBomID) {
+	// TODO Auto-generated method stub
+	return false;
+}
+
 }//RollerBlind

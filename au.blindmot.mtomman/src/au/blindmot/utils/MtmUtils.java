@@ -33,6 +33,7 @@ public class MtmUtils {
 	public static final String MTM_FABRIC_DEDUCTION = "Fabric deduction";
 	public static final String MTM_FABRIC_ADDITION = "Fabric length addition";
 	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar addition";
+	public static final String MTM_DROP_DEDUCTION = "Drop deduction";
 	public static final String MTM_CLOCKWISE = "Clockwise";
 	public static final String MTM_ANTI_CLOCKWISE = "Anti clockwise";
 	public static final String MTM_IS_DUAL = "Is dual";
@@ -193,7 +194,7 @@ public class MtmUtils {
 		return totalDeduction;
 	}
 
-	public int getDeduction (int mProductID, String deductionType) {
+	public static int getDeduction (int mProductID, String deductionType) {
 	log.warning("mProductID: " + mProductID + "DeductionType: " + deductionType);
 	StringBuffer sql = new StringBuffer	("	SELECT value FROM m_attributeinstance ma ");
 	sql.append("WHERE ma.m_attributesetinstance_id = ");
