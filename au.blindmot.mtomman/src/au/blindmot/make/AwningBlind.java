@@ -38,12 +38,7 @@ public class AwningBlind extends RollerBlind {
 		
 	}
 
-	@Override
-	public boolean createBomDerived() {
-		return false;
-		// TODO Auto-generated method stub
-		
-	}
+	
 
 	@Override
 	public boolean deleteBomDerived() {
@@ -63,23 +58,6 @@ public class AwningBlind extends RollerBlind {
 		return null;
 	}
 
-	/* (non-Javadoc)
-	 * @see au.blindmot.make.MadeToMeasureProduct#setAutoSelectedPartIds()
-	 */
-	@Override
-	public boolean setAutoSelectedPartIds() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	/* (non-Javadoc)
-	 * @see au.blindmot.make.MadeToMeasureProduct#addMtmInstancePartsToBomDerived()
-	 */
-	@Override
-	public boolean addMtmInstancePartsToBomDerived() {
-		// TODO Auto-generated method stub
-		return false;
-	}
 
 	/* (non-Javadoc)
 	 * @see au.blindmot.make.MadeToMeasureProduct#addTriggeredBom(int)

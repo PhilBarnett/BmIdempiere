@@ -9,6 +9,8 @@ import org.compiere.util.Env;
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
+import au.blindmot.model.MBLDMtmProductBomAdd;
+import au.blindmot.model.MBLDMtmProductBomTrigger;
 import au.blindmot.model.MBLDMtmScan;
 import au.blindmot.model.MBLDMtomCuts;
 import au.blindmot.model.MBLDMtomItemLine;
@@ -53,6 +55,12 @@ public class BLDMtomModelFactory implements IModelFactory {
 		if(tableName.equalsIgnoreCase(MBLDProductNonSelect.Table_Name))
 			return MBLDProductNonSelect.class;
 		
+		if(tableName.equalsIgnoreCase(MBLDMtmProductBomTrigger.Table_Name))
+			return MBLDMtmProductBomTrigger.class;	
+		
+		if(tableName.equalsIgnoreCase(MBLDMtmProductBomAdd.Table_Name))
+				return MBLDMtmProductBomAdd.class;
+		
 		return null;
 	}
 
@@ -91,6 +99,14 @@ public class BLDMtomModelFactory implements IModelFactory {
 		
 		if(tableName.equalsIgnoreCase(MBLDProductNonSelect.Table_Name))
 			return new MBLDProductNonSelect(Env.getCtx(), Record_ID, trxName);
+
+		if(tableName.equalsIgnoreCase(MBLDMtmProductBomTrigger.Table_Name))
+			return new MBLDMtmProductBomTrigger(Env.getCtx(), Record_ID, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDMtmProductBomAdd.Table_Name))
+			return new MBLDMtmProductBomAdd(Env.getCtx(), Record_ID, trxName);
+		
+		
 		
 		return null;
 	}
@@ -127,6 +143,12 @@ public class BLDMtomModelFactory implements IModelFactory {
 		
 		if(tableName.equalsIgnoreCase(MBLDProductNonSelect.Table_Name))
 			return new MBLDProductNonSelect(Env.getCtx(), rs, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDMtmProductBomTrigger.Table_Name))
+			return new MBLDMtmProductBomTrigger(Env.getCtx(), rs, trxName);
+		
+		if(tableName.equalsIgnoreCase(MBLDMtmProductBomAdd.Table_Name))
+			return new MBLDMtmProductBomAdd(Env.getCtx(), rs, trxName);
 		
 		return null;
 	}

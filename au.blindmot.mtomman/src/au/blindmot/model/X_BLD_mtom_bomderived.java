@@ -234,4 +234,23 @@ public class X_BLD_mtom_bomderived extends PO implements I_BLD_mtom_bomderived, 
 		set_Value(COLUMNNAME_Description, description);
 		
 	}
+	
+	/**
+	 * setMBOMProductID.
+	 * @param mBOMProductID
+	 */
+public void setMProductBomID (int mBOMProductID)
+{
+	set_Value (COLUMNNAME_M_Product_BOM_ID, Integer.valueOf(mBOMProductID));
+}
+
+/** Get setMBOMProductID.
+	@return attributesetinstance_id	  */
+public int getMBOMProductID() 
+{
+	Integer ii = (Integer)get_Value(COLUMNNAME_M_Product_BOM_ID);
+	if (ii == null)
+		 return 0;
+	return ii.intValue();
+}
 }

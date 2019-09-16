@@ -319,6 +319,8 @@ public static String CONTROL_SIDE = "Control Side";
 			mBomDerived.setM_Product_ID(mProductId);
 			qty.setScale(2, BigDecimal.ROUND_CEILING);
 			mBomDerived.setQty(qty);
+			int mProductBomID = getParentBOMLineID(mProductId);
+			mBomDerived.setMProductBomID(mProductBomID);
 			if(description != null)mBomDerived.setDescription(description);
 			mBomDerived.saveEx();
 		}
@@ -418,27 +420,33 @@ public static String CONTROL_SIDE = "Control Side";
 	
 	public boolean processTriggers(MBLDMtomItemLine itemLine) {
 		MBLDMtmProductBomTrigger[] triggers = getTriggers(itemLine);
-		for(int q= 0; q < triggers.length; q++)
+		MBLDBomDerived[] bomDerivedLines = itemLine.getBomDerivedLines(Env.getCtx(), itemLine.get_ID());
+		//Loop through bomDerivedLines, check if trigger is in bomDerivedLines
+		for(int g = 0; g < bomDerivedLines.length; g++)
 		{
-			int mProductBomID = triggers[q].getM_Product_BOM_ID();
-			boolean isTriggerDelete =triggers[q].isTriggerDelete();
-			
-			MBLDMtmProductBomAdd[] bomsToChange = triggers[q].getLines(null, null);
-			for(int yy = 0; yy < bomsToChange.length; yy++)
+			for(int q= 0; q < triggers.length; q++)
 			{
-				int parentBomID = bomsToChange[yy].getM_Product_BOM_ID();
-				if(isTriggerDelete)
+				boolean isTriggerDelete = triggers[q].isTriggerDelete();
+				if(bomDerivedLines[g].getMBOMProductID() == triggers[q].getM_Product_BOM_ID())
 				{
-					//deleteBomDerived();
+					//If the trigger matches the BOMderived line then add the trigger products
+					MBLDMtmProductBomAdd[] bomsToChange = triggers[q].getLines(null, null);
+					for(int yy = 0; yy < bomsToChange.length; yy++)
+					{
+						int parentBomID = bomsToChange[yy].getM_Product_BOM_ID();
+						if(isTriggerDelete)
+						{
+							deleteBOMLine(parentBomID, itemLine);
+						}
+						else
+						{
+							addTriggeredBom(parentBomID);
+						}
+					}
 				}
-				else
-				{
-					addTriggeredBom(parentBomID);
-				}
+				
 			}
 		}
-		
-		
 		return false;
 		
 	}
@@ -449,7 +457,7 @@ public static String CONTROL_SIDE = "Control Side";
 	private MBLDMtmProductBomTrigger[] getTriggers(MBLDMtomItemLine itemLine) {
 		
 		int mProductID = itemLine.getM_Product_ID();
-		StringBuilder whereClauseFinal = new StringBuilder(MBLDMtmProductBomTrigger.COLUMNNAME_M_Product_BOM_ID+"=? ");
+		StringBuilder whereClauseFinal = new StringBuilder(MBLDMtmProductBomTrigger.COLUMNNAME_M_Product_ID+"=? ");
 	
 		List<MBLDMtmProductBomTrigger> list = new Query(Env.getCtx(), I_BLD_MTM_Product_Bom_Trigger.Table_Name, whereClauseFinal.toString(), null)
 										.setParameters(mProductID)
@@ -457,8 +465,37 @@ public static String CONTROL_SIDE = "Control Side";
 										.list();
 		
 		return list.toArray(new MBLDMtmProductBomTrigger[list.size()]);	
-		//	getLines
+		
+		//	getTriggers
 		 
+	}
+	
+	/**
+	 * Deprecate
+	 * @param bomProductID
+	 * @return
+	 */
+	public int getParentBOMLineID(int bomProductID) {
+		StringBuilder sql = new StringBuilder();
+		sql.append("SELECT m_product_bom_id ");
+		sql.append("FROM m_product_bom mpb ");
+		sql.append("WHERE mpb.m_product_id = ? ");
+		sql.append("AND mpb.m_productbom_id = ? ");
+		sql.append("FETCH FIRST 1 ROWS ONLY");
+		return DB.getSQLValue(null, sql.toString(), m_product_id, bomProductID/*needs to be m_product_id*/);
+		
+	}
+	
+	public boolean deleteBOMLine(int mParentBOMLineID, MBLDMtomItemLine itemLine) {
+		MBLDBomDerived[] bomLines = itemLine.getBomDerivedLines(Env.getCtx(), itemLine.get_ID());
+		for(int l = 0; l < bomLines.length; l++)
+		{
+			if(bomLines[l].getMBOMProductID() == mParentBOMLineID)
+			{
+				bomLines[l].delete(true, itemLine.get_TrxName());
+			}
+		}
+		return true;
 	}
 	
 	

@@ -53,6 +53,9 @@ public interface I_BLD_mtom_bomderived
 
     /** Column name AD_Org_ID */
     public static final String COLUMNNAME_AD_Org_ID = "AD_Org_ID";
+    
+    /** Column name M_BOMProduct_ID */
+    public static final String COLUMNNAME_M_Product_BOM_ID = "M_Product_Bom_ID";
 
 	/** Set Organization.
 	  * Organizational entity within client

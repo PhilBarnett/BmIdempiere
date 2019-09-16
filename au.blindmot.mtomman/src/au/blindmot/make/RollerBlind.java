@@ -569,27 +569,28 @@ public class RollerBlind extends MadeToMeasureProduct{
 				MBLDProductPartType mBLDProductPartType  = new MBLDProductPartType(Env.getCtx(), mPartTypeID, null);
 				int xMPartTypeID = mBLDProductPartType.getM_PartTypeID();
 				X_M_PartType mPartType  = new X_M_PartType (Env.getCtx(), xMPartTypeID , null);
-				if(mPartType.getName().equals(CONTROL_COMP))
+				String parTypeName = mPartType.getName();
+				if(parTypeName.equals(CONTROL_COMP))
 				{
 					controlID = mProductId;
 				}
-				if(mPartType.getName().equals(NON_CONTROL_MECH))
+				if(parTypeName.equals(NON_CONTROL_MECH))
 				{
 					nonControlID = mProductId;
 				}
-				if(mPartType.getName().equals(ROLLER_BRACKET))
+				if(parTypeName.equals(ROLLER_BRACKET))
 				{
 					nonControlBracketID = mProductId;
 				}
-				if(mPartType.getName().equals(ROLLER_BRACKET))
+				if(parTypeName.equals(ROLLER_BRACKET))
 				{
 					controlBracketID = mProductId;
 				}
-				if(mPartType.getName().equals(FABRIC))
+				if(parTypeName.equals(FABRIC))
 				{
 					fabricID = mProductId;
 				}
-				if(mPartType.getName().equals(BOTTOM_BAR))
+				if(parTypeName.equals(BOTTOM_BAR))
 				{
 					bottomBarID = mProductId;
 				}

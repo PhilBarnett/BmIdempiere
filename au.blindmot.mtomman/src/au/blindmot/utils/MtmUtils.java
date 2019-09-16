@@ -1,13 +1,10 @@
 package au.blindmot.utils;
 
 import java.math.BigDecimal;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-
 import javax.sql.RowSet;
 
 import org.compiere.model.I_C_OrderLine;
@@ -37,6 +34,7 @@ public class MtmUtils {
 	public static final String MTM_CLOCKWISE = "Clockwise";
 	public static final String MTM_ANTI_CLOCKWISE = "Anti clockwise";
 	public static final String MTM_IS_DUAL = "Is dual";
+	public static final String MTM_DROP_DEDUCTION_ADJUST = "Drop deduction adjust";
 	private static CLogger log = CLogger.getCLogger(MtmUtils.class);
 	
 	public MtmUtils() {
@@ -394,5 +392,17 @@ public static BigDecimal calculateDiscount(I_C_OrderLine orderLine, int m_M_Prod
 	
   }	//	calculateDiscount
 
+public static String getMPartype(int Mproductid) {
+	StringBuilder sql = new StringBuilder("SELECT mpt.name FROM m_parttype mpt ");
+	sql.append("JOIN m_product mp ON mp.m_parttype_id = mpt.m_parttype_id ");
+	sql.append("WHERE mp.m_product_id = ?");
+	
+	String mPartType = DB.getSQLValueString(null, sql.toString(), Mproductid);
+	if(mPartType != null)
+		{
+			return mPartType;
+		}
+	 return "";
+	}
 
 }
