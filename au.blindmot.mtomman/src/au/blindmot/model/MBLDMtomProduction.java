@@ -674,23 +674,12 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			final MOrderLine theOrderLine = orderLines[i];
 			//MOrderLine line = orderLines[i];
 			MProduct mProduct = new MProduct(getCtx(), orderLines[i].getM_Product_ID(),get_TrxName());
-			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
+			//Products MUST be 'made to measure' and 'manufactured' to make it to a production Order.
+			if(mProduct.get_ValueAsBoolean("ismadetomeasure") && mProduct.isManufactured())
 			{
 				if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+orderLines[i].toString()+" to production items for production " + mtmProdID);
 				final String trxn = get_TrxName();
 				System.out.println("trxn: " + trxn + " get_TrxName(): " + get_TrxName());
-				//MBLDMtomItemLine mtmLine = orderLines[i];
-				
-			    /*{
-			        Trx.run(new TrxRunnable() {
-			            public void run(String trxName) {
-			            	MBLDMtomItemLine Line = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
-							Line.setFromOrderLine(theOrderLine);
-							Line.saveEx();
-			                
-			            }
-			        });
-			    }*/
 				
 				MBLDMtomItemLine Line = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
 				Line.setFromOrderLine(theOrderLine);
