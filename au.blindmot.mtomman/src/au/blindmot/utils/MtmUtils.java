@@ -31,6 +31,7 @@ public class MtmUtils {
 	public static final String MTM_FABRIC_ADDITION = "Fabric length addition";
 	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar addition";
 	public static final String MTM_DROP_DEDUCTION = "Drop deduction";
+	public static final String MTM_OVERALL_DEDUCTION = "Overall deduction";
 	public static final String MTM_CLOCKWISE = "Clockwise";
 	public static final String MTM_ANTI_CLOCKWISE = "Anti clockwise";
 	public static final String MTM_IS_DUAL = "Is dual";
