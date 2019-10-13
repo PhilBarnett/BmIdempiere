@@ -86,13 +86,18 @@ public class MtmProductGetConfig  extends SvrProcess {
 		MProduct mtmProd = new MProduct(getCtx(), mProduct, get_TrxName());
 		msg.append("Config required for: " + mtmProd.getName() + "\n");
 		ArrayList<String> configList = (ArrayList<String>) makeInstance.getConfig();
-		for(String listItem : configList)
+		if(configList != null)
+		{
+			for(String listItem : configList)
 		{
 			msg.append(listItem + "\n");
 		}
 		addLog(msg.toString());
 		
 		return "Config returned successfully.";
+		}
+		return "No config available";
+		
 	}
 
 	/**

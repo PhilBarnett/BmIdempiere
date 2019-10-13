@@ -635,8 +635,10 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 	for(int i = 0; i < bomDLines.length; i++)
 	 	{
 	 		if(bomDLines[i].hasDeduction(MtmUtils.MTM_HEAD_RAIL_DEDUCTION))
+	 		{
 	 			headRailComps.add(bomDLines[i].getM_Product_ID());
-	 		log.warning("--------Adding product to HeadrailComps: " + new MProduct(Env.getCtx(), bomDLines[i].getM_Product_ID(), trxName).getName());
+	 			log.warning("--------Adding product to HeadrailComps: " + new MProduct(Env.getCtx(), bomDLines[i].getM_Product_ID(), trxName).getName());
+	 		}
 	 	}
 	 	
 		return headRailComps;

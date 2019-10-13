@@ -21,28 +21,24 @@ import java.util.Date;
 
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductBOM;
-import org.compiere.model.PO;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 
-import au.blindmot.model.MBLDMtomProduction;
 import au.blindmot.model.MBLDProductNonSelect;
 import au.blindmot.model.MBLDProductPartType;
 
 public class CopyNonSelect extends SvrProcess {
 
 
-	private boolean boolParam;
 	private Date dateParam;
 	private String rangeFrom;
 	private String rangeTo;
 	private int toProductID;
 	//int toMProductID = 0;
 	private BigDecimal bigDecParam;
-	private PO record;
 	private int recordId = 0;
 	
 	/**
@@ -58,7 +54,7 @@ public class CopyNonSelect extends SvrProcess {
 		for ( ProcessInfoParameter para : getParameter())
 		{
 			if ( para.getParameterName().equals("isBooleanParam") )
-				boolParam = "Y".equals((String) para.getParameter());			// later versions can use getParameterAsString
+				"Y".equals((String) para.getParameter());
 			else if ( para.getParameterName().equals("dateParam") )
 				dateParam = (Date) para.getParameter();
 			// parameters may also specify the start and end value of a range
@@ -114,7 +110,7 @@ public class CopyNonSelect extends SvrProcess {
 		log.warning("mProductTo.getClassification() = " + mProductTo.getClassification());
 		log.warning("mProductFrom.getClassification() = " + mProductFrom.getClassification());
 		
-		if((mProductTo.getM_Product_Category_ID() != mProductFrom.getM_Product_Category_ID())|| !mProductTo.getClassification().equalsIgnoreCase(mProductFrom.getClassification()))
+		if((mProductTo.getM_Product_Category_ID() != mProductFrom.getM_Product_Category_ID()))
 		{
 			throw new AdempiereUserError("Destination product is a different Product Category or classification than parent product.");
 		}

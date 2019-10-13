@@ -64,8 +64,10 @@ public class BLDMtomDocFactory implements IDocFactory {
 			return new Doc_BLDMtomProduction(as, rs, trxName);
 		}
 
+		/*
 		if (doc == null)
 			s_log.log(Level.SEVERE, "Unknown AD_Table_ID=" + AD_Table_ID);
+		*/
 		return doc;
 	}
 

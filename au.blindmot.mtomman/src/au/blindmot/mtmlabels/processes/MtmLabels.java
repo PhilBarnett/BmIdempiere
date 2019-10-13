@@ -263,9 +263,9 @@ public class MtmLabels extends SvrProcess{
 	
 	private String addOrderDescription(String description) {
 		String smallDesc = "";
-		if(description != null && description.length() > 16) 
+		if(description != null && description.length() > 21) 
 			{
-				smallDesc = description.substring(0, 16);//Prevent description from overlapping other field,
+				smallDesc = description.substring(0, 21);//Prevent description from overlapping other field,
 			}
 		else if(description != null)
 		{
@@ -287,7 +287,7 @@ public class MtmLabels extends SvrProcess{
 		String cutName =  cutProduct.getName();
 		StringBuilder nameToRet = new StringBuilder();
 		String fieldOrigin = "20,135";
-		if(isEndProd) fieldOrigin ="220,95";
+		if(isEndProd) fieldOrigin ="320,95";
 		nameToRet.append(FIELD_ORIGIN + fieldOrigin);
 		nameToRet.append(SCALABLE_FONT_ROTATION + "30,30");
 		nameToRet.append(CHANGE_INTERNAT_FONT + "13");

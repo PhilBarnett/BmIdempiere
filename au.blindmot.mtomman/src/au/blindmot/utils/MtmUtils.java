@@ -11,10 +11,17 @@ import org.compiere.model.I_C_OrderLine;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MDiscountSchema;
 import org.compiere.model.MProduct;
+import org.compiere.model.Query;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.compiere.util.Util;
+
+import au.blindmot.model.I_BLD_MTM_Product_Bom_Add;
+import au.blindmot.model.I_BLD_MTM_Product_Bom_Trigger;
+import au.blindmot.model.MBLDMtmProductBomAdd;
+import au.blindmot.model.MBLDMtmProductBomTrigger;
 
 public class MtmUtils {
 
@@ -405,5 +412,22 @@ public static String getMPartype(int Mproductid) {
 		}
 	 return "";
 	}
+public static MBLDMtmProductBomTrigger[] getMBLDMtmProductBomTrigger(int mProductID) {
+
+	StringBuilder whereClauseFinal = new StringBuilder(MBLDMtmProductBomTrigger.COLUMNNAME_M_Product_ID +"=? ");
+	
+		String orderClause = MBLDMtmProductBomTrigger.COLUMNNAME_BLD_MTM_Product_Bom_Trigger_ID;
+	//
+	List<MBLDMtmProductBomTrigger> list = new Query(Env.getCtx(), I_BLD_MTM_Product_Bom_Trigger.Table_Name, whereClauseFinal.toString(), null)
+									.setParameters(mProductID)
+									.setOrderBy(orderClause)
+									.list();
+	/*for (MBLDMtmProductBomAdd ol : list) {
+		ol.setHeaderInfo(this);
+	}*/
+	
+	return list.toArray(new MBLDMtmProductBomTrigger[list.size()]);	
+	//	getLines
+}
 
 }
