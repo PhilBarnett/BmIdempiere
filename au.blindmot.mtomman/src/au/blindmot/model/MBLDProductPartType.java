@@ -4,8 +4,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
+import java.util.TreeSet;
 import java.util.logging.Level;
 
 import org.adempiere.webui.window.FDialog;
@@ -24,7 +28,7 @@ public class MBLDProductPartType extends X_BLD_Product_PartType {
 	 * 
 	 */
 	private static final long serialVersionUID = -978856611260313111L;
-	static CLogger s_log = CLogger.getCLogger(MBLDProductPartType.class);
+	static CLogger log = CLogger.getCLogger(MBLDProductPartType.class);
 
 	public MBLDProductPartType(Properties ctx, int BLD_Product_PartType_ID, String trxName) {
 		super(ctx, BLD_Product_PartType_ID, trxName);
@@ -58,10 +62,10 @@ public class MBLDProductPartType extends X_BLD_Product_PartType {
  * @return
  */
 public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, String trxName) {
-	if (s_log.isLoggable(Level.FINE)) s_log.fine("From M_Product_ID=" + mProductID);
+	if (log.isLoggable(Level.FINE)) log.fine("From M_Product_ID=" + mProductID);
 	if (mProductID == 0) return null;
 	
-	HashSet<MProduct> products= new HashSet<MProduct>();
+	List<MProduct> products= new ArrayList<>();
 	StringBuffer sql = new StringBuffer();
 	sql.append("SELECT mpb.m_productbom_id "); 
 	sql.append("FROM m_product_bom mpb ");
@@ -70,6 +74,7 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
 	sql.append("JOIN bld_product_parttype bpt ON bpt.m_parttype_id = mpt.m_parttype_id ");
 	sql.append("WHERE mpb.m_product_id = ? ");
 	sql.append("AND bpt.m_parttype_id = ? ");
+	sql.append("AND mpb.isactive = 'Y'");
 	sql.append("ORDER BY mp.name");
 
 	PreparedStatement pstmt = null;
@@ -94,7 +99,7 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
 	}
 	catch (SQLException ex)
 	{
-		s_log.log(Level.SEVERE, sql.toString(), ex);
+		log.log(Level.SEVERE, sql.toString(), ex);
 	}
 	finally
 	{
@@ -102,6 +107,14 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
 		rs = null; pstmt = null;
 	}
 	MProduct[] partsArray = new MProduct[products.size()];
+	
+	/*
+	 //Testing output
+	for(MProduct product : products)
+	 {
+		 log.warning(product.getName());
+	 }
+	 */
 	return products.toArray(partsArray);
 	
 	}
@@ -112,7 +125,7 @@ public static MProduct[] getPartSetProducts(int mProductID, int mPartypeID, Stri
  * @param toAdd
  * @return
  */
-private static boolean hasProduct(HashSet<MProduct> products, MProduct toAdd) {
+private static boolean hasProduct(List<MProduct> products, MProduct toAdd) {
 	for(Object toCheck : products)
 	{
 		String addName = toAdd.getName();
@@ -172,7 +185,7 @@ public MBLDLineProductInstance getMBldLineProductInstance(int m_MbldLineProducts
 	}
 	catch (SQLException ex)
 	{
-		s_log.log(Level.SEVERE, sql.toString(), ex);
+		log.log(Level.SEVERE, sql.toString(), ex);
 	}
 	finally
 	{
@@ -247,7 +260,7 @@ public static MBLDLineProductInstance[] getmBLDLineProductInstance(int bld_Line_
 	}
 	catch (SQLException ex)
 	{
-		s_log.log(Level.SEVERE, sql.toString(), ex);
+		log.log(Level.SEVERE, sql.toString(), ex);
 	}
 	finally
 	{
@@ -294,7 +307,7 @@ public MBLDProductNonSelect[] getMBLDProductNonSelectLines(int mBLDProductPartTy
 	}
 	catch (SQLException ex)
 	{
-		s_log.log(Level.SEVERE, sql.toString(), ex);
+		log.log(Level.SEVERE, sql.toString(), ex);
 	}
 	finally
 	{

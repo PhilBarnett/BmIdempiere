@@ -61,6 +61,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	private static String LIFT_SPRING = "Lift spring";
 	private static String END_CAP = "End Cap";
 	private static String FABRIC = "Fabric";
+	private static String IS_CHAIN_CONTROL = "Is chain control";
 	private static String LIFT_SPRING_CAPACITY_LOWER = "Lift Spring capacity lower";
 	private static String LIFT_SPRING_CAPACITY_UPPER = "Lift Spring capacity upper";
 	private static String LIFT_SPRING_ROTATION = "Lift Spring rotation";
@@ -958,9 +959,8 @@ public boolean addMtmInstancePartsToBomDerived() {
 public void setChainControl(int controlProductID) {
 	if(controlProductID > 0)
 	{
-		MProduct controlProduct = new MProduct(Env.getCtx(), controlProductID, null);
-		String controlName = controlProduct.getName();
-		if(controlName.contains("chain"))
+		String chainControl = (String) MtmUtils.getMattributeInstanceValue(controlProductID, IS_CHAIN_CONTROL, null);
+		if(chainControl.equalsIgnoreCase("Yes"))
 		{
 			isChainControl = true;
 		}
@@ -1018,11 +1018,15 @@ public boolean performOperationAddition(MBLDProductNonSelect mBLDPNonSelect, MBL
 
 public boolean performOperationConditionSet(MBLDProductNonSelect mBLDPNonSelect) {
 		 //perform conditon set
+	log.warning("--------In performOperationConditionSet(MBLDProductNonSelect mBLDPNonSelect)");
+	log.warning("-----MBLDProductNonSelect.MTM_NON_SELECT_CONDITION_HAS_LIFT_SPRING: " + mBLDPNonSelect.getcondition_set().equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_CONDITION_HAS_LIFT_SPRING));
+	log.warning("isChainControl: " + isChainControl);
 		 if(mBLDPNonSelect.getcondition_set().equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_CONDITION_HAS_LIFT_SPRING))
 		 {
 			 if(isChainControl)//Add a lift spring if it's chain controlled
 				{
 					int liftID = getLiftSpring(false);
+					log.warning("liftID: " + liftID );
 					if(liftID  > 0)addBomDerivedLines(liftID, null);	
 				}
 		 }
