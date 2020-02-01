@@ -1,0 +1,17 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: LiberoHR
+Bundle-SymbolicName: LiberoHR;singleton:=true
+Bundle-Version: 5.1.0.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Require-Bundle: org.adempiere.ui;bundle-version="5.1.0",
+ org.adempiere.base;bundle-version="5.1.0",
+ org.adempiere.base.process;bundle-version="5.1.0",
+ org.adempiere.plugin.utils;bundle-version="4.1.0"
+Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
+Bundle-ActivationPolicy: lazy
+Export-Package: org.idempiere.component,
+ org.idempiere.process
+Service-Component: OSGI-INF/HR_DocFactory.xml, OSGI-INF/HR_ModelFactory.xml
+Bundle-Vendor: SYSNOVA - red1 - E-Evolution MEXICO
+

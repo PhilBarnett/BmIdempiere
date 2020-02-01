@@ -1,0 +1,7 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Setinactive
+Bundle-SymbolicName: au.blindmot.setinactive
+Bundle-Version: 1.0.0.qualifier
+Automatic-Module-Name: au.blindmot.setinactive
+Bundle-RequiredExecutionEnvironment: JavaSE-11

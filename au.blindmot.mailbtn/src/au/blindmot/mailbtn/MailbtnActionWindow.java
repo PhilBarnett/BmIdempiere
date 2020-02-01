@@ -30,10 +30,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
+import javax.activation.DataSource;
 
 import org.adempiere.exceptions.DBException;
 import org.adempiere.webui.LayoutUtils;
-import org.adempiere.webui.action.IAction;
 import org.adempiere.webui.adwindow.ADWindow;
 import org.adempiere.webui.adwindow.ADWindowContent;
 import org.adempiere.webui.adwindow.AbstractADWindowContent;
@@ -476,8 +476,8 @@ public class MailbtnActionWindow implements EventListener<Event>
 			File tempFile = new File(fileName);
 			InputStream is =new FileInputStream(m_attachment.getEntryFile(j, tempFile));
 			
-			ByteArrayDataSource dataSource= new ByteArrayDataSource(is,null);
-			dataSource.setName(fileName);
+			DataSource dataSource= new ByteArrayDataSource(is,null).setName(fileName);
+			//dataSource.setName(fileName);
 		
 			dialog.setAttachment(dataSource);
 	
