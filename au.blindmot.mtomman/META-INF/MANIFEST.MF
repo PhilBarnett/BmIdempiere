@@ -41,6 +41,7 @@ Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Export-Package: action.images,
  au.blindmot.calloutfactory,
+ au.blindmot.copybomtrigger.process,
  au.blindmot.copynonselect.process,
  au.blindmot.editor,
  au.blindmot.eventhandler,

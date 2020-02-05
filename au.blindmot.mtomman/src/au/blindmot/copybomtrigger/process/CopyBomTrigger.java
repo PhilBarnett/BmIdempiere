@@ -137,7 +137,10 @@ public class CopyBomTrigger extends SvrProcess {
 				MBLDMtmProductBomTrigger toMBLDMtmProductBomTrigger = new MBLDMtmProductBomTrigger(Env.getCtx(), 0, trx);
 				toMBLDMtmProductBomTrigger.setDescription(fromBomTriggers[i].getDescription());
 				toMBLDMtmProductBomTrigger.setHelp(fromBomTriggers[i].getHelp());
-				toMBLDMtmProductBomTrigger.setM_Product_BOM_ID(fromBomTriggers[i].getM_Product_BOM_ID());
+				/*Next line causes products to be copied with parent M_Product_BOM_ID, 
+				 * should be destination M_Product_BOM_ID*/
+				int destMProductBomId = getDestinationMProductBomId(fromBomTriggers[i]);
+				toMBLDMtmProductBomTrigger.setM_Product_BOM_ID(destMProductBomId);
 				toMBLDMtmProductBomTrigger.setM_Product_ID(toProductID);
 				toMBLDMtmProductBomTrigger.setIsActive(fromBomTriggers[i].isActive());
 				toMBLDMtmProductBomTrigger.setIsTriggerDelete(fromBomTriggers[i].isTriggerDelete());
@@ -158,8 +161,10 @@ public class CopyBomTrigger extends SvrProcess {
 						}
 					//Add the lines
 					MBLDMtmProductBomAdd toMBLDMtmProductBomAddLine = new MBLDMtmProductBomAdd(Env.getCtx(), 0, trx);
+					
 					toMBLDMtmProductBomAddLine.setBLD_MTM_Product_Bom_Trigger_ID(toMBLDMtmProductBomTrigger.get_ID());
-					toMBLDMtmProductBomAddLine.setM_Product_BOM_ID(fromAddLines[g].getM_Product_BOM_ID());
+					
+					toMBLDMtmProductBomAddLine.setM_Product_BOM_ID(getDestinationMProductBomId(fromAddLines[g]));
 					toMBLDMtmProductBomAddLine.setHelp(fromAddLines[g].getHelp());
 					toMBLDMtmProductBomAddLine.setQty(fromAddLines[g].getQty());
 					toMBLDMtmProductBomAddLine.setIsActive(fromAddLines[g].isActive());
@@ -177,6 +182,30 @@ public class CopyBomTrigger extends SvrProcess {
 			return "@OK@";
 		}
 		
+		private int getDestinationMProductBomId(MBLDMtmProductBomAdd fromMbldMtmProductBomAdd) {
+			StringBuilder sql = new StringBuilder("SELECT m_productbom_id ");
+			sql.append("FROM m_product_bom mpb ");
+			sql.append("WHERE mpb.m_product_bom_id = ? ");
+			int m_Product_Bom_Id = DB.getSQLValue(get_TrxName(), sql.toString(), fromMbldMtmProductBomAdd.getM_Product_BOM_ID());
+			return getMProductBomId(m_Product_Bom_Id);
+		}
+
+		private int getDestinationMProductBomId(MBLDMtmProductBomTrigger fromMbldMtmProductBomTrigger) {
+			StringBuilder sql = new StringBuilder("SELECT m_productbom_id ");
+			sql.append("FROM m_product_bom mpb ");
+			sql.append("WHERE mpb.m_product_bom_id = ? ");
+			int m_Product_Bom_Id = DB.getSQLValue(get_TrxName(), sql.toString(), fromMbldMtmProductBomTrigger.getM_Product_BOM_ID());
+			return getMProductBomId(m_Product_Bom_Id);
+		}
+		
+		private int getMProductBomId(int m_Product_Bom_Id) {
+			StringBuilder sql2 = new StringBuilder("SELECT m_product_bom_id ");
+			sql2.append("FROM m_product_bom mpb ");
+			sql2.append("WHERE mpb.m_productbom_id = ? ");
+			sql2.append("AND mpb.m_product_id = ?");
+			return m_Product_Bom_Id = DB.getSQLValue(get_TrxName(), sql2.toString(), m_Product_Bom_Id, toProductID);
+		}
+
 		/**
 		 * @param fromBomLines
 		 * @param subProductToCheck
