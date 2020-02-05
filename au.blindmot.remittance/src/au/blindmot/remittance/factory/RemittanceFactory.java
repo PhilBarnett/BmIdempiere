@@ -10,7 +10,7 @@ public class RemittanceFactory implements IProcessFactory {
 
 	@Override
 	public ProcessCall newProcessInstance(String className) {
-		if(className.equals("au.blindmot.remittance.Remittance"))
+		if(className.equals("au.blindmot.mailbtn.OnMailButtonAction"))
 		{
 			log.warning("----------In au.blindmot.remittance.factory.RemittanceFactory");
 			return new Remittance();
