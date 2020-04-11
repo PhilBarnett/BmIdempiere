@@ -63,7 +63,7 @@ public class AwningBlind extends RollerBlind {
 	 * @see au.blindmot.make.MadeToMeasureProduct#addTriggeredBom(int)
 	 */
 	@Override
-	public boolean addTriggeredBom(int parentBomID) {
+	public boolean addTriggeredBom(int parentBomID, int triggeredQty) {
 		MProductBOM mBomItem = new MProductBOM(Env.getCtx(), parentBomID, null);
 		int mProductID = mBomItem.getM_Product_ID();
 		MProduct bomProduct = MProduct.get(Env.getCtx(), mProductID);

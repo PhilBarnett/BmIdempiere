@@ -213,6 +213,7 @@ public class MtmUtils {
 	sql.append("')");
 			
 	int deduction = DB.getSQLValueEx(null, sql.toString());
+	if (deduction < 0)log.warning("------getDeduction returned: " + deduction);
 	
 	return deduction;
 	}

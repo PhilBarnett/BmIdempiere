@@ -7,8 +7,11 @@ import java.util.Properties;
 
 import org.compiere.model.MProduct;
 import org.compiere.util.AdempiereUserError;
+import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.compiere.util.KeyNamePair;
+
 import java.util.logging.Level;
 
 
@@ -23,24 +26,31 @@ public class MBLDMtomCuts extends X_BLD_mtom_cuts {
 	public static final String MTM_FABRIC_DEDUCTION = "Fabric deduction";
 	public static final String MTM_FABRIC_ADDITION = "Fabric length addition";
 	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar addition";
+	protected static CLogger log = CLogger.get();
 	final String transName = get_TrxName();
 	public MBLDMtomCuts(Properties ctx, ResultSet rs, String trxName) {
 		super(ctx, rs, trxName);
+		//log = CLogger.getCLogger (getClass());
 		// TODO Auto-generated constructor stub
 	}
 
 	public MBLDMtomCuts(Properties ctx, int BLD_mtom_bomderived_ID, String trxName) {
 		super(ctx, BLD_mtom_bomderived_ID, trxName);
+		//log = CLogger.getCLogger (getClass());
 		// TODO Auto-generated constructor stub
 	}
 	
-	public static BigDecimal getDeductions(ArrayList<Integer> components, String deductionType, String trxName) {
+	public static BigDecimal getDeductions(ArrayList<KeyNamePair> components, String deductionType, String trxName) {
 
 		BigDecimal totalDeduction = Env.ZERO;
 		BigDecimal aDeduction; 
-		for (Integer productId : components) {
-			aDeduction = getDeduction(productId.intValue(), deductionType, trxName);
-			System.out.println("---------IN getDeductions(), deduction for ProductID: " + productId.toString() + " is: " + aDeduction);
+		for (KeyNamePair qtyId : components) 
+		{
+			aDeduction = getDeduction(Integer.parseInt(qtyId.getName()), deductionType, trxName);
+			int qty = qtyId.getKey();
+			log.warning("---------IN getDeductions(), deduction for ProductID: " + qtyId.getName() + " is: " + aDeduction + " Deduction Type: " + deductionType  + " Qty: " + qty);
+			System.out.println("---------IN getDeductions(), deduction for ProductID: " + qtyId.getName() + " is: " + aDeduction + " Deduction Type: " + deductionType  + " Qty: " + qty);
+			aDeduction = aDeduction.multiply(new BigDecimal(qty));
 			totalDeduction = totalDeduction.add(aDeduction);
 		}
 

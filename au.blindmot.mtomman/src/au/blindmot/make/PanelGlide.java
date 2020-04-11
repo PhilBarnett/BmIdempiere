@@ -73,8 +73,8 @@ public class PanelGlide extends MadeToMeasureProduct {
 	 * @see au.blindmot.make.MadeToMeasureProduct#addTriggeredBom(int)
 	 */
 	@Override
-	public boolean addTriggeredBom(int parentBomID) {
-		// TODO Auto-generated method stub
+	public boolean addTriggeredBom(int parentBomID, int qty) {
+		super.addTriggeredBom(parentBomID, qty);
 		return false;
 	}
 

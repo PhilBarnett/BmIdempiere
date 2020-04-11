@@ -69,7 +69,7 @@ public class FoldingArmAwning extends MadeToMeasureProduct {
 	 * @see au.blindmot.make.MadeToMeasureProduct#addTriggeredBom(int)
 	 */
 	@Override
-	public boolean addTriggeredBom(int parentBomID) {
+	public boolean addTriggeredBom(int parentBomID, int triggeredQty) {
 		// TODO Auto-generated method stub
 		return false;
 	}

@@ -10,9 +10,12 @@ import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
+import org.compiere.model.MProduct;
+import org.compiere.model.MProductBOM;
 import org.compiere.model.MProductionLine;
 import org.compiere.model.MTimeExpenseLine;
 import org.compiere.model.Query;
+import org.compiere.model.X_M_PartType;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -45,6 +48,8 @@ protected CLogger log;
 protected MBLDMtomItemLine mBLDMtomItemLine = null;
 protected String trxName;
 public static String CONTROL_SIDE = "Control Side";
+public static String EACH = "Ea";
+public static String EACH_1 = "Ea ";//Each with space
 
 
 
@@ -95,7 +100,54 @@ public static String CONTROL_SIDE = "Control Side";
 	public abstract boolean createBomDerived();//Return true if successful, delete created records if fail.
 	public abstract boolean deleteBomDerived();
 	public abstract boolean deleteCuts(); 
-	public abstract boolean addTriggeredBom(int parentBomID);
+	
+	/**
+	 * 
+	 * @param parentBomID
+	 * @param qty
+	 * @return
+	 */
+	public boolean addTriggeredBom(int parentBomID, int triggeredQty) {
+		
+		/*BOM derived & BOM Derived Triggers
+		 *In the BOM Derived, there is only 1 'Qty' field. There are also items with different UOMs.
+		 *The triggeredQty is the number of items that the user wants to add to the BOM derived.
+		 *For UOM of each, the 'quantity' field of BOM derived is set to the triggeredQty
+		 *For UOM of length, the 'quantity' field of BOM derived is set by calling the this.getBomQty method 
+		 *and the line is duplicated 'triggeredQty' times.
+		 *If the triggeredQty == 0 then the qty from the parent (manufactured) product is used.
+		 *
+		 *Override this method to add MTM product BOM derived lines that require deductions etc.
+		 */
+		
+		MProductBOM mBomItem = new MProductBOM(Env.getCtx(), parentBomID, null);
+		int mProductID = mBomItem.getM_Product_ID();
+		MProduct bomProduct = MProduct.get(Env.getCtx(), mProductID);
+		//X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
+		BigDecimal qty = mBomItem.getBOMQty();
+		BigDecimal bigTriggeredQty = new BigDecimal(triggeredQty);
+		String uom = bomProduct.getUOMSymbol();
+		
+		addTriggeredLine(mProductID, uom, bigTriggeredQty, qty);
+		
+		return false;
+		
+	}
+	
+	public void addTriggeredLine(int mProductID, String uom, BigDecimal bigTriggeredQty, BigDecimal parentBOMqty) {
+		if(bigTriggeredQty.compareTo(Env.ZERO) == 0 || bigTriggeredQty.compareTo(Env.ZERO) < 0 ) bigTriggeredQty = BigDecimal.ONE;
+		if(uom.equalsIgnoreCase(EACH) || uom.equalsIgnoreCase(EACH_1))//if it's 'each' just add the required qty to BOM derived
+		{
+			addMBLDBomDerived(mProductID, bigTriggeredQty, "Added by BOM trigger");
+		}
+		else//if it's not 'each', add a line for each
+		{
+			for(int i=0; i<bigTriggeredQty.intValue(); i++)
+			{
+				addMBLDBomDerived(mProductID, parentBOMqty, "Added by BOM trigger");
+			}
+		}
+	}
 	
 	/**
 	 * Called in MBLDMtomItemLine class
@@ -440,7 +492,8 @@ public static String CONTROL_SIDE = "Control Side";
 						}
 						else
 						{
-							addTriggeredBom(parentBomID);
+							int triggeredQty = bomsToChange[yy].getQty().intValue();
+							addTriggeredBom(parentBomID, triggeredQty);
 						}
 					}
 				}

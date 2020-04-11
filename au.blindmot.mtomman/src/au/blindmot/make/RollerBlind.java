@@ -7,14 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import javax.sql.RowSet;
-
-import org.compiere.model.MAttribute;
-import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductBOM;
 import org.compiere.model.X_M_PartType;
-import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
@@ -29,57 +24,35 @@ import au.blindmot.utils.MtmUtils;
 
 
 public class RollerBlind extends MadeToMeasureProduct{
-	
-	private ArrayList<KeyNamePair> controlType = new ArrayList<KeyNamePair>();
-	private ArrayList<KeyNamePair> bottomBar = new ArrayList<KeyNamePair>();
-	private ArrayList<KeyNamePair> TubularNCM = new ArrayList<KeyNamePair>();
-	private ArrayList<KeyNamePair> rollerBracket = new ArrayList<KeyNamePair>();
-	private ArrayList<KeyNamePair> chainSafe = new ArrayList<KeyNamePair>();
+
 	private ArrayList<KeyNamePair> chainAcc = new ArrayList<KeyNamePair>();
 	private ArrayList<KeyNamePair> rollerTube = new ArrayList<KeyNamePair>();
 	private ArrayList<KeyNamePair> endCap = new ArrayList<KeyNamePair>();
 	private ArrayList<KeyNamePair> miscItem = new ArrayList<KeyNamePair>();
 	private ArrayList<KeyNamePair> liftSpring = new ArrayList<KeyNamePair>();
-	private String blindControlIns = null;
-	private String tNCMIns = null;
-	private String rollerBracketIns = null;
-	private String rollerBracketColIns = null;
-	private String mechColIns = null;
-	private String chainSafeIns = null;
 	private String rollTypeIns = null;
 	private String controlSide = null;
 	boolean isChainControl = false;
 	
 	//Part types as must be entered in Product window
 	private static String CONTROL_COMP = "Tubular blind control";
-	private static String BOTTOM_BAR = "Bottom bar";
+	protected static String BOTTOM_BAR = "Bottom bar";
 	private static String NON_CONTROL_MECH = "TNCM";
 	private static String ROLLER_BRACKET = "Roller bracket";
-	private static String CHAIN_SAFE = "Chain Safe";
 	private static String CHAIN_ACC = "Chain accessory";
-	private static String ROLLER_TUBE = "Roller tube";
+	protected static String ROLLER_TUBE = "Roller tube";
 	private static String LIFT_SPRING = "Lift spring";
 	private static String END_CAP = "End Cap";
 	private static String FABRIC = "Fabric";
 	private static String IS_CHAIN_CONTROL = "Is chain control";
-	private static String LIFT_SPRING_CAPACITY_LOWER = "Lift Spring capacity lower";
 	private static String LIFT_SPRING_CAPACITY_UPPER = "Lift Spring capacity upper";
 	private static String LIFT_SPRING_ROTATION = "Lift Spring rotation";
 	
 	
-	//
-	private static String FABRIC_LENGTH_ADDITION = "Fabric length addition";
-	
-	//Various BOM parts to make the blind
-	private int controlBracketID = 0;
-	private int nonControlBracketID = 0;
-	private int controlID = 0;
-	private int nonControlID = 0;
-	private int chainSafeID = 0;
-	private int rollerTubeID = 0;
-	private int fabricID = 0;
-	private int endCapID = 0;
-	private int bottomBarID = 0;
+	protected int controlID = 0;
+	protected int rollerTubeID = 0;
+	protected int fabricID = 0;
+	protected int bottomBarID = 0;
 	String patternString = null;
     Pattern pattern = null;
     BigDecimal oneHundred = new BigDecimal("100");
@@ -132,34 +105,22 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 * getBomDerived
 		 * iterate -> get cut based on parttype
 		 */
-		//patternString = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]";
-	   //pattern = Pattern.compile(patternString);
-	    //setInstanceFields();//Sets instance fields from the instance_string column
+		
 	    setUserSelectedPartIds();
 	    setChainControl(controlID);
 		populatePartTypes(m_product_id);//Gets the ArrayLists of partsget
+		setupTubeFabric();
 		//setValueProductID();//Currently Set roller tube ID based on blind width only
 		
 		//Get a value for field fabricWidth & fabricDrop
 		BigDecimal fabricWidth = getFabricWidth();
 		BigDecimal fabricDrop = getFabricDrop();
 		BigDecimal bottomBarCut = getBottomBarCut();
-		int fabricLengthAddition = getFabricLengthAddition(m_product_id);
 		
-		int fabId = getBomProductID("Fabric");
-		int fabIdToUse = 0;
-		if(fabId > 0)
-			{
-				fabIdToUse = fabId;
-			}
-		else
-			{
-				fabIdToUse = fabricID;
-			}
-		if(fabIdToUse !=0 )
+		if(fabricID !=0 )
 
 			{
-				addBldMtomCuts(fabIdToUse, fabricWidth, fabricDrop, 0);	
+				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);	
 			}
 		
 		int rollerTID = getBomProductID(ROLLER_TUBE);
@@ -174,9 +135,9 @@ public class RollerBlind extends MadeToMeasureProduct{
 			rollerIDToUse = rollerTubeID;
 		}
 		
-		if(rollerIDToUse !=0 )
+		if(rollerTubeID !=0 )
 			{
-				addBldMtomCuts(rollerIDToUse,Env.ZERO,getRollerTubeCut(wide),0);
+				addBldMtomCuts(rollerTubeID,Env.ZERO,getRollerTubeCut(wide),0);
 				log.warning("--------addBldMtomCuts Adding roller tube to cuts: " + rollerIDToUse);
 			}
 		
@@ -212,38 +173,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 	}//getCuts
 
-	private int getFabricLengthAddition(int m_product_id) {
-
-		MProduct mProduct = new MProduct(Env.getCtx(), m_product_id, trxName);
-		int maid = mProduct.getM_AttributeSetInstance_ID();
-		MAttributeSetInstance fromMAttributeSetInstance = MAttributeSetInstance.get(Env.getCtx(), maid, m_product_id);
-		//int fablengthAddition = mAttributeInstance.get
-		int value = 0;
 	
-		RowSet fromAttributeInstances = getmAttributeInstances(fromMAttributeSetInstance.getM_AttributeSetInstance_ID());
-		
-	    try {
-			while (fromAttributeInstances.next()) {  
-			
-				int m_attribute_id = fromAttributeInstances.getInt(1);
-				MAttribute mAttribute = new MAttribute(Env.getCtx(), m_attribute_id, trxName);
-				String name = mAttribute.getName();
-				String attributeType = mAttribute.getAttributeValueType();
-				if(attributeType.equalsIgnoreCase("N"))
-		    		{
-		    			value = fromAttributeInstances.getInt(2);
-		    		}
-			    
-			    if(name.equalsIgnoreCase(FABRIC_LENGTH_ADDITION))return value;
-			}
-	    }catch (SQLException e) {
-				log.severe("Could not get values from attributeinstance RowSet " + e.getMessage());
-				e.printStackTrace();
-				throw new AdempiereUserError("Could not find attribute; " + FABRIC_LENGTH_ADDITION + "In product:" + mProduct.getName());
-			}   
-			   return value;
-	}//getFabricLengthAddition
-
 
 	@Override
 	public boolean createBomDerived() {
@@ -267,7 +197,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 		addMtmInstancePartsToBomDerived();
 		populatePartTypes(m_product_id) ;
 		setChainControl(controlID);//Must be called before setAutoSelectedPartIds()
-		//setAutoSelectedPartIds();//Moved method call to MBLDMtomItemLine
 		
 		//TODO: Handle adding tube tape, bubble, packaging tape, masking tape, base bar stickers, tube selection
 		
@@ -302,7 +231,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 * m_parttype_id
 	 * @param m_product_id
 	 */
-	private void populatePartTypes(int m_product_id) {
+	protected void populatePartTypes(int m_product_id) {
 		StringBuilder sql = new StringBuilder("SELECT mp.m_parttype_id, mp.m_product_id, mp.name ");
 		sql.append("FROM m_product mp INNER JOIN m_product_bom mpb ");
 		sql.append("ON mp.m_product_id = mpb.m_productbom_id ");
@@ -379,94 +308,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	/**
 	 * 
 	 */
-	private void setValueProductID() {
-		
-		/*Following need to be determined
-		 * 
-	private int nonControlBracketID = 0;
-	private int controlID = 0;
-	private int nonControlID = 0;
-	private int chainSafeID = 0;
-	private int rollerTubeID = 0;
-	private int endCapID = 0;
 	
-		 */
-		//Add the chain accessories
-		
-		/*
-		if(isChainControl)
-		{
-			for (KeyNamePair ca : chainAcc) {
-		        StringBuilder sql = new StringBuilder("SELECT m_product_bom_id ");
-		        sql.append("FROM m_product_bom ");
-		        sql.append("WHERE m_product_id = ");
-		        sql.append(m_product_id);
-		        sql.append("AND m_productbom_id = ");
-		        sql.append(ca.getID());
-		        
-		        int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
-				MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, trxName);
-				BigDecimal qty = mProductBom.getBOMQty();
-				
-				MBLDBomDerived mBomDerived = new MBLDBomDerived(Env.getCtx(), 0, trxName);
-				mBomDerived.setbld_mtom_item_line_ID(mtom_item_line_id);
-				mBomDerived.setM_Product_ID(ca.getKey());
-				mBomDerived.setQty(qty);
-				mBomDerived.saveEx();
-				
-		        }
-		}*/
-		
-		
-		//Resolve controlBracketID
-		//TODO: Protocol must be bracket description contains: control(literal), colour(instance), type(instance) - dual, single extension etc.
-		/*
-			controlID = resolveComponents(controlType, blindControlIns);//Resolve controlID
-			nonControlID = resolveComponents(TubularNCM, tNCMIns);//Resolve nonControlID
-			//TODO: May need more logic to determine brackets as below 2 statement assign the same value.
-			nonControlBracketID = resolveComponents(rollerBracket, rollerBracketColIns, rollerBracketIns);//Resolve nonControlBracketID
-			controlBracketID = resolveComponents(rollerBracket, rollerBracketColIns, rollerBracketIns);//
-			chainSafeID = resolveComponents(chainSafe, chainSafeIns);//Resolve chainSafeID
-		*/
-			
-			/**
-			 * Set roller tube ID based on blind width only
-			 * DELETE ONCE setAutoSelectedPartIds() is in use
-			*/
-		
-		/*
-		
-			String tubeDuty = "";
-			if(wide > 2500)tubeDuty = "HD";
-			else {
-				tubeDuty = "MD";
-			}
-			
-			rollerTubeID = resolveComponents(rollerTube, tubeDuty);
-			if(rollerTubeID < 1)
-			{
-				MProduct mProduct = new MProduct(Env.getCtx(), m_product_id , trxName);
-				StringBuilder msg = new StringBuilder("A roller tube could not be found in the BOM for MProduct: ");
-				msg.append(mProduct.getName());
-				msg.append(" With MProductID: " + m_product_id);
-				msg.append(". Check the BOM for a 'Roller tube' Part Type.");
-				msg.append(" Also ensure that the Description field in the Product window of the tube contains 'MD' or 'HD' to denote that");
-				msg.append(" the tube is medium duty or heavy duty. FATAL ERROR CAN'T CONTINUE!");
-				throw new AdempiereUserError(msg.toString());
-			}
-			
-			*/
-			 
-			 /* TODO: Resolve rollerTubeID via calculation
-			 * There's a method MtmUtils.getBendingMoment(int length, int fabricProductId, int basebarProductId)
-			 *that returns the bending moment (BM) in kg-metres.
-			 *the tube to select will be the smallest tube cross section that has a rated BM that exceeds
-			 *the computed BM for the blind being made.
-			 *
-			 * TODO: Handle blinds to be on the same size tube if they're all in the same room.
-			 */
-			//TODO: Resolve endCapID
-	}
 	/**
 	 * Note: There's 2 columns in the m_product_bom_id table
 	 * that both look like m_product_bom_id
@@ -518,49 +360,12 @@ public class RollerBlind extends MadeToMeasureProduct{
 		return bigQty;
 		
 	}//getBomQty
-	
 
-	
-	/**
-	 * TODO: deprecate this
-	 * @param parts
-	 * @param instanceParse
-	 * @return
-	 */
-	/*
-	private int resolveComponents(ArrayList<KeyNamePair> parts, String instanceParse) {
-	
-		int part_ID = 0;
-		String partDescription = "";
-		for(KeyNamePair partPair : parts) 
-		{
-			part_ID = partPair.getKey();
-			MProduct productToExamine = new MProduct(Env.getCtx(), part_ID, trxName);
-			partDescription = productToExamine.getDescription().toLowerCase();
-			//TODO: Handle different colours in brackets and mechs.
-			if(instanceParse!=null)
-			{
-			System.out.println("partDescription.contains: " + partDescription + " contains " + instanceParse.toLowerCase() + " is " + partDescription.contains(instanceParse.toLowerCase()));
-				if(partDescription.contains(instanceParse.toLowerCase()))
-				{
-					System.out.println("----------------Part found description: " + partDescription + " Part_id: " + part_ID + " From the instance parse of: " + instanceParse.toLowerCase());
-					break;//part_ID should now contain the right MProductID
-				}
-			}
-		}
-		if(part_ID == 0)//The part couldn't be found.
-	{
-		log.warning(instanceParse + partDescription + "---------------Could not resolve component from Attribute Instance.. Please ensure that products are set up with descriptions that match Attributes.");
-	}
-		return part_ID;
-	}//resolveComponents
-	*/
-	
 	/**
 	 * Sets fields from parts that users can select from the part dialog selection.
 	 */
 	//TODO: Modify so all parts are added to BOMDerived
-	private void setUserSelectedPartIds(){
+	protected void setUserSelectedPartIds(){
 		
 		MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance(); 
 		for(int i = 0; i < mBLDLineProductInstance.length; i++)
@@ -577,15 +382,12 @@ public class RollerBlind extends MadeToMeasureProduct{
 				}
 				if(parTypeName.equals(NON_CONTROL_MECH))
 				{
-					nonControlID = mProductId;
 				}
 				if(parTypeName.equals(ROLLER_BRACKET))
 				{
-					nonControlBracketID = mProductId;
 				}
 				if(parTypeName.equals(ROLLER_BRACKET))
 				{
-					controlBracketID = mProductId;
 				}
 				if(parTypeName.equals(FABRIC))
 				{
@@ -624,8 +426,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 	}//addBldMtomCuts
 
 	 
-	 public ArrayList <Integer> getHeadRailComps() {
-	 ArrayList <Integer> headRailComps = new ArrayList <Integer>();
+	 public ArrayList <KeyNamePair> getHeadRailComps() {
+	 ArrayList <KeyNamePair> headRailComps = new ArrayList <KeyNamePair>();
 	 
 	 //Allow blinds to be built without brackets but not without control and non control mechs.
 	 
@@ -637,11 +439,11 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 	{
 	 		if(bomDLines[i].hasDeduction(MtmUtils.MTM_HEAD_RAIL_DEDUCTION))
 	 		{
-	 			headRailComps.add(bomDLines[i].getM_Product_ID());
+	 			KeyNamePair qtyID = new KeyNamePair(bomDLines[i].getQty().intValue(),Integer.toString(bomDLines[i].getM_Product_ID()));
+	 			headRailComps.add(qtyID);
 	 			log.warning("--------Adding product to HeadrailComps: " + new MProduct(Env.getCtx(), bomDLines[i].getM_Product_ID(), trxName).getName());
 	 		}
 	 	}
-	 	
 		return headRailComps;
 	 }//getHeadRailComps
 	 
@@ -749,17 +551,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 return 0;
 	 }//getBomProductID
 	 
-	 private RowSet getmAttributeInstances(int mAttributeSetinstanceID)
-		{
-			StringBuilder sql = new StringBuilder("SELECT m_attribute_id, value, m_attributevalue_id ");
-			sql.append("FROM m_attributeinstance mai ");
-			sql.append(" WHERE mai.m_attributesetinstance_id = ");
-			sql.append(mAttributeSetinstanceID);
-			
-			RowSet rowset = DB.getRowSet(sql.toString());
-			return rowset;
-		}//getmAttributeInstances
-	 
 	 private int getLiftSpring(boolean useWeight) {
 		/*
 		 * How heavy is the blind?
@@ -816,146 +607,24 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 }//getLiftSpring
 	 
 	 
-	 /**
-		 * Searches for all the BOM parts from product with m_product_id
-		 * sorts them into ArrayList with a KeyNamePair array for each relevant
-		 * m_parttype_id
-		 * @param m_product_id
-		 */
-	 /*
-		private void setPartIDs(int m_product_id) 
+	/**
+	 * 
+	 */
+	public boolean addMtmInstancePartsToBomDerived() {
+		MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance();
+															
+		for(int i = 0; i < mBLDLineProductInstance.length; i++)
 		{
-			StringBuilder sql = new StringBuilder("SELECT mp.m_parttype_id, mp.m_product_id, mp.name ");
-			sql.append("FROM m_product mp INNER JOIN m_product_bom mpb ");
-			sql.append("ON mp.m_product_id = mpb.m_productbom_id ");
-			sql.append("AND mpb.m_product_id = ");
-			sql.append(m_product_id);
-			sql.append(" ORDER BY mp.m_parttype_id");
-			
-			/*Get the Parttypes for this product
-			 * get the instances for this lineID
-			 * Iterate through and set the fields for the part IDS
-			 * 	private int nonControlBracketID = 0;
-			 *	private int controlID = 0;
-				private int nonControlID = 0;
-				private int chainSafeID = 0;
-				private int rollerTubeID = 0;
-				private int endCapID = 0;
-			 * 
-			 * 
-			 */
-			
-		/*
-			
-			List<String> mpName = new ArrayList<String>();
-			List<Integer> partIDs = new ArrayList<Integer>();
-			List<Integer> prodIDs = new ArrayList<Integer>();
-			
-			ResultSet rs = DB.getRowSet(sql.toString());
-			System.out.println(rs.toString());
-			
-			    try {
-					while (rs.next()) {
-						partIDs.add(rs.getInt(1));
-						prodIDs.add(rs.getInt(2));
-						mpName.add(rs.getString(3));
-					}
-				} catch (SQLException e) 
-			    {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			    finally
-			    {
-			    	DB.close(rs);
-			    	rs = null;
-			    }
-			
-			Integer parts[] = partIDs.toArray(new Integer[(partIDs.size())]);
-			String names[] = mpName.toArray(new String[mpName.size()]);
-			Integer productIDs[] = prodIDs.toArray(new Integer[(prodIDs.size())]);
-			
-		
-		
-			
-				for(int i = 0; i < parts.length; i++) {
-		
-					X_M_PartType mPartType = new X_M_PartType(null, parts[i], null);
-					String partType = (String) mPartType.get_Value("name");
-					
-					if(partType == null)
-					{
-						miscItem.add(new KeyNamePair(productIDs[i], names[i]));;
-					}
-					else if(partType.equalsIgnoreCase(CONTROL_COMP))
-					{
-						controlType.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					else if(partType.equalsIgnoreCase(BOTTOM_BAR))
-					{
-						bottomBar.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					else if(partType.equalsIgnoreCase(NON_CONTROL_MECH))
-					{
-						TubularNCM.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					else if(partType.equalsIgnoreCase(ROLLER_BRACKET))
-					{
-						rollerBracket.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					else if(partType.equalsIgnoreCase(CHAIN_SAFE))
-					{
-						chainSafe.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					else if(partType.equalsIgnoreCase(CHAIN_ACC))
-					{
-						chainAcc.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					else if(partType.equalsIgnoreCase(ROLLER_TUBE))
-					{
-						rollerTube.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					else if(partType.equalsIgnoreCase(END_CAP))
-					{
-						endCap.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					else if(partType.equalsIgnoreCase(LIFT_SPRING))
-					{
-						liftSpring.add(new KeyNamePair(productIDs[i], names[i]));
-					}
-					
-				}
-				
-				
-	} */
-		
-/*private MBLDLineProductInstance[] getMBLDLineProductInstance() {
-	int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
-	MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
-	return mBLDLineProductInstance;
-}//getMBLDLineProductInstance
-*/
-	 
-	 
-/**
- * 
- */
-public boolean addMtmInstancePartsToBomDerived() {
-	MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance();
-														
-	for(int i = 0; i < mBLDLineProductInstance.length; i++)
-	{
-		int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
-		BigDecimal qty = getBomQty(mProductId);
-		addMBLDBomDerived(mProductId, qty, trxName);
-	}
-	return true;
-}//addMtmInstancePartsToBomDerived
+			int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
+			BigDecimal qty = getBomQty(mProductId);
+			addMBLDBomDerived(mProductId, qty, trxName);
+		}
+		return true;
+	}//addMtmInstancePartsToBomDerived
 /**
  *
  * @param controlProductID
  */
-
 public void setChainControl(int controlProductID) {
 	if(controlProductID > 0)
 	{
@@ -1034,13 +703,30 @@ public boolean performOperationConditionSet(MBLDProductNonSelect mBLDPNonSelect)
 	return true;
 }//performOperationConditionSet
 
-/* (non-Javadoc)
- * @see au.blindmot.make.MadeToMeasureProduct#addTriggeredBom(int)
- */
-@Override
-public boolean addTriggeredBom(int parentBomID) {
-	// TODO Auto-generated method stub
-	return false;
-}
+	/* (non-Javadoc)
+	 * @see au.blindmot.make.MadeToMeasureProduct#addTriggeredBom(int)
+	 */
+	@Override
+	public boolean addTriggeredBom(int parentBomID, int qty) {
+		super.addTriggeredBom(parentBomID, qty);
+		return false;
+	}
+
+	public void setupTubeFabric() {
+	
+		int fabId = getBomProductID("Fabric");
+		if(fabId > 0)
+			{
+				fabricID = fabId;
+			}
+		
+		int rollerTID = getBomProductID(ROLLER_TUBE);
+		log.warning("--------Roller tube ID found: " + rollerTID);
+		if(rollerTID > 0)
+		{
+			rollerTubeID = rollerTID;
+		}
+		
+	}//setupTubeFabric()
 
 }//RollerBlind
