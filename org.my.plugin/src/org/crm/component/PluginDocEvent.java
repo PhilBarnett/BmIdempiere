@@ -25,6 +25,7 @@ import org.compiere.model.MUser;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.model.X_C_ContactActivity;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.osgi.service.event.Event;
@@ -48,7 +49,7 @@ public class PluginDocEvent extends AbstractEventHandler{
 	//register EventTopics and TableNames   
 		registerEvent(IEventTopics.AFTER_LOGIN); 
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MRequest.Table_Name); 
-		registerTableEvent(IEventTopics.PO_AFTER_NEW, X_C_ContactActivity.Table_Name); 
+		registerTableEvent(IEventTopics.PO_AFTER_NEW, X_C_ContactActivity.Table_Name); //Meeting handling
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MRequest.Table_Name);
 		log.info("<SalesLead CRM> .. IS NOW INITIALIZED");
 		}
@@ -401,7 +402,7 @@ public class PluginDocEvent extends AbstractEventHandler{
 			request.setAD_User_ID(newLead.getAD_User_ID()); //now all such requests under respective Lead tab
 			request.saveEx(trxName);
 		} else
-			throw new AdempiereException("Lead user existed before");	
+			throw new AdempiereUserError("Lead user existed before");	
 	}
 
 	private void setPo(PO eventPO) {
