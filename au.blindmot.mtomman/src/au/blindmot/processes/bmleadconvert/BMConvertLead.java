@@ -1,20 +1,24 @@
-package au.blindmot.process.bmconvertLead;
+package au.blindmot.processes.bmleadconvert;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.net.URL;
 import java.sql.Timestamp;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.FillMandatoryException;
+import org.adempiere.webui.apps.AEnv;
 import org.compiere.model.I_C_ContactActivity;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBPartnerLocation;
+import org.compiere.model.MCampaign;
 import org.compiere.model.MLocation;
 import org.compiere.model.MOpportunity;
 import org.compiere.model.MOrder;
@@ -49,7 +53,6 @@ import com.google.api.services.calendar.model.EventAttendee;
 import com.google.api.services.calendar.model.EventDateTime;
 import com.google.api.services.calendar.model.EventReminder;
 
-import CalendarQuickStart.CalendarQuickstart;
 
 
 public class BMConvertLead extends SvrProcess{
@@ -69,16 +72,23 @@ public class BMConvertLead extends SvrProcess{
 	private int mBPLocationID = 0;
 	private int cOpportunityID = 0;
 	private int cOrderID = 0;
+	private MRequest meeting; //new MRequest
+	private MBPartner bp;
+	private MBPartnerLocation loc;
+	private MOpportunity op;
+	private MOrder cOrder;
+	
 	private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
+   
 
     /**
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
     private static final List<String> SCOPES = Collections.singletonList(CalendarScopes.CALENDAR);
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
+    private static final String CREDENTIALS_FILE_PATH = "./credentials.json";
 
 	@Override
 	protected void prepare() {
@@ -143,7 +153,7 @@ public class BMConvertLead extends SvrProcess{
 		if (!lead.isSalesLead() && lead.getC_BPartner_ID() != 0)
 			throw new AdempiereUserError("Lead already converted");
 		
-		MBPartner bp = MBPartner.getTemplate(getCtx(), Env.getAD_Client_ID(getCtx()));
+		bp = MBPartner.getTemplate(getCtx(), Env.getAD_Client_ID(getCtx()));
 		bp.set_TrxName(get_TrxName());
 		if ( !Util.isEmpty(lead.getBPName()) )
 			bp.setName(lead.getBPName());
@@ -158,7 +168,7 @@ public class BMConvertLead extends SvrProcess{
 		if (lead.getC_Location_ID() != 0)
 		{
 			MLocation leadAddress = (MLocation) lead.getC_Location();
-			MBPartnerLocation loc = new MBPartnerLocation(bp);
+			loc = new MBPartnerLocation(bp);
 			MLocation address = new MLocation(getCtx(), 0, get_TrxName());
 			PO.copyValues(leadAddress, address);
 			address.saveEx();
@@ -192,7 +202,7 @@ public class BMConvertLead extends SvrProcess{
 		
 		if (p_createOpportunity )
 		{
-			MOpportunity op = new MOpportunity(getCtx(), 0, get_TrxName());
+			op = new MOpportunity(getCtx(), 0, get_TrxName());
 			op.setAD_User_ID(lead.getAD_User_ID());
 			op.setC_BPartner_ID(bp.getC_BPartner_ID());
 			op.setExpectedCloseDate(p_expectedCloseDate != null ? p_expectedCloseDate : new Timestamp(System.currentTimeMillis()));
@@ -242,7 +252,7 @@ public class BMConvertLead extends SvrProcess{
 		if(p_createSalesOrder)
 		{
 			//TODO: Create SO for created BP
-			MOrder cOrder = new MOrder(getCtx(),0,get_TrxName());
+			cOrder = new MOrder(getCtx(),0,get_TrxName());
 			//cOrder.setC_DocType_ID(???);
 			//MDocType docType = new mDocType(); 
 			if(bp!=null) 
@@ -263,6 +273,9 @@ public class BMConvertLead extends SvrProcess{
 			if(cOpportunityID > 0) 
 				{
 					cOrder.setC_Opportunity_ID(cOpportunityID);
+					MOpportunity opportunity = new MOpportunity(getCtx(), cOpportunityID, get_TrxName());
+					opportunity.setC_Order_ID(cOrderID);
+					opportunity.saveEx();
 				}
 			cOrder.saveEx();
 			cOrderID = cOrder.getC_Order_ID();
@@ -274,7 +287,7 @@ public class BMConvertLead extends SvrProcess{
 		if(p_meetingDate != null)
 		{
 			//TODO: Create mRequest, populate with relevant info including SO if created
-			MRequest meeting = new MRequest(getCtx(), p_SalesRep_ID, 0, p_Description, false, get_TrxName());
+			meeting = new MRequest(getCtx(), p_SalesRep_ID, 0, p_Description, false, get_TrxName());
 			MRequestType rt = MRequestType.getDefault(Env.getCtx());
 			meeting.setR_RequestType_ID(rt.get_ID());
 			meeting.setC_Order_ID(cOrderID);
@@ -282,11 +295,15 @@ public class BMConvertLead extends SvrProcess{
 			meeting.setC_Campaign_ID(lead.getC_Campaign_ID());
 			meeting.setStartDate(p_meetingDate);
 			meeting.setDateStartPlan(p_meetingDate);
-			final long duration = (p_meetingDuration.multiply(new BigDecimal(3600))).longValue();
+			final long duration = (p_meetingDuration.multiply(new BigDecimal(60000))).longValue();
 			Timestamp endDate = new Timestamp(0);
 			endDate.setTime(p_meetingDate.getTime() + duration);
 			meeting.setEndTime(endDate);
 			meeting.setDateCompletePlan(endDate);
+			meeting.saveEx();
+			
+			int requestID = meeting.getR_Request_ID();
+			addBufferLog(requestID, null, null, "@R_Request_ID@ @Created@", MRequest.Table_ID, requestID);
 			
 		}
 		
@@ -305,21 +322,102 @@ public class BMConvertLead extends SvrProcess{
 		        Calendar service = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
 		                .setApplicationName(APPLICATION_NAME)
 		                .build();
-
+		        String meetingID = null;
+		        if(meeting != null)
+		        {
+		        	meetingID = meeting.getR_Request_UU();
+		        	meetingID = meetingID.replace("-", "");
+		        	System.out.print(meetingID);
+		        }
+		        
+		        StringBuilder summary = new StringBuilder(bp.getName());
+		        if(loc !=null)
+		        {
+		        	summary.append(" ");
+		        	summary.append(loc.getName());
+		        }
+		       
+		        StringBuilder description = new StringBuilder();
+		        if(op !=null)
+		        {
+		        	description.append(op.getDescription());
+		        }
+		        description.append("\n");
+		        description.append(lead.getEMail());
+		        description.append("\n");
+		        description.append(lead.getPhone());
+		        description.append("\n");
+		        MCampaign campaign = new MCampaign(getCtx(), lead.getC_Campaign_ID(), null);
+		        String campName = campaign.getName();
+		        if(campName != null)
+		        {
+		        	description.append("Lead source: ");
+		        	description.append(campaign.getName());
+		        	description.append("\n");
+		        }
+		        
+		        if(op !=null)
+		        {
+		        	 description.append("Created by: ");
+		        	 MUser creator = new MUser(getCtx(), op.getCreatedBy(), null);
+				     description.append(creator.getName());
+				     description.append("\n");
+		        }
+		        if(cOrder != null)
+		        {
+		        	description.append("Link to Sales Order: ");
+		        	description.append(AEnv.getZoomUrlTableID(cOrder));
+		        }
+		       
+		        MLocation mLoc = new MLocation(getCtx(), loc.getC_Location_ID(), get_TrxName());
+		        StringBuilder location = new StringBuilder();
+		        
+		       if(mLoc != null)
+		       {
+			    	
+			    	String add1 = mLoc.getAddress1();
+			    	if(add1 != null)
+			    	{
+			    		location.append(add1);
+			    	}
+			        location.append(" ");
+			        String add2 = mLoc.getAddress2();
+			        if(add2 != null)
+			        {
+			        	location.append(" ");
+			        	location.append(add2);
+			        }
+			        String city = mLoc.getCity();
+			        if(city != null)
+			        {
+			        	location.append(" ");
+			        	location.append(city);
+			        }
+			        
+		       }
+		        
+		        
 		        Event event = new Event()
-		            .setSummary("Google API test PH Calendar From Idempiere")
-		            .setLocation("10 Cedar Grove, Castle Hill, NSW 2154")
-		            .setDescription("This event was created from Idempiere. Idempiere now controls your every movement. Idempiere is all powerful. Idempiere will rule the world!! Ha ha ahahahaha!!")
-		        	.setId("12345678991");
+		            .setSummary(summary.toString())
+		            .setLocation(location.toString())
+		            .setDescription(description.toString());
+		        	if(meetingID != null)
+		        		{
+		        			event.setId(meetingID);
+		        		}
 		      //  event.get
-
-		        DateTime startDateTime = new DateTime("2020-06-08T06:42:00+10:00");
+		        
+		        final long duration = (p_meetingDuration.multiply(new BigDecimal(60000))).longValue();
+				Timestamp endDate = new Timestamp(0);
+				endDate.setTime(p_meetingDate.getTime() + duration);
+				
+		        DateTime startDateTime = new DateTime(p_meetingDate);
 		        EventDateTime start = new EventDateTime()
 		            .setDateTime(startDateTime)
 		            .setTimeZone("Australia/Sydney");
 		        event.setStart(start);
 
-		        DateTime endDateTime = new DateTime("2020-06-08T21:42:00+10:00");
+		        DateTime endDateTime = new DateTime(endDate);
 		        EventDateTime end = new EventDateTime()
 		            .setDateTime(endDateTime)
 		            .setTimeZone("Australia/Sydney");
@@ -332,7 +430,7 @@ public class BMConvertLead extends SvrProcess{
 		            new EventAttendee().setEmail("phil@blindmotion.com.au"),
 		            //new EventAttendee().setEmail("sbrin@example.com"),
 		        };
-		        //event.setAttendees(Arrays.asList(attendees));
+		        event.setAttendees(Arrays.asList(attendees));
 
 		        EventReminder[] reminderOverrides = new EventReminder[] {
 		            new EventReminder().setMethod("email").setMinutes(24 * 60),
@@ -343,12 +441,16 @@ public class BMConvertLead extends SvrProcess{
 		            .setOverrides(Arrays.asList(reminderOverrides));
 		        event.setReminders(reminders);
 
-		        String calendarId = "blindmotionpeter@gmail.com";
+		        String calendarId = "philbarnett72@gmail.com";//Hard coded for testing.
 		        event = service.events().insert(calendarId, event).execute();
 		        System.out.printf("Event created: %s\n", event.getHtmlLink());
-
-			   
-			   
+		        /*
+		        StringBuilder link = new StringBuilder("<a href=");
+		        link.append(event.getHtmlLink());
+		        link.append(">");
+		        link.append("Calendar entry</a>");
+		        */
+		        addLog("Event created: " + event.getHtmlLink());
 			}
 		}
 		lead.setIsSalesLead(false);
@@ -365,7 +467,7 @@ public class BMConvertLead extends SvrProcess{
      */
 	 private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
 	        // Load client secrets.
-	        InputStream in = CalendarQuickstart.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
+	        InputStream in = BMConvertLead.class.getClassLoader().getResourceAsStream(CREDENTIALS_FILE_PATH);
 	        if (in == null) {
 	            throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
 	        }

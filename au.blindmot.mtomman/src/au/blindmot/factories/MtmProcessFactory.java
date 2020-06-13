@@ -8,7 +8,7 @@ import au.blindmot.copynonselect.process.CopyNonSelect;
 import au.blindmot.gridprice.processes.GridPrice;
 import au.blindmot.mtmlabels.processes.MtmLabels;
 import au.blindmot.mtmproductinfo.processes.MtmProductGetConfig;
-import au.blindmot.process.bmconvertLead.BMConvertLead;
+import au.blindmot.processes.bmleadconvert.BMConvertLead;
 import au.blindmot.processes.mtmcreate.MtmCreate;
 
 public class MtmProcessFactory implements IProcessFactory {
@@ -43,8 +43,8 @@ public class MtmProcessFactory implements IProcessFactory {
 			{	
 				return new CopyBomTrigger();
 			}
-			else if (className.equals("au.blindmot.process.bmconvertlead.BMConvertLead"))
-			{	
+			else if (className.equals("au.blindmot.processes.bmconvertlead.BMConvertLead"))
+			{						   
 				return new BMConvertLead();
 			}
 		
