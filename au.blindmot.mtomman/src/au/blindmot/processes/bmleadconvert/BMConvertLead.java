@@ -5,12 +5,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.net.URL;
 import java.sql.Timestamp;
-import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.FillMandatoryException;
@@ -49,6 +49,7 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
 import com.google.api.services.calendar.model.Event;
+import com.google.api.services.calendar.model.Event.ExtendedProperties;
 import com.google.api.services.calendar.model.EventAttendee;
 import com.google.api.services.calendar.model.EventDateTime;
 import com.google.api.services.calendar.model.EventReminder;
@@ -330,21 +331,54 @@ public class BMConvertLead extends SvrProcess{
 		        	System.out.print(meetingID);
 		        }
 		        
-		        StringBuilder summary = new StringBuilder(bp.getName());
-		        if(loc !=null)
+		        //Setup private event extended properties
+		        //Commented out - can't be seen in actual calendar
+		        /*
+		        Map <String, String> extPropertiesPrivate = new HashMap<>();
+		        
+		        if(op !=null && lead != null)
 		        {
-		        	summary.append(" ");
-		        	summary.append(loc.getName());
+		        	extPropertiesPrivate.put("Lead phone: ", lead.getPhone());
+		        	extPropertiesPrivate.put("Lead email: ", lead.getPhone());
+		        	MCampaign campaign = new MCampaign(getCtx(), lead.getC_Campaign_ID(), null);
+				    String campName = campaign.getName();
+				    if(campName != null)
+				    {
+				    	extPropertiesPrivate.put("Lead source: ", campaign.getName());
+				    }
+				     MUser creator = new MUser(getCtx(), op.getCreatedBy(), null);
+				     extPropertiesPrivate.put("Created by: ", creator.getName());
 		        }
-		       
+		        
+		        if(cOrder != null)
+		        {
+		        	String orderLink = "Order Link not Available";
+		        	try
+		        	{
+		        		orderLink = AEnv.getZoomUrlTableID(cOrder);
+		        	}
+		        	catch(Exception e)
+		        	{
+		        		System.out.println("SalesOrder link not added. \n" + e.toString());
+		        		addLog("SalesOrder link not added.Sales Order number: " + cOrder.getDocumentNo());
+		        	}
+		        	extPropertiesPrivate.put("Link to Sales Order: ", cOrder.getDocumentNo()+" "+orderLink);
+		        }
+		        */
+		        
 		        StringBuilder description = new StringBuilder();
 		        if(op !=null)
 		        {
-		        	description.append(op.getDescription());
+		        	description.append("Regarding: ");
+		        	description.append(op.getDescription());//This should be all the customer can see.
 		        }
+		        
+		       
 		        description.append("\n");
+		        description.append("Client email: ");
 		        description.append(lead.getEMail());
 		        description.append("\n");
+		        description.append("Client phone: ");
 		        description.append(lead.getPhone());
 		        description.append("\n");
 		        MCampaign campaign = new MCampaign(getCtx(), lead.getC_Campaign_ID(), null);
@@ -365,12 +399,26 @@ public class BMConvertLead extends SvrProcess{
 		        }
 		        if(cOrder != null)
 		        {
-		        	description.append("Link to Sales Order: ");
-		        	description.append(AEnv.getZoomUrlTableID(cOrder));
+		        	String orderLink = "Order Link not Available.";
+		        	try
+		        	{
+		        		orderLink = AEnv.getZoomUrlTableID(cOrder);
+		        	}
+		        	catch(Exception e)
+		        	{
+		        		System.out.println("SalesOrder link not added. \n" + e.toString());
+		        		addLog("SalesOrder link not added. Sales Order number: " + cOrder.getDocumentNo());
+		        	}
+		        	description.append("Link to Sales Order number ");
+		        	description.append(cOrder.getDocumentNo());
+		        	description.append(":\n");
+		        	description.append(orderLink);
 		        }
+		       
 		       
 		        MLocation mLoc = new MLocation(getCtx(), loc.getC_Location_ID(), get_TrxName());
 		        StringBuilder location = new StringBuilder();
+		        StringBuilder summary = new StringBuilder(bp.getName());
 		        
 		       if(mLoc != null)
 		       {
@@ -381,17 +429,21 @@ public class BMConvertLead extends SvrProcess{
 			    		location.append(add1);
 			    	}
 			        location.append(" ");
-			        String add2 = mLoc.getAddress2();
+			        String add2 = mLoc.getAddress2();//This is sometimes 'City'
 			        if(add2 != null)
 			        {
 			        	location.append(" ");
 			        	location.append(add2);
+			        	summary.append(" ");
+			        	summary.append(add2);
 			        }
 			        String city = mLoc.getCity();
 			        if(city != null)
 			        {
 			        	location.append(" ");
 			        	location.append(city);
+			        	summary.append(" ");
+			        	summary.append(city);
 			        }
 			        
 		       }
@@ -405,6 +457,19 @@ public class BMConvertLead extends SvrProcess{
 		        		{
 		        			event.setId(meetingID);
 		        		}
+		        	
+		        	/*	Google example
+		        	 * Event.ExtendedProperties extendedProperties = new Event.ExtendedProperties();
+            			Map<String, String> privateExtendedProperties = new HashMap<String, String>();
+            			privateExtendedProperties.put("domodentEventId", ddEvent._id);
+            			extendedProperties.setPrivate(privateExtendedProperties);
+            			event.setExtendedProperties(extendedProperties);
+		        	
+		        	//Commented out - can't be seen in actual calendar
+		        	Event.ExtendedProperties extendedProperties = new Event.ExtendedProperties();
+		        	extendedProperties.setShared(extPropertiesPrivate);
+		        	event.setExtendedProperties(extendedProperties);
+		        	 */
 		      //  event.get
 		        
 		        final long duration = (p_meetingDuration.multiply(new BigDecimal(60000))).longValue();
