@@ -4,7 +4,8 @@ Bundle-Name: Mtmbtn
 Bundle-SymbolicName: au.blindmot.mtmbtn
 Bundle-Version: 1.0.0.qualifier
 Require-Bundle: org.adempiere.ui.zk;bundle-version="4.1.0",
- org.adempiere.base;bundle-version="4.1.0"
+ org.adempiere.base;bundle-version="4.1.0",
+ org.adempiere.plugin.utils;bundle-version="7.1.0"
 Service-Component: au.blindmot.mtmbtn.action.mtmb.xml
 Bundle-ActivationPolicy: lazy
 Import-Package: au.blindmot.model,
