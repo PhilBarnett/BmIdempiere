@@ -1,22 +1,18 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: Mtomman
-Bundle-Version: 1.4.7.qualifier
+Bundle-Name: AUMadeToMeasure
 Bundle-SymbolicName: au.blindmot.mtomman;singleton:=true
-Import-Package: 
- org.adempiere.webui,
- org.adempiere.webui.action,
- org.adempiere.webui.adwindow,
- org.adempiere.webui.apps,
- org.adempiere.webui.component,
- org.adempiere.webui.desktop,
- org.adempiere.webui.editor,
- org.adempiere.webui.event,
- org.adempiere.webui.factory,
- org.adempiere.webui.part,
- org.adempiere.webui.session,
- org.adempiere.webui.util,
- org.adempiere.webui.window,
+Bundle-Version: 1.5.3.qualifier
+Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
+Require-Bundle: org.adempiere.plugin.utils;bundle-version="5.1.0",
+ org.adempiere.base;bundle-version="5.1.0",
+ org.eclipse.osgi.services;bundle-version="3.6.0",
+ org.adempiere.base.callout;bundle-version="6.2.0",
+ org.adempiere.ui.zk;bundle-version="7.1.0"
+Bundle-RequiredExecutionEnvironment: JavaSE-11
+Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-INF/ModelFactory.xml,OSGI-INF/ProcessFactory.xml, OSGI-INF/EventHandler2.xml, OSGI-INF/au.blindmot.mtmbtn.action.mtmb.xml,OSGI-INF/DisplayTypeFactory.xml,OSGI-INF/EditorFactory.xml,OSGI-INF/LookupFactory.xml,OSGI-INF/.xml, OSGI-INF/BLDBarcodeLookupFactory.xml
+Bundle-ActivationPolicy: lazy
+Import-Package: au.blindmot.BMGoogleOauth,
  org.apache.commons.lang;version="2.6.0",
  org.compiere.model,
  org.osgi.framework,
@@ -27,21 +23,11 @@ Import-Package:
  org.zkoss.zk.ui.event,
  org.zkoss.zk.ui.select.annotation,
  org.zkoss.zk.ui.util,
+ org.zkoss.zkplus.acegi,
  org.zkoss.zul,
  org.zkoss.zul.impl
-Require-Bundle: org.adempiere.plugin.utils;bundle-version="5.1.0",
- org.adempiere.base;bundle-version="5.1.0",
- org.eclipse.osgi.services;bundle-version="3.6.0",
- org.adempiere.ui.zk,
- org.adempiere.base.callout;bundle-version="6.2.0",
- GoogleCalendar;bundle-version="1.0.0"
-Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-INF/ModelFactory.xml,OSGI-INF/ProcessFactory.xml, OSGI-INF/EventHandler2.xml, OSGI-INF/au.blindmot.mtmbtn.action.mtmb.xml,OSGI-INF/DisplayTypeFactory.xml,OSGI-INF/EditorFactory.xml,OSGI-INF/LookupFactory.xml,
- OSGI-INF/.xml, OSGI-INF/BLDBarcodeLookupFactory.xml
-Bundle-ActivationPolicy: lazy
-Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
-Bundle-RequiredExecutionEnvironment: JavaSE-11
-Export-Package: action.images,
- au.blindmot.calloutfactory,
+Automatic-Module-Name: au.blindmot.mtomman;singleton:=true
+Export-Package: au.blindmot.calloutfactory,
  au.blindmot.copybomtrigger.process,
  au.blindmot.copynonselect.process,
  au.blindmot.editor,
@@ -50,11 +36,7 @@ Export-Package: action.images,
  au.blindmot.forms,
  au.blindmot.gridprice.processes,
  au.blindmot.make,
- au.blindmot.model;
-  uses:="org.compiere.util,
-   org.compiere.model,
-   org.compiere.process,
-   org.compiere.acct",
+ au.blindmot.model,
  au.blindmot.mtmbtn,
  au.blindmot.mtmcallouts,
  au.blindmot.mtmlabels.processes,
@@ -62,4 +44,23 @@ Export-Package: action.images,
  au.blindmot.processes.bmleadconvert,
  au.blindmot.processes.mtmcreate,
  au.blindmot.utils
+Bundle-ClassPath: .,
+ lib/commons-codec-1.10.jar,
+ lib/commons-logging-1.2.jar,
+ lib/google-api-client-1.25.0.jar,
+ lib/google-api-services-calendar-v3-rev411-1.25.0.jar,
+ lib/google-http-client-1.25.0.jar,
+ lib/google-http-client-jackson2-1.25.0.jar,
+ lib/google-oauth-client-1.25.0.jar,
+ lib/google-oauth-client-java6-1.25.0.jar,
+ lib/google-oauth-client-jetty-1.25.0.jar,
+ lib/guava-20.0.jar,
+ lib/httpclient-4.5.5.jar,
+ lib/httpcore-4.4.9.jar,
+ lib/j2objc-annotations-1.1.jar,
+ lib/jackson-core-2.9.6.jar,
+ lib/jetty-6.1.26.jar,
+ lib/jetty-util-6.1.26.jar,
+ lib/jsr305-3.0.2.jar,
+ lib/servlet-api-2.5-20081211.jar
 
