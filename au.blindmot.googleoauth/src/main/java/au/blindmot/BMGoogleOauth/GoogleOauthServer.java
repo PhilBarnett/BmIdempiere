@@ -38,6 +38,7 @@ import org.json.simple.parser.ParseException;
 
 import com.google.api.client.auth.oauth2.TokenResponse;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeRequestUrl;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -65,19 +66,21 @@ import com.google.common.collect.ImmutableMap;
 	    private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
 	    private static final String REDIRECT_URI ="http://localhost:8180/callback";
 	    private static final String SIGNIN_URI ="http://localhost:8180/signin";
+	    private String USER_ID;
 	    private static GoogleAuthorizationCodeFlow flow = null;
 	 
-	public GoogleOauthServer(GoogleAuthorizationCodeFlow AuthFlow) {
+	public GoogleOauthServer(GoogleAuthorizationCodeFlow AuthFlow, String uSER_ID) {
 		flow = AuthFlow;
+		USER_ID = uSER_ID;
 	}
 	    
 	public GoogleOauthServer() {
 		// TODO Auto-generated constructor stub
 	}
 
-	public static void main(String[] args) throws Exception {
+	/*public static void main(String[] args) throws Exception {
 	  new GoogleOauthServer().startJetty();
-	 }
+	 } */
 	 
 	  private static URI getOauthUrl(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
 	        // Load client secrets.
@@ -88,11 +91,12 @@ import com.google.common.collect.ImmutableMap;
 	        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
 	       
 	        // Build flow and trigger user authorization request.
-	       flow = new GoogleAuthorizationCodeFlow.Builder(
+	    /*   flow = new GoogleAuthorizationCodeFlow.Builder(
 	                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
 	                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
 	                .setAccessType("offline")
 	                .build();
+	    */            
 	        return flow.newAuthorizationUrl().setRedirectUri(REDIRECT_URI).toURI();
 	  }
 	 
@@ -183,6 +187,7 @@ import com.google.common.collect.ImmutableMap;
 	   String code = req.getParameter("code");
 	   
 	   // get the access token by post to Google
+	   //Could use GoogleAuthorizationCodeRequestUrl requestURL = flow.newAuthorizationUrl();?
 	   String body = post("https://accounts.google.com/o/oauth2/token", ImmutableMap.<String,String>builder()
 	     .put("code", code)
 	     .put("client_id", clientId)
@@ -206,22 +211,22 @@ import com.google.common.collect.ImmutableMap;
 	   // google tokens expire after an hour, but since we requested offline access we can get a new token without user involvement via the refresh token
 	   String accessToken = (String) jsonObject.get("access_token");
 	   TokenResponse response = new TokenResponse().setAccessToken(accessToken);
-
-	  //TODO: pass userid instead of hard cose
-	   flow.createAndStoreCredential(response, "philbarnett72@gmail.com");
+	   
+	   //if(USER_ID == null) USER_ID = "philbarnett72@gmail.com";
+	   flow.createAndStoreCredential(response, USER_ID);
 	     
 	   // you may want to store the access token in session
 	   req.getSession().setAttribute("access_token", accessToken);
-	   
+	   req.getSession().setAttribute("user_id", USER_ID);
 	   // get some info about the user with the access token
 	   //This code fails - it's incorrectly formatted
-	   String json = get(new StringBuilder("https://www.googleapis.com/oauth2/v1/userinfo?access_token=").append(accessToken).toString());
+	   //String json = get(new StringBuilder("https://www.googleapis.com/oauth2/v1/userinfo?access_token=").append(accessToken).toString());
 	   
 	 
 	   // now we could store the email address in session
 	   
 	   // return the json of the user's basic info
-	   resp.getWriter().println(json);
+	   //resp.getWriter().println(json);
 	  } 
 	 }
 	 
