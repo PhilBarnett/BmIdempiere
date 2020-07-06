@@ -8,11 +8,22 @@ Require-Bundle: org.adempiere.plugin.utils;bundle-version="5.1.0",
  org.adempiere.base;bundle-version="5.1.0",
  org.eclipse.osgi.services;bundle-version="3.6.0",
  org.adempiere.base.callout;bundle-version="6.2.0",
- org.adempiere.ui.zk;bundle-version="7.1.0"
+ org.adempiere.ui.zk;bundle-version="7.1.0",
+ au.blindmot.googleoauth;bundle-version="1.0.0"
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-INF/ModelFactory.xml,OSGI-INF/ProcessFactory.xml, OSGI-INF/EventHandler2.xml, OSGI-INF/au.blindmot.mtmbtn.action.mtmb.xml,OSGI-INF/DisplayTypeFactory.xml,OSGI-INF/EditorFactory.xml,OSGI-INF/LookupFactory.xml,OSGI-INF/.xml, OSGI-INF/BLDBarcodeLookupFactory.xml
 Bundle-ActivationPolicy: lazy
 Import-Package: au.blindmot.BMGoogleOauth,
+ com.google.api.client.auth.oauth,
+ com.google.api.client.auth.oauth2,
+ com.google.api.client.extensions.java6.auth.oauth2,
+ com.google.api.client.extensions.jetty.auth.oauth2,
+ com.google.api.client.googleapis,
+ com.google.api.client.json,
+ com.google.api.client.json.jackson2,
+ com.google.api.client.util.store,
+ com.google.api.services.calendar,
+ com.google.api.services.calendar.model,
  org.apache.commons.lang;version="2.6.0",
  org.compiere.model,
  org.osgi.framework,
@@ -44,23 +55,5 @@ Export-Package: au.blindmot.calloutfactory,
  au.blindmot.processes.bmleadconvert,
  au.blindmot.processes.mtmcreate,
  au.blindmot.utils
-Bundle-ClassPath: .,
- lib/commons-codec-1.10.jar,
- lib/commons-logging-1.2.jar,
- lib/google-api-client-1.25.0.jar,
- lib/google-api-services-calendar-v3-rev411-1.25.0.jar,
- lib/google-http-client-1.25.0.jar,
- lib/google-http-client-jackson2-1.25.0.jar,
- lib/google-oauth-client-1.25.0.jar,
- lib/google-oauth-client-java6-1.25.0.jar,
- lib/google-oauth-client-jetty-1.25.0.jar,
- lib/guava-20.0.jar,
- lib/httpclient-4.5.5.jar,
- lib/httpcore-4.4.9.jar,
- lib/j2objc-annotations-1.1.jar,
- lib/jackson-core-2.9.6.jar,
- lib/jetty-6.1.26.jar,
- lib/jetty-util-6.1.26.jar,
- lib/jsr305-3.0.2.jar,
- lib/servlet-api-2.5-20081211.jar
+Bundle-ClassPath: .
 
