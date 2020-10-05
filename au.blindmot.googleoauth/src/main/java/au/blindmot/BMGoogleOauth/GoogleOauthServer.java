@@ -1,11 +1,14 @@
 package au.blindmot.BMGoogleOauth;
 
 
-	import java.io.FileNotFoundException;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,6 +20,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.adempiere.webui.apps.AEnv;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -29,29 +33,32 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.compiere.model.MSysConfig;
+import org.compiere.util.AdempiereUserError;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.resource.Resource;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import com.google.api.client.auth.oauth2.TokenResponse;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeRequestUrl;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.calendar.CalendarScopes;
 import com.google.common.collect.ImmutableMap;
 
 
 	public class GoogleOauthServer {
 
-	 private Server server = new Server(8180);
+		//public static final int PORT = 8180;
+		private Server server = new Server(getPortFromURI());
 
 	 private final String clientId = "988374284472-c3vu92mel4n5hjlkmpo0j04d1h924hga.apps.googleusercontent.com";
 	 private final String clientSecret = "4E4P9XpHKW64HIWO4roIBH0f";
@@ -64,8 +71,10 @@ import com.google.common.collect.ImmutableMap;
 	    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 	    private static final String TOKENS_DIRECTORY_PATH = "tokens";
 	    private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
-	    private static final String REDIRECT_URI ="http://localhost:8180/callback";
-	    private static final String SIGNIN_URI ="http://localhost:8180/signin";
+	    //private static final String REDIRECT_URI ="http://localhost:"+PORT+"/callback";
+	    //private static final String SIGNIN_URI ="http://localhost:"+PORT+"/signin";
+	    private static final String BLD_OAUTH_REDIRECT_URL = "BLD_OAUTH_REDIRECT_URL";
+	    private static final String BLD_OAUTH_SIGNIN_URL = "BLD_OAUTH_SIGNIN_URL";
 	    private String USER_ID;
 	    private static GoogleAuthorizationCodeFlow flow = null;
 	 
@@ -97,30 +106,48 @@ import com.google.common.collect.ImmutableMap;
 	                .setAccessType("offline")
 	                .build();
 	    */            
-	        return flow.newAuthorizationUrl().setRedirectUri(REDIRECT_URI).toURI();
+	        return flow.newAuthorizationUrl().setRedirectUri(getRedirectUri().toString()).toURI();
 	  }
 	 
 	 public void startJetty() throws Exception {
 
-	        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+		 	// Figure out what path to serve content from
+	        ClassLoader classLoader = GoogleOauthServer.class.getClassLoader();
+	        // We look for a file, as ClassLoader.getResource() is not
+	        // designed to look for directories (we resolve the directory later)
+	        URL f = classLoader.getResource("/Authenticated.html");
+	        if (f == null)
+	        {
+	            throw new RuntimeException("Unable to find resource directory");
+	        }
+
+	        // Resolve file to directory
+	     
+	        URI webRootUri = f.toURI().resolve("./").normalize();
+	        System.err.println("WebRoot is " + webRootUri);
+		 
+		 	ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
 	        context.setContextPath("/");
+	        context.setBaseResource(Resource.newResource(webRootUri));
 	        server.setHandler(context);
 	 
 	        // map servlets to endpoints
-	        context.addServlet(new ServletHolder(new SigninServlet()),"/signin");        
-	        context.addServlet(new ServletHolder(new CallbackServlet()),"/callback");        
+	        context.addServlet(new ServletHolder(new SigninServlet()),getSignInUri().getFile());        
+	        context.addServlet(new ServletHolder(new CallbackServlet()),getRedirectUri().getFile());   
+
+	        ServletHolder holderPwd = new ServletHolder("default",DefaultServlet.class);
+	        holderPwd.setInitParameter("dirAllowed","true");
+	        context.addServlet(holderPwd,"/");
 	        
 	        server.start();
 	        server.join();
 	 }
 
 	 class SigninServlet extends HttpServlet {
-		
 		 /**
 		 * 
 		 */
 		private static final long serialVersionUID = 3757548502051622543L;
-
 		@Override
 	  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,IOException {
 		  
@@ -183,6 +210,14 @@ import com.google.common.collect.ImmutableMap;
 	    return;
 	   }
 	   
+	   //Below code gets the base URL from request
+	   //String URL = AEnv.getApplicationUrl();
+	   /*
+	   StringBuffer url = req.getRequestURL();
+       String uri = req.getRequestURI();
+       String ctx = req.getContextPath();
+       String base = url.substring(0, url.length() - uri.length() + ctx.length()) + "/";
+       */
 	   // google returns a code that can be exchanged for a access token
 	   String code = req.getParameter("code");
 	   
@@ -192,7 +227,7 @@ import com.google.common.collect.ImmutableMap;
 	     .put("code", code)
 	     .put("client_id", clientId)
 	     .put("client_secret", clientSecret)
-	     .put("redirect_uri", REDIRECT_URI)
+	     .put("redirect_uri", getRedirectUri().toString())
 	     .put("grant_type", "authorization_code").build());
 
 	   // ex. returns
@@ -214,6 +249,10 @@ import com.google.common.collect.ImmutableMap;
 	   
 	   //if(USER_ID == null) USER_ID = "philbarnett72@gmail.com";
 	   flow.createAndStoreCredential(response, USER_ID);
+	   System.err.println(Paths.get("").toAbsolutePath().toString());
+	  // File myObj = new File("filename.txt");
+	  // myObj.createNewFile();
+	   resp.sendRedirect("Authenticated.html");
 	     
 	   // you may want to store the access token in session
 	   req.getSession().setAttribute("access_token", accessToken);
@@ -248,6 +287,7 @@ import com.google.common.collect.ImmutableMap;
 	  request.setEntity(new UrlEncodedFormEntity(nvps));
 	  
 	  return execute(request);
+	  
 	 }
 	 
 	 // makes request and checks response code for 200
@@ -265,12 +305,34 @@ import com.google.common.collect.ImmutableMap;
 	     return body;
 	 }
 
-	public String getRedirectUri() {
-		return REDIRECT_URI;
+	public static URL getRedirectUri() {
+		URL redirectURI = null;
+		try {
+			redirectURI = new URL (MSysConfig.getValue(BLD_OAUTH_REDIRECT_URL));
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		if(redirectURI == null)
+		{
+			throw new AdempiereUserError("Ensure a System Configurator setting 'BLD_OAUTH_CALLBACK_URL' exists and has a setting matching one at https://console.developers.google.com");
+		}
+		else return redirectURI;
 	}
 
-	public String getSignInUri() {
-		return SIGNIN_URI;
+	public URL getSignInUri() {
+		URL signInURI = null;
+		try {
+			signInURI = new URL(MSysConfig.getValue(BLD_OAUTH_SIGNIN_URL));
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		if(signInURI  == null)
+		{
+			throw new AdempiereUserError("Ensure a System Configurator setting 'BLD_OAUTH_SIGNIN_URL' exists and has a setting value like 'http://<applicationroot>:<oauthserver_port>/signin");
+		}
+		else return signInURI ;
 	}
 	  
 	  protected JSONObject getJsonObject(String body) {
@@ -281,4 +343,23 @@ import com.google.common.collect.ImmutableMap;
 			    throw new RuntimeException("Unable to parse json " + body);
 			   }
 	  }
+
+	public int getPort() {
+		return server.getConnectors()[0].getLocalPort();
+	}
+	
+	public int getPortFromURI() {
+		URL redirectURI = getRedirectUri();
+		if(redirectURI != null)
+		{
+			int port = redirectURI.getPort();
+			return port;
+		}
+		else 
+		{
+			throw new AdempiereUserError("Can't determine Oauth server port");
+		}
+		
+	}
+
 	}

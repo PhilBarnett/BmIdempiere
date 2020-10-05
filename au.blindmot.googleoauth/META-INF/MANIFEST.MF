@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: BMGoogleOauth
 Bundle-SymbolicName: au.blindmot.googleoauth;singleton:=true
-Bundle-Version: 1.0.0.qualifier
+Bundle-Version: 1.0.2.qualifier
 Bundle-ClassPath: .,
  lib/commons-codec-1.6.jar,
  lib/commons-logging-1.1.1.jar,
@@ -37,7 +37,6 @@ Bundle-ClassPath: .,
 Service-Component: OSGI-INF/bmgoogleoauth.xml
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
-Bundle-ActivationPolicy: lazy
 Export-Package: au.blindmot.BMGoogleOauth,
  com.google.api.client.auth.oauth,
  com.google.api.client.auth.oauth2,
@@ -89,4 +88,8 @@ Export-Package: au.blindmot.BMGoogleOauth,
  com.google.api.client.util.store,
  com.google.api.services.calendar,
  com.google.api.services.calendar.model
-Require-Bundle: org.adempiere.plugin.utils;bundle-version="7.1.0"
+Require-Bundle: org.adempiere.plugin.utils;bundle-version="7.1.0",
+ org.adempiere.ui.zk;bundle-version="7.1.0"
+Import-Package: org.compiere.apps,
+ org.compiere.model,
+ org.compiere.util
