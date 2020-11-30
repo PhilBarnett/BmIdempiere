@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: GoogleCalendar
+Bundle-SymbolicName: com.google.calendar
+Bundle-Version: 1.0.0.qualifier
+Export-Package: com.google.calendar.googlecalendar
+Import-Package: com.google.calendar.googlecalendar
+Require-Bundle: org.adempiere.base;bundle-version="7.1.0",
+ org.adempiere.plugin.utils;bundle-version="7.1.0",
+ org.adempiere.ui.zk;bundle-version="7.1.0"

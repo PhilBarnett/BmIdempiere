@@ -105,8 +105,10 @@ import com.google.common.collect.ImmutableMap;
 	                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
 	                .setAccessType("offline")
 	                .build();
-	    */            
+	    */    
+	        in.close();        
 	        return flow.newAuthorizationUrl().setRedirectUri(getRedirectUri().toString()).toURI();
+	        
 	  }
 	 
 	 public void startJetty() throws Exception {
@@ -223,7 +225,8 @@ import com.google.common.collect.ImmutableMap;
 	   
 	   // get the access token by post to Google
 	   //Could use GoogleAuthorizationCodeRequestUrl requestURL = flow.newAuthorizationUrl();?
-	   String body = post("https://accounts.google.com/o/oauth2/token", ImmutableMap.<String,String>builder()
+	   //String body = post("https://accounts.google.com/o/oauth2/token", ImmutableMap.<String,String>builder()
+	   String body = post("https://oauth2.googleapis.com/token", ImmutableMap.<String,String>builder()
 	     .put("code", code)
 	     .put("client_id", clientId)
 	     .put("client_secret", clientSecret)

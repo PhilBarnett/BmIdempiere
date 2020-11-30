@@ -341,7 +341,7 @@ public class PluginDocEvent extends AbstractEventHandler{
 
 	private void setAddress2(String address2) {
 		if (MLocation==null) return;
-		MLocation.setAddress2(address2);
+		MLocation.setCity(address2);//changerd by PB 16/10/2020
 		MLocation.saveEx(trxName);		
 	}
 
