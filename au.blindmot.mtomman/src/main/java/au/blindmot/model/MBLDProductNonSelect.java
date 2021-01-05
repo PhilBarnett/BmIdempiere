@@ -24,6 +24,8 @@ public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 	public static final String MTM_NON_SELECT_OPERATION_CONDITION_SET = "Condition Set";
 	public static final String MTM_NON_SELECT_OPERATION_SUBSTITUTION = "Substitution";
 	public static final String MTM_NON_SELECT_OPERATION_DELETE = "Deletion";
+	public static final String MTM_NON_SELECT_OPERATION_ATTRIBUTE_BASED_ADD = "attribute";
+	public static final String MTM_NON_SELECT_OPERATION_ATTRIBUTE_BASED_DELETE = "attribute_del";
 	
 	public MBLDProductNonSelect(Properties ctx, int BLD_Product_Non_Select_ID, String trxName) {
 		super(ctx, BLD_Product_Non_Select_ID, trxName);
