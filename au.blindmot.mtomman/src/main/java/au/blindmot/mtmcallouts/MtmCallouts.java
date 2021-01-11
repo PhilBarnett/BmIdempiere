@@ -573,7 +573,12 @@ public class MtmCallouts implements IColumnCallout {
 				//
 				totalPriceToAdd = getListPrices(productsToCheck.toArray(new MProductBOM[productsToCheck.size()]),qty,M_PriceList_ID);
 				FDialog.warn(WindowNo, "Actual price will contain prices for additional products: " + priceMessage.toString() + " ");
-				//Set Calculated Cost
+				/* Set Calculated Cost
+				 * Calculated cost = price list cost of any mtmparent + product costs in productsToCheck
+				 * In the case of something like a remote control, its just the latest cost.
+				 * In the context of here (we have a mtm product with bld_line_productsetinstance products to add to the calculated cost
+				 * we get the cost of the orderline item and add the product costs in productsToCheck
+				 */
 				BigDecimal calculatedCost = Env.ZERO;
 				MProductBOM[] bomArray = (MProductBOM[]) productsToCheck.toArray();
 				for(int p = 0; p < bomArray.length; p++)
@@ -712,7 +717,7 @@ public class MtmCallouts implements IColumnCallout {
 			int m_productbom_id = mbomProducts[i].get_ValueAsInt("m_productbom_id");
 			MProduct productToGet = new MProduct(pCtx, m_productbom_id, null);
 			
-			/*
+			/*TODO: Delete below code once qty = getQty(productToGet, area); is tested
 			if(productToGet.getUOMSymbol().equalsIgnoreCase("sqm") && area != null)//it's sqm item, change qty
 			{
 				qty = area;
@@ -848,7 +853,7 @@ public class MtmCallouts implements IColumnCallout {
 		
 		if(product.get_ValueAsBoolean("isgridprice"))
 		{
-			return getMTMProductCost(product);
+			return getGripPriceProductCost(product);
 		}
 		else
 		{
@@ -870,9 +875,33 @@ public class MtmCallouts implements IColumnCallout {
 	 * @param mtmProduct
 	 * @return
 	 */
-	public BigDecimal getMTMProductCost(MProduct mtmProduct) {
+	public BigDecimal getGripPriceProductCost(MProduct mtmProduct) {
+		//get default purchase price list
+		MPriceList defaultPurchasePriceList =  MPriceList.getDefault(pCtx, false);
 		
-		return null;
+		//get break value
+		BigDecimal[] lbw = MtmUtils.hasLengthAndWidth(mAttributeSetInstance_ID);
+		BigDecimal breakvalue = getBreakValue(lbw, mtmProduct);
+		//multiply price list at qty by break val: price = pp.getPriceList().multiply(breakvalue);
+		
+		
+		IProductPricing pp = Core.getProductPricing();
+		pp.setM_PriceList_ID(defaultPurchasePriceList.getM_PriceList_ID());
+		int M_PriceList_Version_ID = defaultPurchasePriceList.getPriceListVersion(null).getM_PriceList_Version_ID();
+		pp.setM_PriceList_Version_ID(M_PriceList_Version_ID);
+		
+		BigDecimal price = Env.ZERO;
+		//MProduct productToGet = new MProduct(pCtx, m_productbom_id, null);
+		
+		BigDecimal qty = getQty(mtmProduct, area);
+		pp.setInitialValues(mtmProduct.getM_Product_ID(), orderLine.getC_BPartner_ID(), qty, isSalesTrx, null);
+		
+		if(breakval != null)
+		{
+			price = pp.getPriceList().multiply(breakvalue);
+		}
+		
+		return price;
 		
 	}
 	public BigDecimal getQty(MProduct productToGet, BigDecimal area) {
