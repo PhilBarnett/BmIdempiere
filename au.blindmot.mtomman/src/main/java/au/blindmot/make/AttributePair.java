@@ -7,6 +7,9 @@ public class AttributePair {
 		this.instance = instance;
 		this.instanceValue = instanceValue;
 	}
+	public AttributePair() {
+		// TODO Auto-generated constructor stub
+	}
 	private String instance = null;
 	private String instanceValue = null;
 	
@@ -21,6 +24,14 @@ public class AttributePair {
 	}
 	public void setInstanceValue(String instanceValue) {
 		this.instanceValue = instanceValue;
+	}
+	public boolean equals(AttributePair comparingTo) {
+		if(this.getInstance().equalsIgnoreCase(comparingTo.getInstance()) 
+				&& this.getInstanceValue().equalsIgnoreCase(comparingTo.getInstanceValue()))
+		{
+			return true;
+		}
+		else return false;
 	}
 
 }

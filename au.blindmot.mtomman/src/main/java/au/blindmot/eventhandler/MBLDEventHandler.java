@@ -212,8 +212,11 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				log.warning("BMorderLine discount: " + BMorderLine.getDiscount());
 				BMorderLine.beforeSave(po.is_new());
 				BigDecimal priceActual = BMorderLine.getPriceList().subtract(BMorderLine.getDiscount().divide(Env.ONEHUNDRED).multiply(BMorderLine.getPriceList()));
-				BMorderLine.setPrice(priceActual.setScale(2, BigDecimal.ROUND_HALF_UP));
-				BMorderLine.setLineNetAmt(BMorderLine.getQtyEntered().multiply(priceActual).setScale(2, BigDecimal.ROUND_HALF_UP));
+			//	BMorderLine.setPrice(priceActual.setScale(2, BigDecimal.ROUND_HALF_UP));
+				BMorderLine.setPrice(copyFromOrderLine.getPriceActual());
+				//BMorderLine.setLineNetAmt(BMorderLine.getQtyEntered().multiply(priceActual).setScale(2, BigDecimal.ROUND_HALF_UP));
+				BMorderLine.setLineNetAmt(copyFromOrderLine.getLineNetAmt());
+				BMorderLine.setPriceList(copyFromOrderLine.getPriceList());
 				BMorderLine.saveEx();
 			}
 			return;

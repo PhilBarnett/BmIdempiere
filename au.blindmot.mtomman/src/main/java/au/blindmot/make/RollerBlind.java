@@ -315,7 +315,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 * @param mProductBomid
 	 * @return
 	 */
-	private BigDecimal getBomQty(int mProductBomid) { 
+	public BigDecimal getBomQty(int mProductBomid) { 
 		BigDecimal qty = BigDecimal.ZERO;
 		if(mProductBomid == rollerTubeID)
 			{
@@ -342,6 +342,11 @@ public class RollerBlind extends MadeToMeasureProduct{
 			}
 		
 		
+		return super.getBomQty(mProductBomid);
+		
+		/*
+		 * TESTME: Below code moved to supercalss 5/12/2020, test & remove.
+		 * 
 		StringBuilder sql = new StringBuilder("SELECT m_product_bom_id ");
 	        sql.append("FROM m_product_bom ");
 	        sql.append("WHERE m_product_id = ");
@@ -357,7 +362,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			
 			BigDecimal bigQty = mProductBom.getBOMQty();
 		
-		return bigQty;
+		return bigQty; */
 		
 	}//getBomQty
 

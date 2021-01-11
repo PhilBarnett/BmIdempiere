@@ -25,10 +25,6 @@ import au.blindmot.model.MBLDMtmProductBomTrigger;
 
 public class MtmUtils {
 
-	
-	/*
-	 * Currently this class is unused as it was causing massive system slowdown.
-	 */
 	// Prefixes for bar codes based on table_id - to shorten barcodes
 	public static final String MTM_PRODUCTION_PREFIX = "01";
 	public static final String MTM_PRODUCTION_ITEM_PREFIX = "02";

@@ -30,6 +30,18 @@ public class MtmCalloutFactory implements IColumnCalloutFactory {
 		if(tableName.equalsIgnoreCase(MOrderLine.Table_Name) && columnName.equalsIgnoreCase(MOrderLine.COLUMNNAME_M_Product_ID))
 		{
 			list.add(new MtmCallouts());
+		}/*
+		if(tableName.equalsIgnoreCase(MOrderLine.Table_Name) && columnName.equalsIgnoreCase(MOrderLine.COLUMNNAME_Discount))
+		{
+			list.add(new MtmCallouts());
+		}*/
+		if(tableName.equalsIgnoreCase(MOrderLine.Table_Name) && columnName.equalsIgnoreCase(MOrderLine.COLUMNNAME_QtyEntered))
+		{
+			list.add(new MtmCallouts());
+		}
+		if(tableName.equalsIgnoreCase(MOrderLine.Table_Name) && columnName.equalsIgnoreCase("bld_line_productsetinstance_id"))
+		{
+			list.add(new MtmCallouts());
 		}
 		//
 		

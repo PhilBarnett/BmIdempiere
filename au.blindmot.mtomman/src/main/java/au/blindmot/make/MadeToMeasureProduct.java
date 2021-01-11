@@ -10,10 +10,12 @@ import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
+import org.compiere.model.MAttributeValue;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductBOM;
 import org.compiere.model.MProductionLine;
 import org.compiere.model.Query;
+import org.compiere.model.X_M_PartType;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -192,15 +194,54 @@ public static String EACH_1 = "Ea ";//Each with space
 						//Override method as required in concrete classes.
 						 performOperationDelete(mBLDPNonSelectArray[x]);
 					 }
+					 else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_ATTRIBUTE_BASED_ADD) || 
+							 operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_ATTRIBUTE_BASED_DELETE))
+					 {
+						//Override method as required in concrete classes.
+						 performOperationAttributeBased(mBLDPNonSelectArray[x], mBLDProductPartTypeArray[j], operation);
+					 }
 				 }
 			 }
 		}
 		return true;
 	}//setAutoSelectedPartIds()
-	
-	
-	
+
+	private boolean performOperationAttributeBased(MBLDProductNonSelect mbldProductNonSelect, MBLDProductPartType mBLDProductPartTypeArray, String operation) {
+		
+		AttributePair[] attributePairs = getMAttributeSetInstance();
+		AttributePair nonSelectAttributes = getAttributeFromMBLDProductNonSelect(mbldProductNonSelect);
+		for(int i = 0; i < attributePairs.length; i++)
+		{
+			if(attributePairs[i].equals(nonSelectAttributes))
+			{
+				if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_ATTRIBUTE_BASED_ADD))
+				{
+					performOperationAddition(mbldProductNonSelect, mBLDProductPartTypeArray);
+				}
+				else if(operation.equalsIgnoreCase(MBLDProductNonSelect.MTM_NON_SELECT_OPERATION_ATTRIBUTE_BASED_DELETE))
+				{
+					performOperationDelete(mbldProductNonSelect);
+				}
+				
+			}
+		}
+		//Get instance attributes
+		//Check if attributes from product match mbldProductNonSelect variable
+		//Add if they do
+		return true;
+	}
+
 	public abstract boolean addMtmInstancePartsToBomDerived();
+	
+	public AttributePair getAttributeFromMBLDProductNonSelect(MBLDProductNonSelect mbldProductNonSelect) {
+		AttributePair nonSelectAttributes = new AttributePair();
+		int mAttributeID = (int) mbldProductNonSelect.get_Value("m_attribute_id");
+		int mAttributeValueID = (int) mbldProductNonSelect.get_Value("m_attributevalue_id");
+		nonSelectAttributes.setInstance((new MAttribute(Env.getCtx(), mAttributeID, null).getName()));
+		nonSelectAttributes.setInstanceValue((new MAttributeValue(Env.getCtx(), mAttributeValueID, null).getName()));
+		return nonSelectAttributes;
+		
+	}
 	
 	public int getWide() {
 		return wide;
@@ -427,29 +468,43 @@ public static String EACH_1 = "Ea ";//Each with space
 	
 	public boolean performOperationAddition(MBLDProductNonSelect mBLDPNonSelect, MBLDProductPartType mBLDProductPartType) {
 		
-		/*//perform addition
+		//perform addition
 		 int addID = Integer.parseInt(mBLDPNonSelect.getaddtionalproduct().toString());
 		 X_M_PartType addPartType = new X_M_PartType(Env.getCtx(), mBLDProductPartType.getM_PartTypeID(), null);
 		 
 		 if(addPartType != null)
 		 {
-			if(addPartType.getName().equalsIgnoreCase("Cut to length item"))
-			 {
-				 addMBLDBomDerived(addID, getPelmetCut(), trxName);
-			 }
-			 else
-			 {
-				 addMBLDBomDerived(addID, getBomQty(addID), trxName);
-			 }
+			addMBLDBomDerived(addID, getBomQty(addID), trxName);
 			 	
 		 }
 		
-		return true;*/
-		
-		
 		return true;
+		
+		
+		//return true;
 	}//performOperationAddition
 	
+	public BigDecimal getBomQty(int addID) {
+		
+		StringBuilder sql = new StringBuilder("SELECT m_product_bom_id ");
+        sql.append("FROM m_product_bom ");
+        sql.append("WHERE m_product_id = ");
+        sql.append(m_product_id);
+        sql.append(" AND m_productbom_id = ");
+        sql.append(addID);
+        
+        int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
+		MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, trxName);
+		//if(mProductBom.get_ValueAsBoolean(columnName))
+		
+		
+		
+		BigDecimal bigQty = mProductBom.getBOMQty();
+	
+	return bigQty;
+	
+	}
+
 	public boolean performOperationConditionSet(MBLDProductNonSelect mBLDPNonSelect) {
 		/*
 		 *  //perform conditon set

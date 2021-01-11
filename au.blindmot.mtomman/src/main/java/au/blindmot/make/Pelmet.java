@@ -191,7 +191,7 @@ public class Pelmet extends MadeToMeasureProduct {
 	 * @param mProductBomid
 	 * @return
 	 */
-	private BigDecimal getBomQty(int mProductBomid) { 
+	public BigDecimal getBomQty(int mProductBomid) { 
 		BigDecimal qty = BigDecimal.ZERO;
 		if(mProductBomid == pelmetAngleID)
 			{
