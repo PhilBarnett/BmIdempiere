@@ -573,18 +573,54 @@ public class MtmCallouts implements IColumnCallout {
 				//
 				totalPriceToAdd = getListPrices(productsToCheck.toArray(new MProductBOM[productsToCheck.size()]),qty,M_PriceList_ID);
 				FDialog.warn(WindowNo, "Actual price will contain prices for additional products: " + priceMessage.toString() + " ");
+				
 				/* Set Calculated Cost
 				 * Calculated cost = price list cost of any mtmparent + product costs in productsToCheck
 				 * In the case of something like a remote control, its just the latest cost.
 				 * In the context of here (we have a mtm product with bld_line_productsetinstance products to add to the calculated cost
 				 * we get the cost of the orderline item and add the product costs in productsToCheck
 				 */
+				ArrayList<String> costsMessage = new ArrayList<String>();
 				BigDecimal calculatedCost = Env.ZERO;
-				MProductBOM[] bomArray = (MProductBOM[]) productsToCheck.toArray();
+				//Get cost of parent product
+				MProduct orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
+				
+				//getQty may be a completely unnecessary method. Should use the orderline qty here? 
+				//BigDecimal orderLineProductQty = getQty(orderLineProduct, area);
+				BigDecimal orderLineProductQty = orderLine.getQtyEntered();
+				BigDecimal orderLineProductCost = getCalculatedCosts(orderLineProduct, orderLineProductQty);
+				if(orderLineProductCost.compareTo(Env.ZERO) < 1)
+				{
+					costsMessage.add("No Cost pricing available for: " + orderLineProduct.getName());
+				}
+				else
+				{
+					calculatedCost.add(orderLineProductCost);
+				}
+				
+				//Get cost for each item in productsToCheck array
+				MProductBOM[] bomArray = productsToCheck.toArray(new MProductBOM[productsToCheck.size()]);
 				for(int p = 0; p < bomArray.length; p++)
 				{
 					MProduct productPriceToGet = new MProduct(pCtx, bomArray[p].getM_ProductBOM_ID(), null);
-					calculatedCost.add(getCalculatedCosts(productPriceToGet, qty));
+					BigDecimal costProductQty = getQty(productPriceToGet, area);
+					BigDecimal returnedPrice = getCalculatedCosts(productPriceToGet, costProductQty);
+					if(returnedPrice.compareTo(Env.ONE)< 0)
+					{
+						costsMessage.add("No Cost pricing available for: " + productPriceToGet.getName());
+					}
+					else
+					{
+						calculatedCost = calculatedCost.add(returnedPrice);
+					}
+					
+				}
+				mTab.setValue("calculated_cost", calculatedCost);
+				if(costsMessage.size() > 0)
+				{
+					
+					log.warning("Costing for" + orderLineProduct.getName() + " is not accurate. The following costs are missing: " + costsMessage);
+					FDialog.warn(WindowNo, "Costing for " + orderLineProduct.getName() + " is not accurate. The following costs are missing: " + costsMessage);
 				}
 				
 			}
@@ -694,6 +730,13 @@ public class MtmCallouts implements IColumnCallout {
 		return "";
 	}	//	amt
 	
+	/**
+	 * Retrieves the list prices of products in the MProductBOM[] mbomProducts parameter.
+	 * @param mbomProducts
+	 * @param qty
+	 * @param M_PriceList_ID
+	 * @return
+	 */
 	private BigDecimal getListPrices(MProductBOM[] mbomProducts, BigDecimal qty, int M_PriceList_ID) {
 		//IProductPricing pp = Core.getProductPricing();
 		BigDecimal totalToAdd = Env.ZERO;
@@ -851,9 +894,10 @@ public class MtmCallouts implements IColumnCallout {
 	 */
 	public BigDecimal getCalculatedCosts(MProduct product, BigDecimal qty) {
 		
+		BigDecimal foundCost = Env.ZERO;
 		if(product.get_ValueAsBoolean("isgridprice"))
 		{
-			return getGripPriceProductCost(product);
+			return getGridPriceProductCost(product);
 		}
 		else
 		{
@@ -863,9 +907,21 @@ public class MtmCallouts implements IColumnCallout {
 			String costingMethod = mSchema.getCostingMethod();
 			log.warning(mAcctSchema.toString());
 			int AD_Org_ID = Env.getAD_Org_ID(pCtx);
-			return  MCost.getCurrentCost(product, 0, mSchema, AD_Org_ID, costingMethod, qty, orderLine.getC_OrderLine_ID(), true, null);
+			BigDecimal retCost = MCost.getCurrentCost(product, 0, mSchema, AD_Org_ID, costingMethod, qty, orderLine.getC_OrderLine_ID(), true, null);
+			if(retCost != null && retCost.compareTo(Env.ZERO) > 0)
+			{
+				foundCost = retCost;
+			}
+			else
+			{
+				BigDecimal lastResort = MCost.getSeedCosts(product, 0, mSchema, AD_Org_ID, costingMethod, orderLine.getC_OrderLine_ID());
+				if(lastResort != null && lastResort.compareTo(Env.ZERO) > 0)
+				{
+					return lastResort.multiply(qty);
+				}
+			}
+		return foundCost;
 		}
-		
 		
 	}
 	/**
@@ -875,7 +931,7 @@ public class MtmCallouts implements IColumnCallout {
 	 * @param mtmProduct
 	 * @return
 	 */
-	public BigDecimal getGripPriceProductCost(MProduct mtmProduct) {
+	public BigDecimal getGridPriceProductCost(MProduct mtmProduct) {
 		//get default purchase price list
 		MPriceList defaultPurchasePriceList =  MPriceList.getDefault(pCtx, false);
 		
@@ -891,8 +947,6 @@ public class MtmCallouts implements IColumnCallout {
 		pp.setM_PriceList_Version_ID(M_PriceList_Version_ID);
 		
 		BigDecimal price = Env.ZERO;
-		//MProduct productToGet = new MProduct(pCtx, m_productbom_id, null);
-		
 		BigDecimal qty = getQty(mtmProduct, area);
 		pp.setInitialValues(mtmProduct.getM_Product_ID(), orderLine.getC_BPartner_ID(), qty, isSalesTrx, null);
 		
@@ -904,14 +958,21 @@ public class MtmCallouts implements IColumnCallout {
 		return price;
 		
 	}
-	public BigDecimal getQty(MProduct productToGet, BigDecimal area) {
+	/**
+	 * Gets the quantity for various UOM.
+	 * Assumes width will be in mm
+	 * @param productToGet
+	 * @param area2
+	 * @return
+	 */
+	public BigDecimal getQty(MProduct productToGet, BigDecimal area2) {
 		
 		BigDecimal qty = Env.ONE;
-		if(area != null)
+		if(area2 != null)
 		{
-			if(productToGet.getUOMSymbol().equalsIgnoreCase("sqm") && area != null)//it's sqm item, change qty
+			if(productToGet.getUOMSymbol().equalsIgnoreCase("sqm") && area2 != null)//it's sqm item, change qty
 			{
-				qty = area;
+				qty = area2;
 			}
 			else if(productToGet.getUOMSymbol().equalsIgnoreCase("m"))//it metres, change qty
 			{
@@ -923,6 +984,6 @@ public class MtmCallouts implements IColumnCallout {
 			}
 			return qty;
 		}
-		return qty;
+		return qty;//TODO: UOM 'Each' is not tested. Ensure orderlines with 'Each' aren't affected.
 	}
 }
