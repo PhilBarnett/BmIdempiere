@@ -5,16 +5,20 @@ package au.blindmot.eventhandler;
 import java.io.File;
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Properties;
 
 import javax.sql.RowSet;
 
 import org.adempiere.base.event.AbstractEventHandler;
 import org.adempiere.base.event.IEventTopics;
+import org.compiere.model.I_C_OrderLine;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MDiscountSchema;
+import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductionLine;
@@ -54,7 +58,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MProductionLine.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSECORRECT, MBLDMtomProduction.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MBLDMtomProduction.Table_Name);
-				registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);
+				registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);//
+				registerTableEvent(IEventTopics.PO_POST_CREATE, MOrderLine.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
 				}
@@ -126,6 +131,24 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					orderLine.set_ValueNoCheck("bld_line_productsetinstance_id", xBLDProdSetIns.get_ID());
 					orderLine.save(trxName);
 				}
+			
+			//Set calculated costs
+			if(isMadeToMeasure && event.getTopic().equalsIgnoreCase("adempiere/po/afterNew"))
+			{
+				Properties pCtx = Env.getCtx();
+				MOrder order = new MOrder(pCtx, orderLine.getC_Order_ID(), trxName);
+				MOrderLine line = (MOrderLine)po;
+				//line.saveEx(trxName);
+				boolean iSsalesTrx = order.isSOTrx();
+				
+				BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth(orderLine.getM_AttributeSetInstance_ID());
+				ArrayList<Integer> productIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), line);
+				//TODO:Below NPE for width only products, handle
+				BigDecimal area = (l_by_w[0].multiply(l_by_w[1]).divide(new BigDecimal(1000000)));
+				BigDecimal calculatedCosts = MtmUtils.getCalculatedLineCosts(iSsalesTrx, area, productIDsCheck , pCtx, line, 0);
+				line.set_ValueOfColumn("calculated_cost", calculatedCosts);
+				line.saveEx();
+			} 
 			
 			
 			log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());

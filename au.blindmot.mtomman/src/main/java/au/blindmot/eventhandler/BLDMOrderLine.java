@@ -7,7 +7,7 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.util.Env;
 
-public class BLDMOrderLine extends MOrderLine {
+public class BLDMOrderLine extends MOrderLine implements I_BM_OrderLine {
 
 	/**
 	 * Created to allow for the setting of discounts in orderlines.
@@ -84,5 +84,13 @@ public class BLDMOrderLine extends MOrderLine {
 
 	public void setPrevMLineOrderLineID(int prevMOrderLineID) {
 		this.prevMOrderLineID = prevMOrderLineID;
+	}
+
+	@Override
+	public int getBLDLineProductSetInstance_ID() {
+		Integer ii = (Integer)get_Value(COLUMNNAME_BLD_Line_Productsetinstance_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
 	}
 }
