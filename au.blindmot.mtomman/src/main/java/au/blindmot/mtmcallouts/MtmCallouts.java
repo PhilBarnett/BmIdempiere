@@ -53,7 +53,7 @@ public class MtmCallouts implements IColumnCallout {
 	GridField gridField = null;
 	private boolean isGridPrice = false;
 	private boolean isSalesTrx;
-	BigDecimal breakval = null;
+	BigDecimal breakvalOderLineProduct = null;
 	I_C_OrderLine orderLine;
 	MProduct orderLineProduct;
 	GridTab gTab;
@@ -68,6 +68,11 @@ public class MtmCallouts implements IColumnCallout {
 	
 	public String start(Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value, Object oldValue) {
 	
+		windowNum = WindowNo;
+		gridField = mField;
+		gTab = mTab;
+		pCtx = ctx;
+		
 		log.warning("----------In MtmCallouts.start(): " + mField.getColumnName());
 		orderLine = GridTabWrapper.create(mTab, I_C_OrderLine.class);
 		oldVal = oldValue;
@@ -86,6 +91,7 @@ public class MtmCallouts implements IColumnCallout {
 		if(l_by_w != null) area = l_by_w[0].multiply(l_by_w[1]).setScale(2).divide(sqmMtr);
 		iBMOrderLine = GridTabWrapper.create(mTab, I_BM_OrderLine.class);
 		int bldinsId = iBMOrderLine.getBLDLineProductSetInstance_ID();
+		setBreakValOrderLineProduct(orderLineProduct);
 		
 		if(value == null && oldValue != null)
 			{
@@ -105,10 +111,6 @@ public class MtmCallouts implements IColumnCallout {
 			tabNum = mTab.getTabNo();
 		}
 		
-		windowNum = WindowNo;
-		gridField = mField;
-		gTab = mTab;
-		pCtx = ctx;
 		
 		if(mTab.getAD_Table_ID() == MOrderLine.Table_ID)
 		{
@@ -132,7 +134,7 @@ public class MtmCallouts implements IColumnCallout {
 			{
 				ArrayList <Integer> productIDsCheck = new ArrayList<Integer>();
 				productIDsCheck.add(Integer.valueOf(orderLine.getM_Product_ID()));//Add this line to the array
-				BigDecimal calculatedCost = MtmUtils.getCalculatedLineCosts(isSalesTrx, area, productIDsCheck, pCtx, mOrderLine, windowNum);
+				BigDecimal calculatedCost = MtmUtils.getCalculatedLineCosts(isSalesTrx, area, productIDsCheck, pCtx, mOrderLine, null, windowNum);
 				mTab.setValue("calculated_cost", calculatedCost);
 			}
 			
@@ -142,8 +144,13 @@ public class MtmCallouts implements IColumnCallout {
 				{
 					return "";//Don't change qty fields if price is locked - no change to qty, no change to price.
 				}
+				
 				if(mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_M_AttributeSetInstance_ID))
 				{
+					MOrder parentOrder = new MOrder(pCtx, orderLine.getC_Order_ID(), null);
+					int M_PriceList_ID = parentOrder.getM_PriceList_ID();
+					//breakval = MtmUtils.getBreakValue((Object)l_by_w, mProduct, M_PriceList_ID, mTab, ctx);
+					
 					/*
 					 * How to know if there's grid pricing? Check if value_one, value_two are not null? Have an explicitly set column 'isgridprice' in m_product table? Make protocol that all
 					 * MTM products have grid pricing - would this work for pelmets?
@@ -203,23 +210,19 @@ public class MtmCallouts implements IColumnCallout {
 						
 						if(isGridPrice)//Set qty from pricelist - grid pricing.
 						{
-							//breakval = getBreakValue((Object)l_by_w, mProduct);
-							
-							
 							/*If it's mtm AND UOM = Each then use the break val to get the actual prices from the pricing table
 							 * TODO: change to set the price based on the break valXprice calc, set qty to user entered or 1.
 							 */
 							
-							
-							log.warning("-------MtmCallouts setting field " + MOrderLine.COLUMNNAME_QtyEntered +  " with: " + breakval);
+							log.warning("-------MtmCallouts setting field " + MOrderLine.COLUMNNAME_QtyEntered +  " with: " + breakvalOderLineProduct);
 							//setField(breakval, mTab, MOrderLine.COLUMNNAME_QtyEntered);
-							amt(Env.getCtx(), windowNum, tab, gridField, value, breakval);
+							amt(Env.getCtx(), windowNum, tab, gridField, value, breakvalOderLineProduct);
 							setLocked(true, mTab);
 						}
 						else //It's a regular non gridprice MTM product
 						{ //TODO: check for UOM and if it is a area UOM then continue with this block, otherwise skip.
 							//BigDecimal sqmMtr = new BigDecimal("1000000");
-							if(l_by_w != null)
+							if(l_by_w != null && (!(l_by_w[1].equals(Env.ZERO) || l_by_w[1].equals(Env.ZERO))))
 							{
 								BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2).divide(sqmMtr);
 								System.out.println(area);	
@@ -235,7 +238,7 @@ public class MtmCallouts implements IColumnCallout {
 						 * int M_PriceList_ID = Env.getContextAsInt(ctx, WindowNo, mTab.getTabNo(), "M_PriceList_ID");
 						 */
 					}
-					if(l_by_w == null)//Check if it has length only
+					if(l_by_w != null && (l_by_w[1].equals(Env.ZERO) || l_by_w[1].equals(Env.ZERO)))//Check if it has length only
 						//TODO: check for UOM and if it is a length UOM then continue with this block, otherwise skip.
 					{
 						BigDecimal length = MtmUtils.hasLength((Integer)value).setScale(2, BigDecimal.ROUND_HALF_EVEN);
@@ -251,19 +254,20 @@ public class MtmCallouts implements IColumnCallout {
 					}//public String org.compiere.model.CalloutOrder.amt (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 					
 				}
+				
 				if(mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_Discount))
 				{
-					amt(ctx, mProduct_ID, mTab, mField, value, breakval);
+					amt(ctx, mProduct_ID, mTab, mField, value, breakvalOderLineProduct);
 					setLocked(true, mTab);
 				}
 				if(mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_QtyEntered))
 				{
-					amt(ctx, mProduct_ID, mTab, mField, value, breakval);
+					amt(ctx, mProduct_ID, mTab, mField, value, breakvalOderLineProduct);
 					setLocked(true, mTab);
 				}
 				if(mField.getColumnName().equalsIgnoreCase("bld_line_productsetinstance_id"))
 				{
-					amt(ctx, mProduct_ID, mTab, mField, value, breakval);
+					amt(ctx, mProduct_ID, mTab, mField, value, breakvalOderLineProduct);
 					setLocked(true, mTab);
 				}
 				
@@ -412,6 +416,8 @@ public class MtmCallouts implements IColumnCallout {
 		boolean isEnforcePriceLimit = pl.isEnforcePriceLimit();
 		BigDecimal QtyEntered, QtyOrdered, PriceEntered, PriceActual, PriceLimit, Discount, PriceList, bpDiscount;
 		IProductPricing pp = Core.getProductPricing();
+		
+		
 		pp.setOrderLine(orderLine, null);
 		//pp.setQty(QtyOrdered);
 		pp.setM_PriceList_ID(M_PriceList_ID);
@@ -500,9 +506,8 @@ public class MtmCallouts implements IColumnCallout {
 			PriceList = pp.getPriceList();
 			 *with a cal of the break val * actual, limit & list to get real price.
 			 */
-			breakval = MtmUtils.getBreakValue(l_by_w, orderLineProduct, M_PriceList_ID, mTab, ctx);
 			MUOM uom = MUOM.get(ctx, C_UOM_To_ID);
-			if(isMadeToMeasure(mTab, ctx) && uom.getName().equalsIgnoreCase("Each") && breakval != null && isGridPrice)
+			if(isMadeToMeasure(mTab, ctx) && uom.getName().equalsIgnoreCase("Each") && breakvalOderLineProduct != null && isGridPrice)
 			{
 				priceMessage = new ArrayList<String>();
 				//MProduct orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
@@ -516,7 +521,7 @@ public class MtmCallouts implements IColumnCallout {
 				
 				mTab.setValue("PriceList", PriceList);
 				mTab.setValue("PriceLimit", PriceLimit);
-				mTab.setValue("PriceActual", pp.getPriceStd().multiply(breakval));
+				mTab.setValue("PriceActual", pp.getPriceStd().multiply(breakvalOderLineProduct));
 				mTab.setValue("PriceEntered", PriceEntered );
 				mTab.setValue("Discount", Discount);
 				//mTab.setValue("PriceEntered", PriceEntered);//Necessary?
@@ -570,7 +575,7 @@ public class MtmCallouts implements IColumnCallout {
 			 */
 			
 			PriceActual = Env.ZERO;
-			BigDecimal qty = Env.ONE;
+			//BigDecimal qty = Env.ONE;
 			//MOrderLine line = new MOrderLine(ctx, orderLine.getC_OrderLine_ID(), null);
 			
 			
@@ -706,7 +711,7 @@ public class MtmCallouts implements IColumnCallout {
 			LineNetAmt = LineNetAmt.setScale(StdPrecision, BigDecimal.ROUND_HALF_UP);
 		if (log.isLoggable(Level.INFO)) log.info("LineNetAmt=" + LineNetAmt);
 		mTab.setValue("LineNetAmt", LineNetAmt);
-		BigDecimal calculatedCost = MtmUtils.getCalculatedLineCosts(isSalesTrx, area, productIDsCheck, pCtx, orderLine, windowNum);
+		BigDecimal calculatedCost = MtmUtils.getCalculatedLineCosts(isSalesTrx, area, productIDsCheck, pCtx, orderLine, null, windowNum);
 		mTab.setValue("calculated_cost", calculatedCost);
 		//
 		return "";
@@ -728,8 +733,14 @@ public class MtmCallouts implements IColumnCallout {
 		
 		//loop through Bom products and get prices
 		//TODO: Handle for curtains - fabric will require a separate calc? Allow for fullness in price?
+		
 		for(int i = 0; i < productIDs.length; i++)
 		{
+			int m_productbom_id = productIDs[i].intValue();
+			MProduct productToGet = new MProduct(pCtx, m_productbom_id, null);
+			price = MtmUtils.getListPrice(productIDs[i], M_PriceList_ID, pCtx, orderLine, windowNum, l_by_w, isSalesTrx);
+			//(Integer mProductID, int M_PriceList_ID, Properties pCtx, I_C_OrderLine orderLine, int windowNum, BigDecimal[] l_by_w, boolean isSalesTrx)
+			/*
 			IProductPricing pp = Core.getProductPricing();
 			pp.setM_PriceList_ID(M_PriceList_ID);
 			int M_PriceList_Version_ID = Env.getContextAsInt(pCtx, windowNum, "M_PriceList_Version_ID");
@@ -740,7 +751,7 @@ public class MtmCallouts implements IColumnCallout {
 			MProduct productToGet = new MProduct(pCtx, m_productbom_id, null);
 			System.out.println(productToGet.toString());
 			MOrderLine mOrderLine = new MOrderLine(pCtx, orderLine.getC_OrderLine_ID(), null);
-			BigDecimal qty = MtmUtils.getQty(productToGet, area, orderLine);
+			BigDecimal qty = MtmUtils.getQty(productToGet, area, orderLine, null);
 			
 			
 			//BigDecimal[] lbw = MtmUtils.hasLengthAndWidth(mAttributeSetInstance_ID);
@@ -756,15 +767,16 @@ public class MtmCallouts implements IColumnCallout {
 				}
 				if(breakvalue.equals(Env.ONE) && productToGet.get_ID() == orderLineProduct.get_ID())
 				{
-					FDialog.warn(windowNum, "No price found at the dimesions entered. Please check the dimesion limits for this product. Setting price to: " + breakval);
+					FDialog.warn(windowNum, "No price found at the dimesions entered. Please check the dimesion limits for this product. Setting price to: " + breakvalue);
 				}
 			}
+			
 			else
 			{
 				pp.setInitialValues(m_productbom_id, orderLine.getC_BPartner_ID(), qty, isSalesTrx, null);
 				price = pp.getPriceList().multiply(qty);
 			}
-			
+			*/
 			if(price != null)
 			{
 				totalToAdd = totalToAdd.add(price);
@@ -780,7 +792,7 @@ public class MtmCallouts implements IColumnCallout {
 		}
 		
 		return totalToAdd;
-	}
+	}//getListPrices
 
 	public boolean isMadeToMeasure (GridTab mTab, Properties ctx) {
 			//If it's an mtm product
@@ -793,15 +805,17 @@ public class MtmCallouts implements IColumnCallout {
 			return false;
 	}
 	
-	public boolean setBreakVal(MProduct mProduct) {
+	public boolean setBreakValOrderLineProduct(MProduct mProduct) {
 		
 		BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth(mAttributeSetInstance_ID);
 		if(l_by_w != null) log.warning("------MTM Callouts Length: " + l_by_w[0] + " Width: " + l_by_w[1]);
 		int M_PriceList_ID = Env.getContextAsInt(pCtx, windowNum, "M_PriceList_ID", true);
-		breakval = MtmUtils.getBreakValue(l_by_w, mProduct, M_PriceList_ID, gTab, pCtx);
-		if(breakval != null) return true;
+		breakvalOderLineProduct = MtmUtils.getBreakValue(l_by_w, mProduct, M_PriceList_ID, gTab, pCtx);
+		if(breakvalOderLineProduct != null) return true;
 		return false;
 	}
+	
+	
 	/*
 	public BigDecimal getBreakValue(Object params, MProduct mProduct, int M_PriceList_ID) {
 		//isGridPrice = true;

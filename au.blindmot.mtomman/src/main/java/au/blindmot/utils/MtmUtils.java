@@ -19,11 +19,13 @@ import org.compiere.model.MAcctSchema;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MCost;
 import org.compiere.model.MDiscountSchema;
+import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
 import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductBOM;
+import org.compiere.model.MTab;
 import org.compiere.model.Query;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
@@ -255,6 +257,7 @@ public static BigDecimal[] hasLengthAndWidth(int masi_id) {
 		{
 			rowValues[rowCount] = rowset.getInt(2);
 			rowCount++;
+		}
 			
 			if(rowCount == 2 && rowValues[0] != 0 && rowValues[1] != 0)
 			{
@@ -263,15 +266,42 @@ public static BigDecimal[] hasLengthAndWidth(int masi_id) {
 				System.out.println(area);
 				//BigDecimal divisor = new BigDecimal(1000000);
 				//BigDecimal result = area.divide(divisor, BigDecimal.ROUND_CEILING);
-				rowset.close();
+				try {
+					if(!rowset.isClosed())
+					{
+						rowset.close();
+					}
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				return area;
 			} 
-
-		}
+			else if(rowCount == 1 && rowValues[0] != 0)
+			{
+				BigDecimal area[];
+				area = new BigDecimal[] {new BigDecimal(rowValues[0]),new BigDecimal(0)};
+				System.out.println(area);
+				//BigDecimal divisor = new BigDecimal(1000000);
+				//BigDecimal result = area.divide(divisor, BigDecimal.ROUND_CEILING);
+				try {
+					if(!rowset.isClosed())
+					{
+						rowset.close();
+					}
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				return area;
+			} 
+			
+		
+		
+		
 	} catch (SQLException e){
 		log.severe("Could not get values from attributeinstance RowSet for width and drop " + e.getMessage());
 		e.printStackTrace();
-		
 	}
 	try {
 		if(!rowset.isClosed())
@@ -284,6 +314,9 @@ public static BigDecimal[] hasLengthAndWidth(int masi_id) {
 	}
 	return null;
 	
+	
+	
+
 }
 
 public static BigDecimal hasLength(int masi_id) {
@@ -464,7 +497,7 @@ public static MBLDMtmProductBomTrigger[] getMBLDMtmProductBomTrigger(int mProduc
  * @param area2
  * @return
  */
-public static BigDecimal getQty(MProduct productToGet, BigDecimal area2, I_C_OrderLine line) {
+public static BigDecimal getQty(MProduct productToGet, BigDecimal area2, I_C_OrderLine line, String trxn) {
 	
 	BigDecimal qty = Env.ONE;
 	//If the product is the parent, then we want the price per item only
@@ -472,24 +505,36 @@ public static BigDecimal getQty(MProduct productToGet, BigDecimal area2, I_C_Ord
 	if(productToGet.get_ID() == line.getM_Product_ID())
 	{
 		qty = Env.ONE;
+		if(!productToGet.get_ValueAsBoolean("isgridprice"))//If it's not grid price and it is the orderline product, then we
+		{
+			/*If it's not grid price and it is the orderline product, then we
+			 *want the qty as one so the prices are simply read from the price list
+			 *without multiplication.
+			 */
+			return qty;
+		}
 	}
-	else if(area2 != null)
-	{
+	//if(area2 != null)
+	//{
 		if(productToGet.getUOMSymbol().equalsIgnoreCase("sqm") && area2 != null)//it's sqm item, change qty
 		{
 			qty = area2;
 		}
-		else if(productToGet.getUOMSymbol().equalsIgnoreCase("m"))//it metres, change qty
+		else if(productToGet.getUOMSymbol().equalsIgnoreCase("m") || productToGet.getUOMSymbol().equalsIgnoreCase("ml"))//it metres, change qty
 		{
-			qty = new BigDecimal((int)MtmUtils.getMattributeInstanceValue(productToGet.get_ID(), "Width", null)).divide(BigDecimal.valueOf(1000));
+			//qty = line.getQtyEntered().divide(BigDecimal.valueOf(1000));
+			qty = MtmUtils.hasLength(line.getM_AttributeSetInstance_ID());/*.divide(BigDecimal.valueOf(1000));*/
 		}
+		/*
 		else if(productToGet.getUOMSymbol().equalsIgnoreCase("ml")) //it's millimetres, change qty
 		{
-			qty = new BigDecimal((int)MtmUtils.getMattributeInstanceValue(productToGet.get_ID(), "Width", null));
+			qty = line.getQtyEntered();
+			//qty = new BigDecimal((int)MtmUtils.getMattributeInstanceValue(productToGet.get_ID(), "Width", trxn));
 		}
+		*/
 		return qty;
-	}
-	return qty;//TODO: UOM 'Each' is not tested. Ensure orderlines with 'Each' aren't affected.
+	//}
+	//return qty;//TODO: UOM 'Each' is not tested. Ensure orderlines with 'Each' aren't affected.
 }
 
 public static BigDecimal getBreakValue(Object params, MProduct mProduct, int M_PriceList_ID, GridTab gTab, Properties pCtx) {
@@ -571,7 +616,7 @@ public static BigDecimal getBreakValue(Object params, MProduct mProduct, int M_P
  * @param int windowNum
  * @return
  */
-public static BigDecimal getCalculatedLineCosts(boolean iSsalesTrx, BigDecimal area, ArrayList<Integer> productIDsCheck, Properties pCtx, I_C_OrderLine mOrderLine, /*MProduct orderLineProduct,*/ int windowNum) {
+public static BigDecimal getCalculatedLineCosts(boolean iSsalesTrx, BigDecimal area, ArrayList<Integer> productIDsCheck, Properties pCtx, I_C_OrderLine mOrderLine, String trxn, int windowNum) {
 	BigDecimal calculatedCost = Env.ZERO;
 	if(productIDsCheck.size() > 0)
 	{
@@ -584,7 +629,7 @@ public static BigDecimal getCalculatedLineCosts(boolean iSsalesTrx, BigDecimal a
 		{
 			MProduct productPriceToGet = new MProduct(pCtx, productIDsArray[p].intValue(), null);
 			//MOrderLine mOrderLine = new MOrderLine(pCtx, orderLine.getC_OrderLine_ID(), null);
-			BigDecimal costProductQty = MtmUtils.getQty(productPriceToGet, area, mOrderLine);
+			BigDecimal costProductQty = MtmUtils.getQty(productPriceToGet, area, mOrderLine, trxn);
 			BigDecimal returnedPrice = getCalculatedCosts(productPriceToGet, costProductQty, pCtx, mOrderLine, iSsalesTrx);
 			if(returnedPrice.compareTo(Env.ZERO)< 0)
 			{
@@ -712,7 +757,7 @@ public static ArrayList <Integer> getMTMPriceProductIDs(Properties pCtx, MOrderL
  */
 public static ArrayList <Integer> getMTMPriceProductIDs(Properties pCtx, I_C_OrderLine orderLine) {
 		
-		//Note that for a new, unsaved record, 'lin' will be empty
+		//Note that for a new, unsaved record, 'line' will be empty
 		MOrderLine line = new MOrderLine(pCtx, orderLine.getC_OrderLine_ID(), null);
 		//int bldInsID = orderLine.get_ValueAsInt("bld_line_productsetinstance_id");
 		
@@ -724,7 +769,13 @@ public static ArrayList <Integer> getMTMPriceProductIDs(Properties pCtx, I_C_Ord
 			return productIDsCheck;
 		}
 		//Add the orderline product to the list so the orderline price gets added.
+		//If it's not grid price, send back with just the orderline product. - no extra calculations to be done.
 		productIDsCheck.add(Integer.valueOf(orderLine.getM_Product_ID()));
+		MProduct ordeLlineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
+		if(!ordeLlineProduct.get_ValueAsBoolean("isgridprice"))
+		{
+			return productIDsCheck;
+		}
 		MBLDLineProductInstance[] instance = MBLDProductPartType.getmBLDLineProductInstance(line.get_ValueAsInt("bld_line_productsetinstance_id"),null);
 		return processIDs(pCtx, productIDsCheck, instance, mProduct_ID);
 	
@@ -760,4 +811,66 @@ public static ArrayList <Integer> getMTMPriceProductIDs(Properties pCtx, I_C_Ord
 		return productIDs;
 		
 	}
+	
+	
+	
+	/**
+	 * 
+	 * @param mProductID
+	 * @param M_PriceList_ID
+	 * @param pCtx
+	 * @param orderLine
+	 * @param windowNum
+	 * @param l_by_w
+	 * @param isSalesTrx
+	 * @return
+	 */
+	public static BigDecimal getListPrice
+	(Integer mProductID, int M_PriceList_ID, Properties pCtx, I_C_OrderLine orderLine, int windowNum, BigDecimal[] l_by_w, boolean isSalesTrx) {
+		
+		IProductPricing pp = Core.getProductPricing();
+		pp.setM_PriceList_ID(M_PriceList_ID);
+		int M_PriceList_Version_ID = Env.getContextAsInt(pCtx, windowNum, "M_PriceList_Version_ID");
+		pp.setM_PriceList_Version_ID(M_PriceList_Version_ID);//TODO:Handle for purchase price list
+		
+		BigDecimal price = Env.ZERO;
+		
+		int m_productbom_id = mProductID.intValue();
+		MProduct productToGet = new MProduct(pCtx, m_productbom_id, null);
+		System.out.println(productToGet.toString());
+		//MOrderLine mOrderLine = new MOrderLine(pCtx, orderLine.getC_OrderLine_ID(), null);
+		BigDecimal area = null;
+		if(l_by_w != null)
+		{
+			area = l_by_w[0].multiply(l_by_w[1]).divide(new BigDecimal(1000000));
+		}
+		BigDecimal qty = MtmUtils.getQty(productToGet, area, orderLine, null);
+		
+		
+		//BigDecimal[] lbw = MtmUtils.hasLengthAndWidth(mAttributeSetInstance_ID);
+		if(productToGet.get_ValueAsBoolean("isgridprice"))//it's a grid price product, need to look up price
+		{
+			BigDecimal breakvalue = MtmUtils.getBreakValue(l_by_w, productToGet,  M_PriceList_ID, null, pCtx);
+			if(breakvalue != null)
+			{
+				pp.setInitialValues(m_productbom_id, orderLine.getC_BPartner_ID(), breakvalue, isSalesTrx, null);
+				price = pp.getPriceList().multiply(breakvalue);
+				//price = pp.getPriceList();
+				//.multiply(breakvalue);
+			}
+			if(breakvalue.equals(Env.ONE) && productToGet.get_ID() == orderLine.getM_Product_ID())
+			{
+				FDialog.warn(windowNum, "No price found at the dimesions entered. Please check the dimesion limits for this product. Setting price to: " + breakvalue);
+			}
+			return price;
+		}
+		else
+		{
+			pp.setInitialValues(m_productbom_id, orderLine.getC_BPartner_ID(), qty, isSalesTrx, null);
+			price = pp.getPriceList().multiply(qty);
+			return price;
+		}
+		
+	}//getListPrice
+
 }

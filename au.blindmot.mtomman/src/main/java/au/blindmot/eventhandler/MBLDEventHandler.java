@@ -133,22 +133,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				}
 			
 			//Set calculated costs
-			if(isMadeToMeasure && event.getTopic().equalsIgnoreCase("adempiere/po/afterNew"))
-			{
-				Properties pCtx = Env.getCtx();
-				MOrder order = new MOrder(pCtx, orderLine.getC_Order_ID(), trxName);
-				MOrderLine line = (MOrderLine)po;
-				//line.saveEx(trxName);
-				boolean iSsalesTrx = order.isSOTrx();
-				
-				BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth(orderLine.getM_AttributeSetInstance_ID());
-				ArrayList<Integer> productIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), line);
-				//TODO:Below NPE for width only products, handle
-				BigDecimal area = (l_by_w[0].multiply(l_by_w[1]).divide(new BigDecimal(1000000)));
-				BigDecimal calculatedCosts = MtmUtils.getCalculatedLineCosts(iSsalesTrx, area, productIDsCheck , pCtx, line, 0);
-				line.set_ValueOfColumn("calculated_cost", calculatedCosts);
-				line.saveEx();
-			} 
+			//if(isMadeToMeasure && (event.getTopic().equalsIgnoreCase("adempiere/po/afterNew") || event.getTopic().equalsIgnoreCase("adempiere/po/beforeNew")))
+			
 			
 			
 			log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
@@ -163,21 +149,97 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			int orderLineID = orderLine.get_ID();
 			if(orderLine.getM_AttributeSetInstance_ID() > 0 && refID == orderLineID) return;//Everything is OK.
 			
-			log.warning("---------Line 93");
+			log.warning("---------Line 152");
 			MProduct mProduct = new MProduct(Env.getCtx(), orderLine.getM_Product_ID(), trxName);
 			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
 				{
 				copyFromOrderLine = copyAttributeInstance(orderLine, mProduct);
-				if(copyFromOrderLine != null)//Then it's a new record, not a copied record.
+				BigDecimal price = Env.ZERO;
+				
+				Properties pCtx = Env.getCtx();
+				MOrder order = new MOrder(pCtx, orderLine.getC_Order_ID(), trxName);
+				MOrderLine line = (MOrderLine)po;
+				BigDecimal area = null;
+				int M_PriceList_ID = order.getM_PriceList_ID();
+				//line.saveEx(trxName);
+				boolean iSsalesTrx = order.isSOTrx();
+				ArrayList<Integer> productIDsCheck;
+				BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth(line.getM_AttributeSetInstance_ID());
+				
+				if(copyFromOrderLine != null)//Then it's a copied record.
 					{
 					copyBldProductInstance(copyFromOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),  orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), mProductID);
 					System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.setLineNetAmt(copyFromOrderLine.getLineNetAmt());
 					orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.saveEx();
+					
+					if(mProduct.get_ValueAsBoolean("isgridprice"))
+						{
+						productIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), copyFromOrderLine);
+						//l_by_w = MtmUtils.hasLengthAndWidth(orderLine.getM_AttributeSetInstance_ID());
+							
+						if(l_by_w != null)
+						{
+							area = (l_by_w[0].multiply(l_by_w[1]).divide(new BigDecimal(1000000)));
+						}
+						else
+						{
+							area = Env.ZERO;
+						}
+							
+							BigDecimal calculatedCosts = MtmUtils.getCalculatedLineCosts(iSsalesTrx, area, productIDsCheck , pCtx, copyFromOrderLine, trxName, 0);
+							for(Integer num : productIDsCheck)
+							{
+								price = price.add(MtmUtils.getListPrice(num, M_PriceList_ID, pCtx, line, 0, l_by_w, iSsalesTrx));
+							}
+							
+							/*
+							PriceActual = totalPriceToAdd;
+							PriceEntered = totalPriceToAdd;
+							PriceLimit = totalPriceToAdd.divide(Env.ONEHUNDRED);//Hard coded, fix at some point.
+							PriceList = totalPriceToAdd;
+							*/
+							
+							BigDecimal discount = copyFromOrderLine.getDiscount();
+							BigDecimal priceActual = BigDecimal.valueOf((100.0 - discount.doubleValue()) / 100.0 * price.doubleValue());
+							line.setPriceActual(priceActual);
+							//line.setPriceActual(price);
+							line.setPriceEntered(priceActual);
+							line.setPriceLimit(price.divide(Env.ONEHUNDRED));//Hard coded, fix at some point.;
+							line.setPriceList(price);
+							line.set_ValueOfColumn("calculated_cost", calculatedCosts);
+							line.saveEx();
+						}
 					}
-					else
+					else if(mProduct.get_ValueAsBoolean("isgridprice") && copyFromOrderLine == null)
 					{
+						productIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), line);
+						//l_by_w = MtmUtils.hasLengthAndWidth(line.getM_AttributeSetInstance_ID());
+						if(l_by_w != null)//
+						{
+							area = (l_by_w[0].multiply(l_by_w[1]).divide(new BigDecimal(1000000)));
+						}
+						else
+						{
+							area = Env.ZERO;
+						}
+						
+						BigDecimal calculatedCosts = MtmUtils.getCalculatedLineCosts(iSsalesTrx, area, productIDsCheck , pCtx, line, trxName, 0);
+						for(Integer num : productIDsCheck)
+						{
+							price = price.add(MtmUtils.getListPrice(num, M_PriceList_ID, pCtx, line, 0, l_by_w, iSsalesTrx));
+						}
+						
+						BigDecimal discount = line.getDiscount();
+						BigDecimal priceActual = BigDecimal.valueOf((100.0 - discount.doubleValue()) / 100.0 * price.doubleValue());
+						line.setPriceActual(priceActual);
+						line.setPriceEntered(priceActual);
+						line.setPriceLimit(price.divide(Env.ONEHUNDRED));//Hard coded, fix at some point.;
+						line.setPriceList(price);
+						line.set_ValueOfColumn("calculated_cost", calculatedCosts);
+						line.saveEx();
+					}
 						//Set qty field 
 						int mAttributeInstanceID = orderLine.getM_AttributeSetInstance_ID();
 						System.out.println("orderLine M_AttributeSetInstance_ID: " + mAttributeInstanceID);
@@ -192,15 +254,19 @@ public class MBLDEventHandler extends AbstractEventHandler {
 								BigDecimal result = area.divide(divisor, BigDecimal.ROUND_CEILING);
 								return result;
 							 */
-							BigDecimal l_by_w[] = MtmUtils.hasLengthAndWidth((int)mAttributeInstanceID);
-							if(!mProduct.get_ValueAsBoolean("isgridprice"))//Don't set the qtyentered for grid price items
+							if(copyFromOrderLine != null)
 							{
+								l_by_w = MtmUtils.hasLengthAndWidth(copyFromOrderLine.getM_AttributeSetInstance_ID());
+							}
+							
+							if(!mProduct.get_ValueAsBoolean("isgridprice"))//Don't set the qtyentered for grid price items
+							{ 
 								
 								if(l_by_w != null)
 								{
-									BigDecimal area = l_by_w[0].multiply(l_by_w[1]).setScale(2);
-									System.out.println(area);	
-									orderLine.setQtyEntered(area);	
+									BigDecimal area1 = l_by_w[0].multiply(l_by_w[1]).setScale(2);
+									System.out.println(area1);	
+									orderLine.setQtyEntered(area1);	
 								}
 							}
 							
@@ -225,9 +291,10 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				BMorderLine.setDiscount(flatDiscount);
 				log.warning("-set_ValueOfColumn---line 218-----orderLine.get_ID: " + orderLine.get_ID());
 				
-				}
+		
 			BMorderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
 			BMorderLine.save(trxName);
+	}
 			
 			if(copyFromOrderLine != null)//It's a copied line; ensures that on copied lines, any user set discount is retained.
 			{
@@ -246,8 +313,6 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		}
 		
 	}
-	
-}
 
 	
 	/**
