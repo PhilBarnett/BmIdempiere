@@ -4,6 +4,7 @@ package au.blindmot.eventhandler;
 
 import java.io.File;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -40,6 +41,7 @@ import au.blindmot.utils.MtmUtils;
 
 public class MBLDEventHandler extends AbstractEventHandler {
 
+	private static final String COLUMN_GROSS_MARGIN = "grossmargin";
 	private CLogger log = CLogger.getCLogger(MBLDEventHandler.class);
 	private X_M_ProductionLine mProductionLine = null;
 	private BLDMOrderLine BMorderLine = null;
@@ -61,6 +63,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);//
 				registerTableEvent(IEventTopics.PO_POST_CREATE, MOrderLine.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
+				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
 				}
 	
@@ -163,7 +166,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				int M_PriceList_ID = order.getM_PriceList_ID();
 				//line.saveEx(trxName);
 				boolean iSsalesTrx = order.isSOTrx();
-				ArrayList<Integer> productIDsCheck;
+				ArrayList<Integer> sellProductIDsCheck;
+				ArrayList<Integer> costProductIDsCheck;
 				BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth(line.getM_AttributeSetInstance_ID());
 				
 				if(copyFromOrderLine != null)//Then it's a copied record.
@@ -176,7 +180,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					
 					if(mProduct.get_ValueAsBoolean("isgridprice"))
 						{
-						productIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), copyFromOrderLine);
+						sellProductIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), copyFromOrderLine);
+						costProductIDsCheck = MtmUtils.getMTMSelectableCostProductIDs(Env.getCtx(), copyFromOrderLine);
 						//l_by_w = MtmUtils.hasLengthAndWidth(orderLine.getM_AttributeSetInstance_ID());
 							
 						if(l_by_w != null)
@@ -188,8 +193,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 							area = Env.ZERO;
 						}
 							
-							BigDecimal calculatedCosts = MtmUtils.getCalculatedLineCosts(iSsalesTrx, area, productIDsCheck , pCtx, copyFromOrderLine, trxName, 0);
-							for(Integer num : productIDsCheck)
+							BigDecimal calculatedCosts = MtmUtils.getCalculatedLineCosts(iSsalesTrx, area, sellProductIDsCheck , pCtx, copyFromOrderLine, trxName, 0);
+							for(Integer num : costProductIDsCheck)
 							{
 								price = price.add(MtmUtils.getListPrice(num, M_PriceList_ID, pCtx, line, 0, l_by_w, iSsalesTrx));
 							}
@@ -214,7 +219,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					}
 					else if(mProduct.get_ValueAsBoolean("isgridprice") && copyFromOrderLine == null)
 					{
-						productIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), line);
+						sellProductIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), line);
 						//l_by_w = MtmUtils.hasLengthAndWidth(line.getM_AttributeSetInstance_ID());
 						if(l_by_w != null)//
 						{
@@ -225,8 +230,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 							area = Env.ZERO;
 						}
 						
-						BigDecimal calculatedCosts = MtmUtils.getCalculatedLineCosts(iSsalesTrx, area, productIDsCheck , pCtx, line, trxName, 0);
-						for(Integer num : productIDsCheck)
+						BigDecimal calculatedCosts = MtmUtils.getCalculatedLineCosts(iSsalesTrx, area, sellProductIDsCheck , pCtx, line, trxName, 0);
+						for(Integer num : sellProductIDsCheck)
 						{
 							price = price.add(MtmUtils.getListPrice(num, M_PriceList_ID, pCtx, line, 0, l_by_w, iSsalesTrx));
 						}
@@ -308,6 +313,24 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				BMorderLine.setLineNetAmt(copyFromOrderLine.getLineNetAmt());
 				BMorderLine.setPriceList(copyFromOrderLine.getPriceList());
 				BMorderLine.saveEx();
+			}
+			
+			if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW) || event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_CHANGE))
+			{
+				//Update gross margin
+				//Calculate Gross margin... totallines - total cost / totallines
+				StringBuilder sql = new StringBuilder("SELECT SUM(c_orderline.calculated_cost) ");
+				sql.append("FROM c_orderline ");
+				sql.append("WHERE c_orderline.c_order_id = ?");
+				int cOrderID = orderLine.getC_Order_ID();
+				MOrder parentOrder = new MOrder(Env.getCtx(), cOrderID, trxName);
+				String cost = DB.getSQLValueString(trxName, sql.toString(), cOrderID);
+				BigDecimal bigValue = new BigDecimal(parentOrder.get_Value(MOrder.COLUMNNAME_TotalLines).toString());
+				BigDecimal bigCost = new BigDecimal(cost);
+				BigDecimal grossMargin =  bigValue.subtract(bigCost).divide(bigValue, 2, RoundingMode.HALF_UP).multiply(Env.ONEHUNDRED);
+				//setField(grossMargin, mTab, COLUMN_GROSS_MARGIN);
+				parentOrder.set_ValueNoCheck(COLUMN_GROSS_MARGIN, grossMargin);
+				parentOrder.saveEx();
 			}
 			return;
 		}

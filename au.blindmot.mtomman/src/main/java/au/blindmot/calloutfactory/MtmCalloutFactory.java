@@ -6,6 +6,7 @@ import java.util.List;
 import org.adempiere.base.IColumnCallout;
 import org.adempiere.base.IColumnCalloutFactory;
 import org.compiere.model.MInvoice;
+import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 
 import au.blindmot.mtmcallouts.MtmCallouts;
@@ -43,6 +44,11 @@ public class MtmCalloutFactory implements IColumnCalloutFactory {
 		{
 			list.add(new MtmCallouts());
 		}
+		/*
+		if(tableName.equalsIgnoreCase(MOrderLine.Table_Name) && columnName.equalsIgnoreCase(MOrderLine.COLUMNNAME_LineNetAmt))
+		{
+			list.add(new MtmCallouts());
+		}*/
 		//
 		
 		return list != null ? list.toArray(new IColumnCallout[0]) : new IColumnCallout[0];

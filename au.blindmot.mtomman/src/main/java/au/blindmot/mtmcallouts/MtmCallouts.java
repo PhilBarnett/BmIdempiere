@@ -111,7 +111,6 @@ public class MtmCallouts implements IColumnCallout {
 			tabNum = mTab.getTabNo();
 		}
 		
-		
 		if(mTab.getAD_Table_ID() == MOrderLine.Table_ID)
 		{
 			//If it's an mtm product
@@ -132,9 +131,9 @@ public class MtmCallouts implements IColumnCallout {
 			boolean isMadeToMeasure = isMadeToMeasure (mTab,ctx);
 			if(!(isMadeToMeasure || isGridPrice))//Ordinary product, just set the cost.
 			{
-				ArrayList <Integer> productIDsCheck = new ArrayList<Integer>();
-				productIDsCheck.add(Integer.valueOf(orderLine.getM_Product_ID()));//Add this line to the array
-				BigDecimal calculatedCost = MtmUtils.getCalculatedLineCosts(isSalesTrx, area, productIDsCheck, pCtx, mOrderLine, null, windowNum);
+				ArrayList <Integer> costProductIDsCheck = new ArrayList<Integer>();
+				costProductIDsCheck.add(Integer.valueOf(orderLine.getM_Product_ID()));//Add this line to the array
+				BigDecimal calculatedCost = MtmUtils.getCalculatedLineCosts(isSalesTrx, area, costProductIDsCheck, pCtx, mOrderLine, null, windowNum);
 				mTab.setValue("calculated_cost", calculatedCost);
 			}
 			
@@ -404,7 +403,8 @@ public class MtmCallouts implements IColumnCallout {
 	 */
 	public String amt (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value, BigDecimal breakVal)
 	{
-		ArrayList <Integer> productIDsCheck = MtmUtils.getMTMPriceProductIDs(ctx, orderLine);
+		ArrayList <Integer> sellProductIDsCheck = MtmUtils.getMTMSelectableSellProductIDs(ctx, orderLine);
+		ArrayList <Integer> costProductIDsCheck = MtmUtils.getMTMSelectableCostProductIDs(ctx, orderLine);
 		int C_UOM_To_ID = Env.getContextAsInt(ctx, WindowNo, mTab.getTabNo(), "C_UOM_ID");
 		int M_Product_ID = orderLineProduct.get_ID();
 		MOrder parentOrder = new MOrder(pCtx, orderLine.getC_Order_ID(), null);
@@ -511,7 +511,7 @@ public class MtmCallouts implements IColumnCallout {
 			{
 				priceMessage = new ArrayList<String>();
 				//MProduct orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
-				totalPriceToAdd = getListPrices(productIDsCheck.toArray(new Integer[productIDsCheck.size()]),M_PriceList_ID);
+				totalPriceToAdd = getListPrices(sellProductIDsCheck.toArray(new Integer[sellProductIDsCheck.size()]),M_PriceList_ID);
 				FDialog.warn(WindowNo, "Actual price will contain prices for additional products: " + priceMessage.toString() + " less any discounts.");
 				
 				PriceActual = totalPriceToAdd;
@@ -580,11 +580,11 @@ public class MtmCallouts implements IColumnCallout {
 			
 			
 		
-			if(productIDsCheck.size()>0)
+			if(sellProductIDsCheck.size()>0)
 			{
 				priceMessage = new ArrayList<String>();
 				//MProduct orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
-				totalPriceToAdd = getListPrices(productIDsCheck.toArray(new Integer[productIDsCheck.size()]),M_PriceList_ID);
+				totalPriceToAdd = getListPrices(sellProductIDsCheck.toArray(new Integer[sellProductIDsCheck.size()]),M_PriceList_ID);
 				FDialog.warn(WindowNo, "Actual price will contain prices for additional products: " + priceMessage.toString() + " ");
 				
 				/* Set Calculated Cost
@@ -711,7 +711,7 @@ public class MtmCallouts implements IColumnCallout {
 			LineNetAmt = LineNetAmt.setScale(StdPrecision, BigDecimal.ROUND_HALF_UP);
 		if (log.isLoggable(Level.INFO)) log.info("LineNetAmt=" + LineNetAmt);
 		mTab.setValue("LineNetAmt", LineNetAmt);
-		BigDecimal calculatedCost = MtmUtils.getCalculatedLineCosts(isSalesTrx, area, productIDsCheck, pCtx, orderLine, null, windowNum);
+		BigDecimal calculatedCost = MtmUtils.getCalculatedLineCosts(isSalesTrx, area, costProductIDsCheck, pCtx, orderLine, null, windowNum);
 		mTab.setValue("calculated_cost", calculatedCost);
 		//
 		return "";
