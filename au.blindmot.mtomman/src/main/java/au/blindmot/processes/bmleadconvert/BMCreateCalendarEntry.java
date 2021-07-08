@@ -40,6 +40,7 @@ import org.compiere.model.PO;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
+import org.compiere.util.CLogger;
 import org.zkoss.zk.ui.Desktop;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -79,6 +80,7 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
 	private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
+    private static final CLogger 	slog = CLogger.getCLogger (BMCreateCalendarEntry.class);
     //private static final int WEB_PORT = 8180;//100 + CConnection.get().getWebPort();
     
     /**
@@ -203,6 +205,7 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
         //TODO:Currently doing salesreps only, modify based on type var to cater for other users.
         String emailUser = calendarUser.getEMailUser();
         if(emailUser == null) throw new AdempiereUserError("The person you are trying to create the calendar entry doesn't have an email address.");
+        
         Credential calCredential = getCredentials(HTTP_TRANSPORT, emailUser);
         log.warning("-------- In BM LeadConvert creating Google Calendar entry. getCredentials(HTTP_TRANSPORT) returned: " + calCredential.toString());
         Calendar service = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, calCredential)
@@ -449,8 +452,13 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
 * @throws IOException If the credentials.json file cannot be found.
 */
 @SuppressWarnings("restriction")
+/*
+ * TODO: Remove String userId from this method and all affected code/assignments
+ * It is creating credentials for the calendar use and it should be for the logged in user.
+ */
 private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT, String userId) throws IOException {
        // Load client secrets.
+		slog.warning("------------In BMCreateCalendarEntry getCredentials()");
        InputStream in = BMConvertLead.class.getClassLoader().getResourceAsStream(CREDENTIALS_FILE_PATH);
        if (in == null) 
        {
@@ -498,16 +506,19 @@ private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT, 
        }
        */
        if(storedCredential == null||storedCredential != null)//we don't have credentials.
-       	/*THE ABOVE IF STATEMENT IS BY DESIGN TO BE TRUE
-       	 * Sometimes the credential returns 401 not authourised even when the validityu test is successful.
+       	/*THE ABOVE IF STATEMENT IS BY DESIGNED TO BE TRUE
+       	 * Sometimes the credential returns 401 not authourised even when the validity test is successful.
        	 * So the dirty workaround is to just open a browser to ensure authentication does not fail.
        	 */
        {
        	Desktop desktop = AEnv.getDesktop();
        	ServerPushTemplate pushUpdateUi = new ServerPushTemplate(desktop);
        	BmServerPushCallback callback = new BmServerPushCallback(flow, userId);
-       	pushUpdateUi.execute/*Async*/(callback); //Async or sync?
+       	
+       	slog.warning("------------In BMCreateCalendarEntry getCredentials(), about to execute pushUpdateUi.execute(callback); Will log if succesful");
+       	pushUpdateUi.executeAsync(callback); //Async or sync?
        	//pushUpdateUi.execute(callback);
+       	slog.warning("------------In BMCreateCalendarEntry getCredentials(), execute pushUpdateUi.execute(callback); succesful");
        	
        	long startTime = System.currentTimeMillis();
    		long waitTime = 10000; //10 second timeout

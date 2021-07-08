@@ -11,6 +11,7 @@ import java.net.URL;
 
 import org.adempiere.webui.util.IServerPushCallback;
 import org.adempiere.webui.window.FDialog;
+import org.compiere.util.CLogger;
 import org.zkoss.zk.ui.Executions;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
@@ -24,6 +25,7 @@ public class BmServerPushCallback implements IServerPushCallback {
 private static URL REDIRECT_URL;
 private static GoogleAuthorizationCodeFlow flow;
 private static String USER_ID;
+private final CLogger 	log = CLogger.getCLogger (BmServerPushCallback.class);
 	/**
 	 * @param userId 
 	 * 
@@ -36,19 +38,24 @@ private static String USER_ID;
 
 	@SuppressWarnings("restriction")
 	public void updateUI() {
+		log.warning("---------In BmServerPushCallback.updateUI()");
 		GoogleOauthServer oAuthServer = new GoogleOauthServer(flow, USER_ID);
 		REDIRECT_URL = oAuthServer.getSignInUri();
 		
 		if(isLocalPortInUse(oAuthServer.getPortFromURI()))
 		{
 			//Assume we have an oAuthServer already running in an existing thread, skip server setup
+			log.warning("---------In BmServerPushCallback.updateUI(): Local port is in use, server already running, trying a redirect");
 			Executions.getCurrent().sendRedirect(REDIRECT_URL.toString(), "_blank");//try a redirect
 		}
 		else
 		{
 			try
 			{
-				
+				/*
+				 * Check below code: does starting a server with a USER_ID parameter lock it to the calendar
+				 * being created?
+				 */
 				JettyRunner jettyStarter = new JettyRunner(flow, oAuthServer, USER_ID);
 				Thread jettyThread = new Thread(jettyStarter);
 				jettyThread.start();//Start the jetty server in a separate thread.
