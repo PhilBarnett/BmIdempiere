@@ -21,6 +21,8 @@ import java.util.logging.Level;
 
 import org.adempiere.webui.apps.AEnv;
 import org.adempiere.webui.component.Checkbox;
+import org.adempiere.webui.component.PAttributebox;
+import org.adempiere.webui.editor.IEditorConfiguration;
 import org.adempiere.webui.editor.WEditor;
 import org.adempiere.webui.editor.WEditorPopupMenu;
 import org.adempiere.webui.event.ContextMenuEvent;
@@ -60,11 +62,26 @@ public class WBldMtmPartsEditor extends WEditor implements ContextMenuListener
 	private GridTab m_GridTab;
 
 	/**	No Instance Key					*/
-	private static Integer		NO_INSTANCE = new Integer(0);
+	private static Integer		NO_INSTANCE = Integer.valueOf(0);
 
 	public WBldMtmPartsEditor(GridTab gridTab, GridField gridField)
 	{
 		super(new WBldPartEditBox(), gridField);
+		m_GridTab = gridTab;
+		initComponents();
+	}
+
+	
+	/**
+	 * 
+	 * @param gridTab
+	 * @param gridField
+	 * @param tableEditor
+	 * @param editorConfiguration
+	 */
+	public WBldMtmPartsEditor(GridTab gridTab, GridField gridField, boolean tableEditor, IEditorConfiguration editorConfiguration)
+	{
+		super(new WBldPartEditBox(), gridField, tableEditor, editorConfiguration);
 		m_GridTab = gridTab;
 		initComponents();
 	}
@@ -165,7 +182,7 @@ public class WBldMtmPartsEditor extends WEditor implements ContextMenuListener
 		Integer oldValue = 0;
 		if(getValue() != null)
 		{
-			oldValue = new Integer(getValue().toString());
+			oldValue = Integer.valueOf(getValue().toString());
 		}
 		
 		final int oldValueInt = oldValue == null ? 0 : oldValue.intValue ();
@@ -209,7 +226,6 @@ public class WBldMtmPartsEditor extends WEditor implements ContextMenuListener
 				bldProductsetinstance_ID, M_Product_ID, m_C_BPartner_ID,
 				productWindow, gridField.getAD_Column_ID(), m_WindowNo);
 			vad.addEventListener(DialogEvents.ON_WINDOW_CLOSE, new EventListener<Event>() {
-
 				
 				public void onEvent(Event event) throws Exception {
 					boolean changed = false;
@@ -283,7 +299,7 @@ public class WBldMtmPartsEditor extends WEditor implements ContextMenuListener
 		if (M_AttributeSetInstance_ID == 0)
 			setValue(null);
 		else
-			setValue(new Integer(M_AttributeSetInstance_ID));
+			setValue(Integer.valueOf(M_AttributeSetInstance_ID));
 
 		ValueChangeEvent vce = new ValueChangeEvent(this, gridField.getColumnName(), new Object(), getValue());
 		fireValueChange(vce);

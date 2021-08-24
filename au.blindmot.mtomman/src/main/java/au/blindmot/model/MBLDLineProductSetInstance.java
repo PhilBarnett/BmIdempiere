@@ -8,6 +8,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 
 import org.compiere.model.MProduct;
+import org.compiere.util.CCache;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 
@@ -30,11 +31,42 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 	}
 
 
-	public static MBLDLineProductSetInstance get(Properties ctx, int m_MbldLineProductsetInstanceID,
+	public static MBLDLineProductSetInstance get(Properties ctx, int m_MbldLineProductsetInstanceID ,
 			int m_M_Product_ID) {
 		
 		return new MBLDLineProductSetInstance(ctx, m_MbldLineProductsetInstanceID, null);
+		
+		/*if (m_MbldLineProductsetInstanceID <= 0)
+		{
+			return new MBLDLineProductSetInstance(ctx, m_MbldLineProductsetInstanceID, null);
+		}
+		Integer key = Integer.valueOf(m_MbldLineProductsetInstanceID);
+		MBLDLineProductSetInstance retValue = (MBLDLineProductSetInstance) s_cache.get (key);
+		if (retValue != null)
+		{
+			return retValue;
+		}
+		retValue = new MBLDLineProductSetInstance (ctx, m_MbldLineProductsetInstanceID, null);
+		if (retValue.get_ID () != 0)
+		{
+			s_cache.put (key, retValue);
+		}
+		return retValue;
+		*/
+		
+		//TODO: Delete parameter int m_M_Product_ID - not required, only one call in WBldPartsDialog to break/fix.
+		/*
+		 * /TODO: Change this method to emulate public static MProduct get (Properties ctx, int M_Product_ID)
+		 * This will use caching of the object
+		 */
+		
+		//return new MBLDLineProductSetInstance(ctx, m_MbldLineProductsetInstanceID, null);
+		
 	}
+	
+	/**	Cache						
+	 * See MProduct on how to use the cache to fetch objects*/
+	private static CCache<Integer,MBLDLineProductSetInstance> s_cache	= new CCache<Integer,MBLDLineProductSetInstance>(Table_Name, 40, 60);	//	60 minutes
 	
 	public void setDescription(int mProductID)
 	{
@@ -119,7 +151,7 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName, 
 		{
 			int bldproductparttypeid  = rs.getInt(1);
 			MBLDProductPartType partTypeToAdd = new MBLDProductPartType(p_ctx, bldproductparttypeid , tranName);
-			System.out.println("partTypeToAdd: " + partTypeToAdd);
+			System.out.println("partTypeToAdd: " + partTypeToAdd.getName());
 			partTypeToAdd.save();
 			partTypes.add(partTypeToAdd);
 		}
@@ -162,7 +194,7 @@ public  MBLDProductPartType[] getProductPartSet(int mProductID, String trxName, 
 			while (rs.next())
 			{
 				int bldproductparttypeid  = rs.getInt(1);
-				Integer partTypeToAdd = new Integer(bldproductparttypeid);
+				Integer partTypeToAdd = Integer.valueOf(bldproductparttypeid);
 				System.out.println("partTypeToAdd: " + partTypeToAdd);
 				partTypes.add(partTypeToAdd);
 			}

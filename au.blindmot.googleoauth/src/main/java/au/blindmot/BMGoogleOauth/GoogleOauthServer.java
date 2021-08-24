@@ -79,8 +79,10 @@ import com.google.common.collect.ImmutableMap;
 	    private static GoogleAuthorizationCodeFlow flow = null;
 	 
 	public GoogleOauthServer(GoogleAuthorizationCodeFlow AuthFlow, String uSER_ID) {
+		//TODO: remove USER_ID because it is the calendar user and should be for the logged in user.
 		flow = AuthFlow;
-		USER_ID = uSER_ID;
+		USER_ID = uSER_ID;//
+		
 	}
 	    
 	public GoogleOauthServer() {
@@ -251,6 +253,7 @@ import com.google.common.collect.ImmutableMap;
 	   TokenResponse response = new TokenResponse().setAccessToken(accessToken);
 	   
 	   //if(USER_ID == null) USER_ID = "philbarnett72@gmail.com";
+	   //TODO: USER_ID needs to be logged in user, not calendar user as it currently is.
 	   flow.createAndStoreCredential(response, USER_ID);
 	   System.err.println(Paths.get("").toAbsolutePath().toString());
 	  // File myObj = new File("filename.txt");

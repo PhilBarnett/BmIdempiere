@@ -7,6 +7,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 
 import org.compiere.model.Lookup;
+import org.compiere.model.MProduct;
 import org.compiere.util.CLogMgt;
 import org.compiere.util.DB;
 import org.compiere.util.DisplayType;
@@ -66,6 +67,11 @@ public class BldProdLookup extends Lookup {
 			}
 			if (mProduct_ID == 0)
 				return NO_INSTANCE;
+			/*
+			 * TODO: Try getting the product from cache instead of querying the DB every time.
+			 * Use public static MProduct get (Properties ctx, int M_Product_ID)
+			 * This tries the cache; if the MProduct object isn't in the cache, it gets added so it's there next time.
+			 */
 			
 			String Description = null;
 			PreparedStatement pstmt = null;

@@ -1,5 +1,6 @@
 package au.blindmot.factories;
 
+import org.adempiere.webui.editor.IEditorConfiguration;
 import org.adempiere.webui.editor.WEditor;
 import org.adempiere.webui.factory.IEditorFactory;
 import org.compiere.model.GridField;
@@ -35,6 +36,12 @@ public class BLDEditorFactory implements IEditorFactory {
 	        editor.setTableEditor(tableEditor);
 
         return editor;
+	}
+
+	@Override
+	public WEditor getEditor(GridTab gridTab, GridField gridField, boolean tableEditor,
+			IEditorConfiguration editorConfiguration) {
+		return this.getEditor(gridTab, gridField, tableEditor);
 	}
 
 }

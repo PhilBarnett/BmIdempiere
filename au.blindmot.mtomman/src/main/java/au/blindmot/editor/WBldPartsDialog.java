@@ -16,6 +16,8 @@
  *****************************************************************************/
 package au.blindmot.editor;
 
+import static org.compiere.model.SystemIDs.COLUMN_M_PRODUCT_M_ATTRIBUTESETINSTANCE_ID;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
@@ -38,25 +40,32 @@ import org.adempiere.webui.component.Rows;
 import org.adempiere.webui.component.Textbox;
 import org.adempiere.webui.component.Window;
 import org.adempiere.webui.event.DialogEvents;
+import org.adempiere.webui.event.ValueChangeEvent;
 import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.theme.ThemeManager;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.FDialog;
+import org.adempiere.webui.window.WPAttributeDialog;
 import org.adempiere.webui.window.WPAttributeInstance;
+import org.apache.commons.lang.StringUtils;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
+import org.compiere.model.MAttributeSet;
+import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MDocType;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductCategory;
 import org.compiere.model.MQuery;
 import org.compiere.model.SystemIDs;
 import org.compiere.model.X_M_MovementLine;
+import org.compiere.model.X_M_Product;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
 import org.zkoss.lang.SystemException;
+import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.HtmlBasedComponent;
 import org.zkoss.zk.ui.WrongValueException;
 import org.zkoss.zk.ui.event.Event;
@@ -66,6 +75,7 @@ import org.zkoss.zul.Borderlayout;
 import org.zkoss.zul.Center;
 import org.zkoss.zul.Menuitem;
 import org.zkoss.zul.Menupopup;
+import org.zkoss.zul.Separator;
 import org.zkoss.zul.South;
 import org.zkoss.zul.impl.InputElement;
 
@@ -90,6 +100,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 * 
 	 */
 	private static final long serialVersionUID = -7810825026970615029L;
+	private static String ATTRIBUTE_PREFIX = "attPrefix";
+	private Object ma_value;
+	private Component theComponent;
+	private Button attrbButton;
+	
+	/**	No Instance Key					*/
+	private static Integer		NO_INSTANCE = Integer.valueOf(0);
 
 	/**
 	 *	Product Attribute Instance Dialog
@@ -152,8 +169,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	}	//	VPAttributeDialog
 
 	private int						m_WindowNo;
-	//private MAttributeSetInstance	m_masi;//TODO: change type to MBLDLineProductInstance and see what happens
-	private MBLDLineProductSetInstance	m_masi;//TODO: change type to MBLDLineProductSetInstance and see what happens
+	private MBLDLineProductSetInstance	m_masi;
 	private int 					m_MbldLineProductsetInstanceID;
 	private int 					m_M_Locator_ID;
 	private String					m_M_AttributeSetInstanceName;
@@ -310,7 +326,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		 * Check if it's dual or single and set flag
 		 */
 		
-		else	//	Set Instance Attributes
+		else	//	Set BldInstance Attributes
 		{
 			Row row = new Row();
 			
@@ -349,9 +365,9 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			 * TODO: 
 			 */
 			
-			MBLDLineProductSetInstance mbps = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
-			log.warning("mbs == :" + mbps.toString());
-			MBLDProductPartType[] partTypes1 =  mbps.getProductPartSet(m_M_Product_ID , null, true);
+			MBLDLineProductSetInstance mBLDLineProductSetInstance = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
+			log.warning("mBLDLineProductSetInstance == :" + mBLDLineProductSetInstance.toString());
+			MBLDProductPartType[] partTypes1 =  mBLDLineProductSetInstance.getProductPartSet(m_M_Product_ID , null, true);
 			log.warning ("Part Types= " + partTypes1.length);
 			for (int i = 0; i < partTypes1.length; i++)
 				addAttributeLine (rows, partTypes1[i], false, false);
@@ -402,7 +418,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		fieldDescription.setReadonly(true);
 		Row row = new Row();
 		row.setParent(rows);
-		row.appendChild(label);
+		row.appendChild(label.rightAlign());
 		row.appendChild(fieldDescription);
 		ZKUpdateUtil.setHflex(fieldDescription, "1");
 		
@@ -435,7 +451,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		if (mBLDpartType.getName() != null)
 		{
 			String desc = mBLDpartType.getName();
-			if(desc == null)
+			if(desc != null)
 			label.setTooltiptext(desc);
 			log.warning("--------In WBldPartsDialog.addAttributeLine() String desc = partType.getDescription() == " + desc);
 			if(desc.equalsIgnoreCase(TUBULAR_BLIND_CONTROL) || mBLDpartType.getName().equalsIgnoreCase(TUBULAR_BLIND_CONTROL))
@@ -495,19 +511,19 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 		//TODO: Change to MProduct[] partType.getPartSetProducts(int mProductID, int mPartypeID, String trxName) 
 		
-			Listbox editor = new Listbox();
+			Listbox listBox = new Listbox();
 			
 			if(tubularBlindControl == true)
 			{
 				log.warning("---------In WBldPartsDialog.addAttributeLine tubularBlindControl == true");
-				if(editor != null)
+				if(listBox != null)
 				{
 					log.warning("---------In WBldPartsDialog.addAttributeLine tubularBlindControl == true, editor != null");
 				}
-				editor.setId("controlBox");
-				editor.addEventListener(Events.ON_SELECT, this); 
-				log.warning("---------line 458 editor");
-				ctrlBox = editor;
+				listBox.setId("controlBox");
+				//listBox.addEventListener(Events.ON_SELECT, this); 
+				log.warning("---------line 509 editor");
+				ctrlBox = listBox;
 				tubularBlindControl = false;
 				
 				//modify/remove bracket parts from MProduct[] values
@@ -521,13 +537,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			if(tNCM == true)
 			{
 				log.warning("---------In WBldPartsDialog.addAttributeLine TNCM == true");
-				if(editor != null)
+				if(listBox != null)
 				{
 					log.warning("---------In WBldPartsDialog.addAttributeLine TNCM == true, editor != null");
 				}
-				editor.setId("TNCMBox");
-				editor.addEventListener(Events.ON_SELECT, this); 	
-				nCtrlBox  = editor;
+				listBox.setId("TNCMBox");
+				//listBox.addEventListener(Events.ON_SELECT, this); 	
+				nCtrlBox  = listBox;
 				tNCM = false;
 			
 				//modify/remove bracket parts from MProduct[] values
@@ -538,13 +554,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			if(isLink == true)
 			{
 				log.warning("---------In WBldPartsDialog.addAttributeLine IS_LINK == true");
-				if(editor != null)
+				if(listBox != null)
 				{
 					log.warning("---------In WBldPartsDialog.addAttributeLine IS_LINK  == true, editor != null");
 				}
-				editor.setId("LinkBox");
-				editor.addEventListener(Events.ON_SELECT, this); 	
-				linkBox  = editor;
+				listBox.setId("LinkBox");
+				//listBox.addEventListener(Events.ON_SELECT, this); 	
+				linkBox  = listBox;
 				isLink = false;
 			
 				//modify/remove bracket parts from MProduct[] values
@@ -555,13 +571,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			if(bracket == true)
 			{
 				log.warning("---------In WBldPartsDialog.addAttributeLine bracket == true");
-				if(editor != null)
+				if(listBox != null)
 				{
 					log.warning("---------In WBldPartsDialog.addAttributeLine bracket  == true, editor != null");
 				}
-				editor.setId("bracketBox");
-				editor.addEventListener(Events.ON_SELECT, this); 	
-				bracketBox  = editor;
+				listBox.setId("bracketBox");
+				//listBox.addEventListener(Events.ON_SELECT, this); 	
+				bracketBox  = listBox;
 				bracket = false;
 			}
 			
@@ -569,29 +585,147 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			
 			//Add any chain related rows to chainArray
-			if(editor != null && mBLDpartType.getName().contains("Chain"))
+			if(listBox != null && mBLDpartType.getName().contains("Chain"))
 			{
-				chainArray.add(editor);
+				chainArray.add(listBox);
 			}
-			editor.setMold("select");
+			
+			listBox.setMold("select");
+			
+			if(listBox.getId()=="")
+			{
+				listBox.setId(label.getValue());
+			}
+			String listboxID = listBox.getId();
+			listboxID = listboxID.concat(String.valueOf(mBLDpartType.get_ID()));
+			listBox.setId(listboxID);
+			
 			for (MProduct value : values) 
 			{
 				ListItem item = new ListItem(value != null ? value.getName() : "", value);
-				editor.appendChild(item);
+				listBox.appendChild(item);
 			}
-			if (readOnly)
-				editor.setEnabled(false);
-			else
-				m_editors.add (editor);
-			row.appendChild(editor);
-			ZKUpdateUtil.setHflex(editor, "1");
-			setListAttribute(mBLDpartType, editor);
-			
-			
 			
 		
+			if (readOnly)
+			{
+				listBox.setEnabled(false);
+				//txtEditor.setEnabled(false);
+				
+			
+			}
+			else
+				m_editors.add (listBox);
+				listBox.addEventListener(Events.ON_SELECT, this);
+				//m_editors.add (txtEditor);
+			
+			//row.appendChild(txtEditor);
+			ZKUpdateUtil.setHflex(listBox, "1");
+			setListAttribute(mBLDpartType, listBox);
+			row.appendChild(listBox);
+			MProduct selectedProduct = (MProduct) listBox.getValue();
+			
+			
+			log.warning("---------In WBldPartsDialog, selected product has instance attributes --- adding attribute editor");
+			Row row3 = rows.newRow();
+			Textbox txtEditor = new Textbox();
+			txtEditor.setWidth("100%");
+			txtEditor.setReadonly(true);
+			txtEditor.setVisible(false);
+			Label editorLabel = new Label("");
+			Button attributeEdit = new Button();
+			attributeEdit.setWidth("50%");
+			attributeEdit.setImage(ThemeManager.getThemeResource("images/PAttribute16.png"));
+			attributeEdit.setId(ATTRIBUTE_PREFIX+mBLDpartType.get_ID());
+			attributeEdit.addEventListener(Events.ON_CLICK, this);
+			attributeEdit.setVisible(false);
+			attributeEdit.setEnabled(false);
+			m_editors.add(attributeEdit);
+			m_editors.add (txtEditor);
+			row3.setAlign("right");
+			row3.appendChild(attributeEdit);
+			row3.appendChild(txtEditor);
+			
+			if(hasInstanceAttributes(selectedProduct))
+			{
+				//Separator separator = new Separator();
+				//separator.setHeight("20px");
+				//row3.appendChild(separator);
+				txtEditor.setVisible(true);
+				attributeEdit.setVisible(true);
+				//Give the text box something to display
+				setTextEditor(txtEditor, listBox);
+			}
+			
 	}	//	addAttributeLine
 	
+	/**
+	 * Set the texteditor display
+	 * @param mBLDpartType
+	 * @param txtEditor
+	 * @param listBox
+	 */
+	private void setTextEditor(Textbox txtEditor, Listbox listBox) {
+		// Find what the Listbox is displaying
+		// Check if a bld_line_productinstance record exists, if it does, check for m_attributesetinstance_id
+		// Get the display for m_attributesetinstance_id and set the Textbox to display it.
+		int mAttributeSetInstanceID = getmAttributeSetInsantanceID(listBox);
+		if(mAttributeSetInstanceID > 0)
+			// Check that the product in the list box has the same attributesetID as the m_attributesetinstance_id
+			if(productAtrributeMatchesAtrributeSetInstance(listBox.getValue(), mAttributeSetInstanceID))
+			{
+				String display = getDisplay(mAttributeSetInstanceID);
+				txtEditor.setText(display);
+			}
+			else//set the mAttributeSetInstanceID to 0 if we don't have a match.
+			{
+				MBLDLineProductInstance bLDLineProductInstance = 
+						new MBLDLineProductInstance(Env.getCtx(), getmBLDLineProductInstanceID(listBox.getId()), null);
+				bLDLineProductInstance.setM_AttributeSetInstance_ID(0);
+				bLDLineProductInstance.saveEx();
+				txtEditor.setText("");
+			}
+	}
+	
+	private boolean productAtrributeMatchesAtrributeSetInstance(Object value, int mAttributeSetInstanceID) {
+		int mProductID = ((MProduct) value).get_ID();
+		int attributeSetInstanceAttributeSetID = 0;
+		int productAttributeSetID = 0;
+		StringBuilder sql = new StringBuilder();
+		sql.append("SELECT m_attributeset_id ");
+		sql.append("FROM m_product ");
+		sql.append("WHERE m_product_id = ?");
+		productAttributeSetID = DB.getSQLValue(null, sql.toString(), mProductID);
+		
+		StringBuilder sql1 = new StringBuilder();
+		sql1.append("SELECT m_attributeset_id ");
+		sql1.append("FROM m_attributesetinstance ");
+		sql1.append("WHERE m_attributesetinstance_id = ?");
+		attributeSetInstanceAttributeSetID =DB.getSQLValue(null, sql1.toString(), mAttributeSetInstanceID);
+		
+		if(attributeSetInstanceAttributeSetID == productAttributeSetID) return true;
+		
+		return false;
+	}
+
+	/**
+	 * 
+	 * @param mBLDpartType
+	 * @param listBox
+	 * @return
+	 */
+	private int getmAttributeSetInsantanceID(Listbox listBox) {
+		int mAttributeSetInstanceID = 0;
+		int mBLDLineProductInstanceID = getmBLDLineProductInstanceID(listBox.getId());
+		if(mBLDLineProductInstanceID > 0)
+		{
+			MBLDLineProductInstance mBLDLineProductInstance = new MBLDLineProductInstance(Env.getCtx(), mBLDLineProductInstanceID, null);
+			mAttributeSetInstanceID = mBLDLineProductInstance.getM_AttributeSetInstance_ID();
+		}
+		return mAttributeSetInstanceID;
+		
+	}
+
 	private ListItem getControlId(Listbox ctrlOrTNCM)
 	{
 		if(ctrlOrTNCM == null)
@@ -628,6 +762,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		*/
 	}
 	
+	/*
 	private void setStringAttribute(MAttribute attribute, Textbox editor)  throws WrongValueException {
 		MAttributeInstance instance = attribute.getMAttributeInstance (m_MbldLineProductsetInstanceID);
 		if (instance != null)
@@ -645,7 +780,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			editor.setValue(instance.getValueNumber());
 		else
 			editor.setValue(Env.ZERO);		
-	}
+	}	*/
 
 	/*
 	 * BLD will always be list.
@@ -656,6 +791,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 */
 	private void setListAttribute(MBLDProductPartType mBLDpartType, Listbox editor) {
 		boolean found = false;
+		int index = m_editors.indexOf(editor);
 		
 		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, mBLDpartType.getBLD_M_PartType_ID(), null);	//	optional = null
 			
@@ -695,9 +831,10 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		}	//	setComboBox
 		
 		*/
-			
+			MProduct mProduct = null;
 			if (instance != null)
 			{
+				
 				log.warning("--------In setListAttribute, MBLDLineProductInstance instance: " + instance.toString());
 				int prodID = instance.getM_Product_ID();
 				for (int i = 0; i < values.length; i++)
@@ -706,11 +843,11 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 					{
 						for (int i1 = 0; i1 < editor.getItemCount(); i1++)
 						{
-							editor.setSelectedIndex (i1);
+							editor.setSelectedIndex (i1);//Once correct index is found, break occurs.
 							if(editor.getValue() != null)
 							{
 								Object setValue = editor.getValue();
-								MProduct mProduct = (MProduct)setValue;
+								mProduct = (MProduct)setValue;
 								if(mProduct.get_ID() == prodID)
 								{		
 									found = true;
@@ -723,7 +860,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 						{
 							if(editor.getItemCount() > 0)
 							{
-								MProduct mProduct = (MProduct)editor.getValue();
+								//MProduct mProduct = (MProduct)editor.getValue();
 								log.warning("MProduct selected from list: " + mProduct.getName());
 							}
 							
@@ -734,7 +871,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				}
 				if (found ){
 					
-					if(editor.getId().equalsIgnoreCase("bracketBox") || editor.getId().equalsIgnoreCase("linkBox"))
+					if(editor.getId().contains("bracketBox") || editor.getId().contains("linkBox"))
 					{
 						//Set IsDual flag
 						String isProductDual = (String) MtmUtils.getMattributeInstanceValue(prodID, MtmUtils.MTM_IS_DUAL, null);
@@ -747,7 +884,10 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 							isDualRoller = false;
 						}
 						cbDualRoller.setSelected(isDualRoller);
+						
+						
 					}
+					
 					if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + mBLDpartType.getName() + " #" + values.length + " - found: " + instance);
 				} else {
 					log.warning("Attribute=" + mBLDpartType.getName() + " #" + values.length + " - NOT found: " + instance);
@@ -806,7 +946,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		{
 			cmd_existingCombo();
 		}
-		else if (e.getTarget().getId().equalsIgnoreCase("controlBox")/* || e.getTarget().getId().equalsIgnoreCase("TNCMBox")*/)
+		else if (e.getTarget().getId().contains("controlBox")/* || e.getTarget().getId().equalsIgnoreCase("TNCMBox")*/)
 		{
 			log.warning("---------In WBldPartsDialog.onEvent()---e.getTarget().getId().equalsIgnoreCase(\"controlBox\")");
 			setChainControlFlag();
@@ -815,7 +955,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			setBracketEditorActive();
 			
 		}
-		else if (e.getTarget().getId().equalsIgnoreCase("LinkBox"))
+		else if (e.getTarget().getId().contains("LinkBox"))
 		{
 			//Set 
 		}
@@ -835,6 +975,15 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			m_M_Locator_ID = 0;
 			dispose();
 		}
+		else if(e.getTarget().getId().contains(ATTRIBUTE_PREFIX))
+		{
+			cmd_Attributedialog(e.getTarget());
+		}
+		else if(!e.getTarget().getId().contains(ATTRIBUTE_PREFIX))//It's a Listbox
+		{
+			cmd_UpdateAfterProductEdit(e.getTarget());
+		}
+		
 		//	Zoom M_Lot
 		else if (e.getTarget() == mZoom)
 		{
@@ -843,6 +992,44 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		else
 			log.log(Level.SEVERE, "not found - " + e);
 	}	//	actionPerformed
+
+	private void cmd_UpdateAfterProductEdit(Component target) {
+		Listbox listBox = (Listbox) target;
+		Textbox txtEditor;
+		Button button;
+		MProduct mProduct = (MProduct)listBox.getValue();
+		int index = getEditorIndex(target);
+		
+		button = (Button) m_editors.get(index + 1);
+		txtEditor = (Textbox) m_editors.get(index + 2);
+		
+		//Check if target has instance attributes
+		if(hasInstanceAttributes(mProduct))
+		{
+			setTextEditor(txtEditor, listBox);
+			txtEditor.setVisible(true);
+			button.setVisible(true);
+		}
+		else
+		{
+			setTextEditor(txtEditor, listBox);
+			txtEditor.setVisible(false);//Set display of text box accordingly
+			button.setVisible(false);
+		}
+	}
+
+	private int getEditorIndex(Component target) {
+		int counter = 0;
+		for(int i = 0; i < m_editors.size(); i++)
+		{
+			if(m_editors.get(i).getId().equalsIgnoreCase(target.getId()))
+			{
+				counter = i;
+				break;
+			}
+		}
+		return counter;
+	}
 
 	/**
 	 * 
@@ -950,6 +1137,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				((Listbox)editor).setEnabled(check);
 			else if (editor instanceof NumberBox)
 				((NumberBox)editor).setEnabled(check);
+			else if (editor instanceof Button)
+				((Button)editor).setEnabled(check);
 		}
 		if(check)
 		{
@@ -1046,6 +1235,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				((Listbox)editor).setEnabled(rw);
 			else if (editor instanceof NumberBox)
 				((NumberBox)editor).setEnabled(rw);
+			else if (editor instanceof Button)
+				((Button)editor).setEnabled(rw);
 		}
 		cbDualRoller.setEnabled(rw);
 		if(rw)
@@ -1116,39 +1307,58 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		MBLDLineProductSetInstance mbps = new MBLDLineProductSetInstance(Env.getCtx(), m_MbldLineProductsetInstanceID, null);
 		MBLDProductPartType[] productPartSet = mbps.getProductPartSet(m_M_Product_ID, null, true);
 		
-		for (int i = 0; i < productPartSet.length; i++)
+			
+			//Loop through the editors and stop at each list box.
+			//At each listbox, get the MBLDProductPartType
+			//Set the partset backend data to the same value as the appropriate editor
+		int partSetPartypeID = 0;
+		int editorPartTypeID = 0;
+		
+		for(int j = 0; j < m_editors.size(); j++)
 		{
-			//if (MAttribute.ATTRIBUTEVALUETYPE_List.equals(attributes[i].getAttributeValueType()))
-			//{
-				Listbox editor = (Listbox)m_editors.get(i);
+			Listbox editor = null;	
+			if(m_editors.get(j).getClass().getName().contains("Listbox"))
+			{
+					editor = (Listbox)m_editors.get(j);
+				
 				ListItem item = editor.getSelectedItem();
 				MProduct value = item != null ? (MProduct)item.getValue() : null;
 				//if (log.isLoggable(Level.FINE)) log.fine(productPartSet[i].getName() + "=" + value);
-				if (productPartSet[i].isMandatory() && value == null)
-					mandatory += " - " + productPartSet[i].getName();
 				
-				log.warning("BEFORE if((!isChainPartType(editor)) || ((isChainPartType(editor) && isChainControl)))");
-				log.warning("isChainPartType(editor)) : " + isChainPartType(editor) + " isChainControl: " + isChainControl);
-				log.warning("editor: " + editor.toString());
-				if((!isChainPartType(editor)) || ((isChainPartType(editor) && isChainControl)))
+				for (int i=0; i < productPartSet.length; i++)
 				{
-					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, true);
-				}
-				else if(isChainPartType(editor) && !isChainControl)
-				{
-					//Don't save or create new and delete existing if it's chain control and a chain part type
-					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
-				}
-				if(editor.getId().equalsIgnoreCase("linkBox") && !isLink)
-				{
-					//Don't save or create new and delete existing if it's the link bracker listbox and it's not a link
-					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
-				}
-				if(editor.getId().equalsIgnoreCase("bracketBox") && isLink)
-				{
-					//Don't save or create new and delete existing if it's bracket and is a link
-					productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
-				}
+					partSetPartypeID = productPartSet[i].getBLD_Product_PartType_ID();
+					editorPartTypeID = Integer.parseInt(StringUtils.right(editor.getId(),7));
+					if(partSetPartypeID == editorPartTypeID)
+					{
+						
+						if (productPartSet[i].isMandatory() && value == null)
+							mandatory += " - " + productPartSet[i].getName();
+						
+						log.warning("BEFORE if((!isChainPartType(editor)) || ((isChainPartType(editor) && isChainControl)))");
+						log.warning("isChainPartType(editor)) : " + isChainPartType(editor) + " isChainControl: " + isChainControl);
+						log.warning("editor: " + editor.toString());
+						if((!isChainPartType(editor)) || ((isChainPartType(editor) && isChainControl)))
+						{
+							productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, true);
+						}
+						else if(isChainPartType(editor) && !isChainControl)
+						{
+							//Don't save or create new and delete existing if it's chain control and a chain part type
+							productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
+						}
+						if(editor.getId().contains("linkBox") && !isLink)
+						{
+							//Don't save or create new and delete existing if it's the link bracker listbox and it's not a link
+							productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
+						}
+						if(editor.getId().contains("bracketBox") && isLink)
+						{
+							//Don't save or create new and delete existing if it's bracket and is a link
+							productPartSet[i].setMBLDLineProductInstance(m_MbldLineProductsetInstanceID, value, false);
+						}
+					
+			}
 				
 			//}
 				
@@ -1156,6 +1366,9 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		}	//	for all attributes
 		m_MbldLineProductsetInstanceID = m_masi.getBLD_Line_ProductSetInstance_ID();
 		m_M_AttributeSetInstanceName = m_masi.getDescription();
+		
+			}
+		}
 		//
 		if (mandatory.length() > 0)
 		{
@@ -1417,6 +1630,273 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			 }
 		 }
 	 }
+	 /**
+	  * Used to determine if a product has instance attributes
+	  * @param mProduct
+	  * @return
+	  */
+	 private boolean hasInstanceAttributes(MProduct mProduct) {
+			//Setup attribute selection
+			MAttributeSet mSet = (MAttributeSet)mProduct.getM_AttributeSet();
+			MAttribute[] mSetAttributes = mSet.getMAttributes(true);
+			
+			if(mSetAttributes.length > 0)//We have instance attributes for the selected product
+			{
+				return true;
+			}
+			return false;
+			
+	 }
+	 
+	 /**
+		 *  Start dialog
+	 * @param component 
+		 * @throws Exception 
+		 */
+		private void cmd_Attributedialog(Component component) throws Exception
+		{
+			theComponent = component.getNextSibling();//Set field component
+			attrbButton = (Button) component;
+			Listbox currentListbox = (Listbox) m_editors.get(getEditorIndex(component) - 1);
+			
+			//Get the BLDLineProductInstance ID from the editor
+			int mBLDLineProductInstanceID = getmBLDLineProductInstanceID(component.getId());
+			MBLDLineProductInstance mBLDLineProductInstance = new MBLDLineProductInstance(Env.getCtx(), mBLDLineProductInstanceID, null);
+			
+			setValue(mBLDLineProductInstance.getM_AttributeSetInstance_ID());
+			//TODO: getValue() returns a string throws class cast exception 
+			Integer oldValue = 0;
+			
+			/*
+			 * /May produce unexpected results - getValue does not return attributesetinstance id.
+			 * TODO: modify below to get check that product instance mproduct == selected mproduct in component
+			 * retrieve m_AttributeSetInstance_ID from mBLDLineProductInstance
+			 */
+			if(getValue() != null)
+			{
+				oldValue = Integer.valueOf(getValue().toString());
+			}
+			
+			Textbox editedBox = (Textbox)component.getNextSibling();
+			final int oldValueInt = oldValue == null ? 0 : oldValue.intValue ();
+			int m_AttributeSetInstance_ID = oldValueInt;
+			int m_Product_ID = ((X_M_Product) currentListbox.getValue()).getM_Product_ID();
+			int M_ProductBOM_ID = 0;//Not needed, delete after testing.
+			if (/*m_GridTab != null*/1==1) {
+				
+				//M_Product_ID = Integer.getInteger(editedBox.getValue()).intValue();
+				
+				//M_ProductBOM_ID = Env.getContextAsInt (Env.getCtx (), m_WindowNo, m_GridTab.getTabNo(), "M_ProductBOM_ID");
+				//For third level tab (e.g, LineMA), should take M_Product_ID from Line instead of from Header
+				
+				/*if (m_GridTab.getTabLevel() > 1 && m_GridTab.getParentTab() != null && m_GridTab.getField("M_Product_ID")==null) {
+					int tmp = Env.getContextAsInt (Env.getCtx (), m_WindowNo, m_GridTab.getParentTab().getTabNo(), "M_Product_ID");
+					if (tmp > 0)
+						M_Product_ID = tmp;*/
+				}
+		/*	} else {
+				M_Product_ID = Env.getContextAsInt (Env.getCtx (), m_WindowNo, "M_Product_ID");
+				M_ProductBOM_ID = Env.getContextAsInt (Env.getCtx (), m_WindowNo, "M_ProductBOM_ID");
+			//} */
+
+			if (log.isLoggable(Level.CONFIG)) log.config("M_Product_ID=" + m_Product_ID + "/" + M_ProductBOM_ID
+				+ ",bldProductsetinstance_ID= " + m_AttributeSetInstance_ID); 
+
+			//	M_Product.M_AttributeSetInstance_ID = 8418
+			final boolean productWindow = false;		//	HARDCODED
+
+			if (M_ProductBOM_ID != 0)	//	Use BOM Component
+				m_Product_ID = M_ProductBOM_ID;
+			
+			
+			if (m_Product_ID == 0)
+			{
+				((Textbox) getComponent()).setText(null);
+				m_AttributeSetInstance_ID = 0;
+				processChanges(oldValueInt, m_AttributeSetInstance_ID);
+			}
+			
+			else
+			{
+				final WPAttributeDialog vad = new WPAttributeDialog  (
+						m_AttributeSetInstance_ID, m_Product_ID, m_C_BPartner_ID,
+					productWindow, 0, m_WindowNo);
+				vad.addEventListener(DialogEvents.ON_WINDOW_CLOSE, new EventListener<Event>() {
+
+					
+					public void onEvent(Event event) throws Exception {
+						boolean changed = false;
+						int M_AttributeSetInstance_ID = 0;
+						if (vad.isChanged())
+						{
+							editedBox.setText(vad.getM_AttributeSetInstanceName());
+							M_AttributeSetInstance_ID = vad.getM_AttributeSetInstance_ID();
+							/*
+							if (m_GridTab != null && !productWindow && vad.getM_Locator_ID() > 0)
+							{
+								if (gridField.getColumnName().equals("M_AttributeSetInstanceTo_ID"))
+									m_GridTab.setValue("M_LocatorTo_ID", vad.getM_Locator_ID());
+								else
+									m_GridTab.setValue("M_Locator_ID", vad.getM_Locator_ID());
+								
+							}
+							*/
+							changed = true;
+						}
+						
+						//	Set Value
+						if (changed)
+						{
+							processChanges(oldValueInt, M_AttributeSetInstance_ID);
+						}	//	change
+					}
+				});
+				
+			}
+			/** Selection
+			{
+				//	Get Model
+				MAttributeSetInstance masi = MAttributeSetInstance.get(Env.getCtx(), M_AttributeSetInstance_ID, M_Product_ID);
+				if (masi == null)
+				{
+					log.log(Level.SEVERE, "No Model for M_AttributeSetInstance_ID=" + M_AttributeSetInstance_ID + ", M_Product_ID=" + M_Product_ID);
+				}
+				else
+				{
+					Env.setContext(Env.getCtx(), m_WindowNo, "M_AttributeSet_ID", masi.getM_AttributeSet_ID());
+					//	Get Attribute Set
+					MAttributeSet as = masi.getMAttributeSet();
+					//	Product has no Attribute Set
+					if (as == null)
+						ADialog.error(m_WindowNo, this, "PAttributeNoAttributeSet");
+					//	Product has no Instance Attributes
+					else if (!as.isInstanceAttribute())
+						ADialog.error(m_WindowNo, this, "PAttributeNoInstanceAttribute");
+					else
+					{
+						int M_Warehouse_ID = Env.getContextAsInt (Env.getCtx (), m_WindowNo, "M_Warehouse_ID");
+						int M_Locator_ID = Env.getContextAsInt (Env.getCtx (), m_WindowNo, "M_Locator_ID");
+						String title = "";
+						PAttributeInstance pai = new PAttributeInstance (
+							Env.getFrame(this), title,
+							M_Warehouse_ID, M_Locator_ID, M_Product_ID, m_C_BPartner_ID);
+						if (pai.getM_AttributeSetInstance_ID() != -1)
+						{
+							m_text.setText(pai.getM_AttributeSetInstanceName());
+							M_AttributeSetInstance_ID = pai.getM_AttributeSetInstance_ID();
+							changed = true;
+						}
+					}
+				}
+			}
+			**/		
+		}   //  cmd_file
+		/**
+		 * 
+		 * @param id
+		 * @return
+		 */
+		private int getmBLDLineProductInstanceID(String id) {
+		//id contains the ID of the component like this: 'attPrefix1000006'
+			String numbers = StringUtils.right(id,7);
+			int partTypeID = Integer.parseInt(numbers);
+			int productID = 0;
+			for(int counter = 0; counter < m_editors.size(); counter ++)
+			{
+				HtmlBasedComponent editor = m_editors.get(counter);
+				if(editor.getClass().equals(Listbox.class))
+				{
+					String editorIDString = StringUtils.right(editor.getId(),7);
+					int editorID = Integer.parseInt(editorIDString);
+					if(editorID == partTypeID)
+					{
+						MProduct product = new MProduct(((MProduct) ((Listbox) editor).getValue()));
+						productID = product.get_ID();
+						break;
+					}
+				}
+				
+				
+			}
+			StringBuilder sql = new StringBuilder();
+			sql.append("SELECT bld_line_productinstance_id ");
+			sql.append("FROM bld_line_productinstance ");
+			sql.append("WHERE bld_line_productsetinstance_id = ? ");
+			sql.append("AND bld_product_parttype_id = ?");
+			return DB.getSQLValue(null, sql.toString(), m_MbldLineProductsetInstanceID, partTypeID);
+	}
+
+		private void processChanges(int oldValueInt, int M_AttributeSetInstance_ID) {
+			saveSelection();
+			if (log.isLoggable(Level.FINEST)) log.finest("Changed M_AttributeSetInstance_ID=" + M_AttributeSetInstance_ID);
+			ma_value = new Object();				//	force re-query display
+			if (M_AttributeSetInstance_ID == 0)
+				setValue(null);
+			else
+				setValue(Integer.valueOf(M_AttributeSetInstance_ID));
+			
+			int mBLDLineProductInstanceID = getmBLDLineProductInstanceID(attrbButton.getId());
+			MBLDLineProductInstance mBLDLineProductInstance = new MBLDLineProductInstance(Env.getCtx(), mBLDLineProductInstanceID, null);
+			mBLDLineProductInstance.setM_AttributeSetInstance_ID(M_AttributeSetInstance_ID);
+			//mBLDLineProductInstance.setBLD_Product_PartType_ID(Integer.parseInt(StringUtils.right(attrbButton.getId(),7)));
+			//mBLDLineProductInstance.setBLD_Line_ProductSetInstance_ID(m_MbldLineProductsetInstanceID);
+			mBLDLineProductInstance.saveEx();
+
+			/*ValueChangeEvent vce = new ValueChangeEvent(this, gridField.getColumnName(), new Object(), getValue());
+			fireValueChange(vce);
+			if (M_AttributeSetInstance_ID == oldValueInt && m_GridTab != null && gridField != null)
+			{
+				//  force Change - user does not realize that embedded object is already saved.
+				m_GridTab.processFieldChange(gridField);
+			}*/
+		}
+		
+		
+		public void setValue(Object value)
+		{
+			if (value == null || NO_INSTANCE.equals(value))
+			{
+				((Textbox) getComponent()).setText("");
+				ma_value = value;
+				return;
+			}
+
+			//	The same
+			if (value.equals(ma_value))
+				return;
+			//	new value
+			if (log.isLoggable(Level.FINE)) log.fine("Value=" + value);
+			ma_value = value;
+			
+			Textbox box = (Textbox) getComponent();
+			String display = getDisplay(value);
+			
+			box.setText(display);
+			
+			//((Textbox) getComponent()).setText(getDisplay(value));	//	loads value
+		}
+
+		
+		private String getDisplay(Object value) {
+			StringBuilder sql = new StringBuilder();
+			sql.append("SELECT description ");
+			sql.append("FROM m_attributesetinstance ");
+			sql.append("WHERE m_attributesetinstance_id = ?");
+			
+			String description = DB.getSQLValueString(null, sql.toString(), (Integer)value);
+			if(description !=null) return description;
+			return null;
+		}
+
+		public Object getValue()
+		{
+			return ma_value;
+		}
+		
+		public Component getComponent()
+		{
+			return theComponent;
+		}
 	
-} //	WPAttributeDialog
+} //	WBldPartsDialog
 

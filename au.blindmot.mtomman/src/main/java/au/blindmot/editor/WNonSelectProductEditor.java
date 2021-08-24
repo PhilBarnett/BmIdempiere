@@ -8,6 +8,8 @@ import java.util.Set;
 import java.util.logging.Level;
 
 import org.adempiere.webui.component.EditorBox;
+import org.adempiere.webui.component.PAttributebox;
+import org.adempiere.webui.editor.IEditorConfiguration;
 import org.adempiere.webui.editor.WEditor;
 import org.adempiere.webui.editor.WEditorPopupMenu;
 import org.adempiere.webui.event.ContextMenuEvent;
@@ -63,6 +65,20 @@ public class WNonSelectProductEditor extends WEditor implements ContextMenuListe
 		initComponents();
 		
 		}
+	
+	/**
+	 * 
+	 * @param gridTab
+	 * @param gridField
+	 * @param tableEditor
+	 * @param editorConfiguration
+	 */
+	public WNonSelectProductEditor(GridTab gridTab, GridField gridField, boolean tableEditor, IEditorConfiguration editorConfiguration)
+	{
+		super(new WBldProdEditBox(), gridField, tableEditor, editorConfiguration);
+		m_GridTab = gridTab;
+		initComponents();
+	}
 
 		//EditorBox layout = (EditorBox) this.getComponent();
 		//layout.setHeight(null);
