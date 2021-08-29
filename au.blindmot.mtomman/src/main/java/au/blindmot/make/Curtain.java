@@ -155,6 +155,7 @@ public class Curtain extends RollerBlind {
 				/*
 				 * Not Swave? Use target fullness to get drops needed
 				 * For cuts, width = roll width, for 1/2 drops 1/2 width.
+				 * Waste?
 				 */
 			}
 			
