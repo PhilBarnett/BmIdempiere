@@ -111,7 +111,7 @@ public class SideRetainedBlind extends RollerBlind  {
 			}
 		
 		int bottombarIDToUse = 0;
-		int bottombID = getBomProductID(BOTTOM_BAR);
+		int bottombID = getBomProductID(PART_TYPE_BOTTOM_BAR);
 		if(bottombID > 0)
 		{
 			bottombarIDToUse = bottombID;
@@ -228,12 +228,13 @@ public class SideRetainedBlind extends RollerBlind  {
 
 	/* (non-Javadoc)
 	 * @see au.blindmot.make.MadeToMeasureProduct#addMtmInstancePartsToBomDerived()
-	 */
+	 * Commented out 29/8/2021 because the method was moved form RollerBlind.java to MadeToMeasureProduct.java (superclass)
+	 *//*
 	@Override
 	public boolean addMtmInstancePartsToBomDerived() {
 		super.addMtmInstancePartsToBomDerived();
 		return false;
-	}
+	}*/
 	
 	private void adjustBomQty() {
 		MBLDBomDerived[] bomDerivedLines = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mtom_item_line_id);

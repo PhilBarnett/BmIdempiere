@@ -44,7 +44,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	private static final String COLUMN_GROSS_MARGIN = "grossmargin";
 	private CLogger log = CLogger.getCLogger(MBLDEventHandler.class);
 	private X_M_ProductionLine mProductionLine = null;
-	private BLDMOrderLine BMorderLine = null;
+	private BLDMOrderLine bMorderLine = null;
 	private MOrderLine orderLine = null;
 	private MBLDMtomItemLine mToMProductionParent = null;
 	private int prevOrderLineID = 0;
@@ -104,7 +104,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		log.warning("---------event: " + event);
 		trxName = po.get_TrxName();
 		System.out.println(Env.getCtx().toString());
-		BMorderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
+		bMorderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
 		orderLine = new MOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
 		log.warning("---------Line 83");
 		log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
@@ -115,7 +115,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			int mProductID = orderLine.getM_Product_ID();
 			int refID = orderLine.get_ValueAsInt("copypk");
 			prevOrderLineID = refID;
-			BMorderLine.setPrevMLineOrderLineID(refID);
+			bMorderLine.setPrevMLineOrderLineID(refID);
 			
 			MProduct currOrderLineProduct;
 			boolean isMadeToMeasure = false;
@@ -293,26 +293,26 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				 */
 				
 				BigDecimal flatDiscount = MtmUtils.calculateDiscount(orderLine, mProductID);
-				BMorderLine.setDiscount(flatDiscount);
+				bMorderLine.setDiscount(flatDiscount);
 				log.warning("-set_ValueOfColumn---line 218-----orderLine.get_ID: " + orderLine.get_ID());
 				
 		
-			BMorderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
-			BMorderLine.save(trxName);
+			bMorderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
+			bMorderLine.save(trxName);
 	}
 			
 			if(copyFromOrderLine != null)//It's a copied line; ensures that on copied lines, any user set discount is retained.
 			{
-				setDiscount(copyFromOrderLine, BMorderLine);
-				log.warning("BMorderLine discount: " + BMorderLine.getDiscount());
-				BMorderLine.beforeSave(po.is_new());
-				BigDecimal priceActual = BMorderLine.getPriceList().subtract(BMorderLine.getDiscount().divide(Env.ONEHUNDRED).multiply(BMorderLine.getPriceList()));
+				setDiscount(copyFromOrderLine, bMorderLine);
+				log.warning("BMorderLine discount: " + bMorderLine.getDiscount());
+				bMorderLine.beforeSave(po.is_new());
+				BigDecimal priceActual = bMorderLine.getPriceList().subtract(bMorderLine.getDiscount().divide(Env.ONEHUNDRED).multiply(bMorderLine.getPriceList()));
 			//	BMorderLine.setPrice(priceActual.setScale(2, BigDecimal.ROUND_HALF_UP));
-				BMorderLine.setPrice(copyFromOrderLine.getPriceActual());
+				bMorderLine.setPrice(copyFromOrderLine.getPriceActual());
 				//BMorderLine.setLineNetAmt(BMorderLine.getQtyEntered().multiply(priceActual).setScale(2, BigDecimal.ROUND_HALF_UP));
-				BMorderLine.setLineNetAmt(copyFromOrderLine.getLineNetAmt());
-				BMorderLine.setPriceList(copyFromOrderLine.getPriceList());
-				BMorderLine.saveEx();
+				bMorderLine.setLineNetAmt(copyFromOrderLine.getLineNetAmt());
+				bMorderLine.setPriceList(copyFromOrderLine.getPriceList());
+				bMorderLine.saveEx();
 			}
 			
 			if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW) || event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_CHANGE))
@@ -453,20 +453,85 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			fromOrderLineID = toOrderLine.get_ValueAsInt("copypk");
 			log.warning("---------Line 344 fromOrderLineID = " + fromOrderLineID);
 		   if(fromOrderLineID!= 0)
-			{
-			   log.warning("--------- line 347 fromOrderLineID does not equal 0");
-			   fromOrderLine = new MOrderLine(Env.getCtx(),prevOrderLineID, trxName);
-				int fromMProductID = fromOrderLine.getM_Product_ID();
-				if(fromMProductID != toMproductID)
 				{
-					log.warning("--------- line 352...fromMProductID != toMproductID. fromMProductID:" + fromMProductID + "toMproductID: " + toMproductID);
-					fromOrderLine = null;
-					return (MOrderLine)fromOrderLine;//Wrong product, don't copy MAI.
-				}
-				log.warning("--------- line 356");
-		MAttributeSetInstance fromMAttributeSetInstance = MAttributeSetInstance.get(Env.getCtx(), fromOrderLine.getM_AttributeSetInstance_ID(), mProduct.getM_Product_ID());
-		MAttributeSetInstance toMAttributeSetInstance = new MAttributeSetInstance(Env.getCtx(),0,toOrderLine.get_TrxName());
-		toMAttributeSetInstance.save(toOrderLine.get_TrxName());
+				   log.warning("--------- line 347 fromOrderLineID does not equal 0");
+				   fromOrderLine = new MOrderLine(Env.getCtx(),prevOrderLineID, trxName);
+					int fromMProductID = fromOrderLine.getM_Product_ID();
+					if(fromMProductID != toMproductID)
+					{
+						log.warning("--------- line 352...fromMProductID != toMproductID. fromMProductID:" + fromMProductID + "toMproductID: " + toMproductID);
+						fromOrderLine = null;
+						return (MOrderLine)fromOrderLine;//Wrong product, don't copy MAI.
+					}
+					log.warning("--------- line 466");
+						
+			MAttributeSetInstance fromMAttributeSetInstance = MAttributeSetInstance.get(Env.getCtx(), fromOrderLine.getM_AttributeSetInstance_ID(), mProduct.getM_Product_ID());
+			MAttributeSetInstance toMAttributeSetInstance = new MAttributeSetInstance(Env.getCtx(),0,toOrderLine.get_TrxName());
+			toMAttributeSetInstance.save(toOrderLine.get_TrxName());
+			
+			int fromAttributeSetId = fromMAttributeSetInstance.getM_AttributeSet_ID();
+			
+			int toAttributeSetInstanceId = toMAttributeSetInstance.getM_AttributeSetInstance_ID();
+			toMAttributeSetInstance.setM_AttributeSet_ID(fromAttributeSetId);
+			toMAttributeSetInstance.saveEx();
+			
+			RowSet fromAttributeInstances = getmAttributeInstances(fromMAttributeSetInstance.getM_AttributeSetInstance_ID());
+			
+			
+		    try {
+				while (fromAttributeInstances.next()) {  
+					
+				    int m_attribute_id = fromAttributeInstances.getInt(1);
+				    String value = fromAttributeInstances.getString(2);
+				    int mAttributeValueID = fromAttributeInstances.getInt(3);
+				    
+				    MAttribute mAttribute = new MAttribute(Env.getCtx(), m_attribute_id, toOrderLine.get_TrxName());
+				    String attributeType = mAttribute.getAttributeValueType();
+				    
+				    if(attributeType.equalsIgnoreCase("N"))
+				    {
+				    	log.warning("--------- line 265");
+				    	//Constructor for numeric attributes
+				    	MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(), m_attribute_id, 
+				    	toAttributeSetInstanceId, new BigDecimal(value).setScale(1), toOrderLine.get_TrxName());
+				    	toMAttributeInstance.setM_AttributeValue_ID(mAttributeValueID);
+				    	//toMAttributeInstance.setValueNumber(new BigDecimal(value));
+				    	toMAttributeInstance.saveEx();
+				    }
+				    else	
+				    {	
+				    	log.warning("--------- line 275");
+				    	//Constructor for String attributes
+					    MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(),
+					    m_attribute_id, toAttributeSetInstanceId, value, toOrderLine.get_TrxName());
+					    toMAttributeInstance.setM_AttributeValue_ID(mAttributeValueID);
+					    toMAttributeInstance.saveEx();
+				    }
+			   }
+					} catch (SQLException e) {
+						log.severe("Could not get values from attributeinstance RowSet " + e.getMessage());
+						e.printStackTrace();
+					}  
+					    
+					    File tempFile = new File("/tmp/ignoreNewMAttributeInstance");
+					    tempFile.delete();
+					    log.warning("--------- line 290");
+					    toOrderLine.setM_AttributeSetInstance_ID(toAttributeSetInstanceId);
+					    toOrderLine.saveEx();
+					    toMAttributeSetInstance.setDescription();
+						toMAttributeSetInstance.saveEx();
+		}
+		   log.warning("--------- line 526");
+		   if(fromOrderLine != null)fromOrderLine.saveEx();
+		   return (MOrderLine)fromOrderLine;
+	}
+	
+	private MBLDLineProductInstance copyAttributeSetInstances(MBLDLineProductInstance  fromPO, MBLDLineProductInstance  toPO, int mProductID)
+	{
+		
+		MAttributeSetInstance fromMAttributeSetInstance = MAttributeSetInstance.get(Env.getCtx(), fromPO.getM_AttributeSetInstance_ID(), mProductID);
+		MAttributeSetInstance toMAttributeSetInstance = new MAttributeSetInstance(Env.getCtx(),0,toPO.get_TrxName());
+		toMAttributeSetInstance.save(toPO.get_TrxName());
 		
 		int fromAttributeSetId = fromMAttributeSetInstance.getM_AttributeSet_ID();
 		
@@ -484,7 +549,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			    String value = fromAttributeInstances.getString(2);
 			    int mAttributeValueID = fromAttributeInstances.getInt(3);
 			    
-			    MAttribute mAttribute = new MAttribute(Env.getCtx(), m_attribute_id, toOrderLine.get_TrxName());
+			    MAttribute mAttribute = new MAttribute(Env.getCtx(), m_attribute_id, toPO.get_TrxName());
 			    String attributeType = mAttribute.getAttributeValueType();
 			    
 			    if(attributeType.equalsIgnoreCase("N"))
@@ -492,7 +557,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			    	log.warning("--------- line 265");
 			    	//Constructor for numeric attributes
 			    	MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(), m_attribute_id, 
-			    	toAttributeSetInstanceId, new BigDecimal(value).setScale(1), toOrderLine.get_TrxName());
+			    	toAttributeSetInstanceId, new BigDecimal(value).setScale(1), toPO.get_TrxName());
 			    	toMAttributeInstance.setM_AttributeValue_ID(mAttributeValueID);
 			    	//toMAttributeInstance.setValueNumber(new BigDecimal(value));
 			    	toMAttributeInstance.saveEx();
@@ -502,7 +567,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			    	log.warning("--------- line 275");
 			    	//Constructor for String attributes
 				    MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(),
-				    m_attribute_id, toAttributeSetInstanceId, value, toOrderLine.get_TrxName());
+				    m_attribute_id, toAttributeSetInstanceId, value, toPO.get_TrxName());
 				    toMAttributeInstance.setM_AttributeValue_ID(mAttributeValueID);
 				    toMAttributeInstance.saveEx();
 			    }
@@ -515,14 +580,13 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	    File tempFile = new File("/tmp/ignoreNewMAttributeInstance");
 	    tempFile.delete();
 	    log.warning("--------- line 290");
-	    toOrderLine.setM_AttributeSetInstance_ID(toAttributeSetInstanceId);
-	    toOrderLine.saveEx();
+	    toPO.setM_AttributeSetInstance_ID(toAttributeSetInstanceId);
+	    toPO.saveEx();
 	    toMAttributeSetInstance.setDescription();
 		toMAttributeSetInstance.saveEx();
-		}
-		   log.warning("--------- line 296");
-		   if(fromOrderLine != null)fromOrderLine.saveEx();
-		   return (MOrderLine)fromOrderLine;
+		
+		if(fromPO != null)fromPO.saveEx();
+		return fromPO;
 	}
 	
 	private RowSet getmAttributeInstances(int mAttributeSetinstanceID)
@@ -554,6 +618,11 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					toInstance.setBLD_Product_PartType_ID(fromInstance[i].getBLD_Product_PartType_ID());
 					toInstance.setBLD_Line_ProductSetInstance_ID(toBldPIID);
 					toInstance.setM_Product_ID(fromInstance[i].getM_Product_ID());
+					if(fromInstance[i].getM_AttributeSetInstance_ID() > 0)
+					{
+						toInstance = copyAttributeSetInstances(fromInstance[i], toInstance, mProductID);
+					}
+					
 					toInstance.saveEx(trxName);
 					
 					if (fromInstance[i]!= null && fromInstance[i].getM_Product_ID() > 0)

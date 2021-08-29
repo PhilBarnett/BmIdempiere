@@ -37,6 +37,7 @@ public class BLDMtomMakeFactory {
 	public static String PANEL_GLIDE = "Panel Glide";
 	public static String PELMET = "Pelmet";
 	public static String FOLDING_ARM_AWNING = "FA Awning";
+	public static String CURTAIN = "Curtain";
 	
 	
 	
@@ -76,6 +77,8 @@ public class BLDMtomMakeFactory {
 		else if ( classification.equals("srb") || productCategory.equals(SIDE_RETAINED_BLIND) || productCategory.equals(CABLE_GUIDE_BLIND))
 			return new SideRetainedBlind(mProduct_ID, mtom_item_line_id, trxnName);
 		else if ( classification.equals("faawning") || productCategory.equals(FOLDING_ARM_AWNING))
+			return new FoldingArmAwning(mProduct_ID, mtom_item_line_id, trxnName);
+		else if ( classification.equals("curtain") || productCategory.equals(CURTAIN))
 			return new FoldingArmAwning(mProduct_ID, mtom_item_line_id, trxnName);
 	    
 

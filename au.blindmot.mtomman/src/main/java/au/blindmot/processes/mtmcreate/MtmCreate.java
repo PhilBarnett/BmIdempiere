@@ -8,6 +8,7 @@ import java.util.logging.Level;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
+import org.compiere.model.PO;
 import org.compiere.process.DocumentEngine;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
@@ -159,7 +160,7 @@ public class MtmCreate extends SvrProcess {
 		for(MOrderLine line : lines)
 		{
 			boolean checkMeasured = line.get_ValueAsBoolean("ischeckmeasured");
-			boolean isMtmProduct = line.get_ValueAsBoolean("ismadetomeasure");
+			boolean isMtmProduct = ((PO) line.getM_Product()).get_ValueAsBoolean("ismadetomeasure");
 			if(!checkMeasured&&(isMtmProduct))
 			{
 				fail = true;

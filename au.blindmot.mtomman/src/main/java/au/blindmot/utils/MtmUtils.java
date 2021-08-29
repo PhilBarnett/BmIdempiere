@@ -53,6 +53,22 @@ public class MtmUtils {
 	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar addition";
 	public static final String MTM_DROP_DEDUCTION = "Drop deduction";
 	public static final String MTM_OVERALL_DEDUCTION = "Overall deduction";
+	public static final String MTM_HOOK_CLEARANCE_FF = "Hook clearance face fix";
+	public static final String MTM_HOOK_CLEARANCE_FF_SW = "Hook clearance face fix Swave";
+	public static final String MTM_HOOK_CLEARANCE_TF_SW = "Hook clearance top fix Swave";
+	public static final String MTM_HOOK_CLEARANCE_TF = "Hook clearance top fix";
+	public static final String MTM_FLOOR_CLEARANCE = "Floor Clearance (mm)";
+	public static final String MTM_FULLNESS_LOW = "Fullness low";
+	public static final String MTM_FULLNESS_TARGET = "Fullness target";
+	public static final String MTM_FULLNESS_HIGH = "Fullness high";
+	public static final String MTM_CURTAIN_POSITION = "Curtain position";
+	public static final String MTM_CURTAIN_Fit = "Fit";
+	public static final String MTM_CURTAIN_CARRIER_SWAVE = "Swave";
+	public static final String MTM_CURTAIN_CARRIER_SFOLD = "Sfold";
+	public static final String MTM_CURTAIN_CARRIER_STANDARD = "Standard";
+	public static final String ROLL_WIDTH = "Roll width";
+	public static final String MTM_HEADER_FF = "Header face fix";
+	public static final String MTM_HEADER_TF = "Header top fix";
 	public static final String MTM_CLOCKWISE = "Clockwise";
 	public static final String MTM_ANTI_CLOCKWISE = "Anti clockwise";
 	public static final String MTM_IS_DUAL = "Is dual";
@@ -783,7 +799,7 @@ public static BigDecimal getGridPriceProductCost(MProduct mtmProduct, Properties
 
 public static ArrayList <Integer> getMTMPriceProductIDs(Properties pCtx, MOrderLine mOrderLine) {
 	
-	//Note that for a new, unsaved record, 'lin' will be empty
+	//Note that for a new, unsaved record, 'line' will be empty
 	//MOrderLine line = new MOrderLine(pCtx, orderLine.getC_OrderLine_ID(), null);
 	//int bldInsID = orderLine.get_ValueAsInt("bld_line_productsetinstance_id");
 	
@@ -953,7 +969,12 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 				}
 				if(breakvalue.equals(Env.ONE) && productToGet.get_ID() == orderLine.getM_Product_ID())
 				{
-					FDialog.warn(windowNum, "No price found at the dimesions entered. Please check the dimesion limits for this product. Setting price to: " + breakvalue);
+					try {
+						FDialog.warn(windowNum, "No price found at the dimesions entered. Please check the dimesion limits for this product. Setting price to: " + breakvalue);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 			}
 			
@@ -969,5 +990,69 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		}
 		
 	}//getListPrice
-
+	
+	/**
+	 * Gets drops per curtain for non continuous fabric
+	 * @param fabricID
+	 * @param curtainID
+	 * @param numOfCurtains
+	 * @param headingWidth
+	 * @param trxName
+	 * @return
+	 */
+	public static BigDecimal getDropsPerCurtain(int fabricID, int curtainID, int numOfCurtains, int headingWidth, String trxName) {
+		//Get the fullness range, start with a 1/2 drop then go in halves until the right drops is found.
+		//BigDecimal fullnessLower = (BigDecimal) getMattributeInstanceValue(curtainID, MTM_FULLNESS_LOW, trxName);
+		BigDecimal fullnessTarget = (BigDecimal) getMattributeInstanceValue(curtainID, MTM_FULLNESS_TARGET, trxName);
+		//BigDecimal fullnessHigh = (BigDecimal) getMattributeInstanceValue(curtainID, MTM_FULLNESS_HIGH, trxName);
+		BigDecimal rollWidth = (BigDecimal) getMattributeInstanceValue(curtainID, ROLL_WIDTH, trxName);
+		BigDecimal headWidth = new BigDecimal(headingWidth);
+		BigDecimal fullness = Env.ZERO;
+		BigDecimal drops = Env.ZERO;
+		
+		while(fullness.compareTo(fullnessTarget) < 0)
+		{
+			drops.add(new BigDecimal(0.5));
+			fullness.equals(rollWidth.divide(headWidth));
+		}
+		
+		return drops;
+		
+	}
+	
+	public static double getHeadingWidth(int trackWidth) {
+		Double creepage = getCreepage(trackWidth);
+		return ((creepage/100)*trackWidth)+trackWidth;
+	}
+	/**
+	 * Gets runner count for curtain carriers
+	 * @param trackWidth
+	 * @param carrierPitch
+	 * @return
+	 */
+	public static Double getRunnerCount(int trackWidth, Double carrierPitch) {
+		//Runner count = EVEN((((Creepage%/100)*trackWidth)+trackWidth)/carrierPitch)
+		//Creepage = (10*EXP(trackWidth*-0.0035))/0.7
+		Double creepage = getCreepage(trackWidth);
+		Double runnerCountUnRounded = Double.valueOf((((creepage/100)*trackWidth)+trackWidth)/carrierPitch);
+		Double runnerCountRoundedUp = Math.ceil(runnerCountUnRounded);
+		if(runnerCountRoundedUp % 2 == 0)
+		{
+			return runnerCountRoundedUp;//It's even
+		
+		}
+		else
+		{
+			return runnerCountRoundedUp + 1; //Add 1 to make it even.
+		}
+	}
+	
+	/** Calculates creepage
+	 * Creepage = (10*EXP(trackWidth*-0.0035))/0.7
+	 * @param trackWidth
+	 * @return
+	 */
+	public static Double getCreepage(int trackWidth) {
+		return Double.valueOf(10*Math.exp(trackWidth*0.0035)/0.7);
+	}
 }

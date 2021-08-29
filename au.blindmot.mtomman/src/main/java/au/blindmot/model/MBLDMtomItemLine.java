@@ -73,7 +73,7 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		 * 'Interpret' from AttributeSetInstance the components required, may need some sort of 
 		 *  AttributeSetInstance to components/cuts table for settings - eg what components (products) are required 
 		 *   for a link blind? a drop down awning with motor?
-		 *   Add deductions as a product attribute?
+		 *   Deductions are a product attribute.
 		 *   As attributes are going to be the way to propagate info, there will have to be protocol 
 		 *   that determines their use, possibly a verification process?
 		 *  Develop business logic around 'how things are made' with deductions, normal roll/reverse roll etc.

@@ -340,7 +340,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				{//Add dual roller option if it's a roller blind.
 					Row row1 = new Row();
 					row1.appendChild(cbDualRoller);
-					cbDualRoller.setLabel("Dual Roller");
+					cbDualRoller.setLabel("Dual");
 					cbDualRoller.addEventListener(Events.ON_CHECK, this);
 					rows.appendChild(row1);
 				}
@@ -370,7 +370,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 		if (m_row == 0)
 		{
-			FDialog.error(m_WindowNo, this, "BLDAttributeNoInfo");
+			FDialog.error(m_WindowNo, this, "PartTypesNoPartTypesSet");
 			return false;
 		}
 
@@ -1521,6 +1521,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		for(Listbox box : chainArray)
 		{
 			box.setEnabled(isChainControl);
+			SetAttributeEditorEnabled(box, isChainControl);
 		}
 	}
 	
@@ -1533,6 +1534,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		if(bracketBox != null) 
 		{
 			bracketBox.setEnabled(!isLink);
+			SetAttributeEditorEnabled(bracketBox, !isLink);
 			log.warning("--------In WBldPartsDialog.setBracketEditorActive()... bracketBox = " + bracketBox.toString());
 		}
 		else
@@ -1542,6 +1544,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		if(linkBox != null)
 		{
 			linkBox.setEnabled(isLink);
+			SetAttributeEditorEnabled(linkBox, isLink);
 			log.warning("--------In WBldPartsDialog.setBracketEditorActive()... linkBox = " + linkBox.toString());
 		}
 		else
@@ -1551,6 +1554,33 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		
 	}
 	
+	private void SetAttributeEditorEnabled(Listbox box, boolean b) {
+		//Find the Attribute editor button
+		int index = 0;
+		int i = 0;
+		for(HtmlBasedComponent component : m_editors)
+		{
+			if(component.equals(box))
+			{
+				index = i;
+				break;
+			}
+			i++;
+		}
+		
+		Button attButton;
+		try {
+			attButton = (Button) m_editors.get(index+1);
+			attButton.setEnabled(b);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+	}
+
 	private MProduct[] modifyDualTypes(MProduct[] values, boolean isDual)
 	{
 		ArrayList<MProduct> modifiedList = new ArrayList<MProduct>();

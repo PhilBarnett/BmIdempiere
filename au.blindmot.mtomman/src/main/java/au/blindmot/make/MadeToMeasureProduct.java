@@ -122,7 +122,7 @@ public static String EACH_1 = "Ea ";//Each with space
 		int mProductID = mBomItem.getM_ProductBOM_ID();
 		MProduct bomProduct = MProduct.get(Env.getCtx(), mProductID);
 		//X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
-		BigDecimal qty = mBomItem.getBOMQty();
+		BigDecimal qty = mBomItem.getBOMQty();//getBomQty() returns the qty from the parent product's BOM
 		BigDecimal bigTriggeredQty = new BigDecimal(triggeredQty);
 		String uom = bomProduct.getUOMSymbol();
 		
@@ -231,7 +231,18 @@ public static String EACH_1 = "Ea ";//Each with space
 		return true;
 	}
 
-	public abstract boolean addMtmInstancePartsToBomDerived();
+	//public abstract boolean addMtmInstancePartsToBomDerived();
+	public boolean addMtmInstancePartsToBomDerived() {
+		MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance();
+															
+		for(int i = 0; i < mBLDLineProductInstance.length; i++)
+		{
+			int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
+			BigDecimal qty = getBomQty(mProductId);
+			addMBLDBomDerived(mProductId, qty, trxName);
+		}
+		return true;
+	}//addMtmInstancePartsToBomDerived
 	
 	public AttributePair getAttributeFromMBLDProductNonSelect(MBLDProductNonSelect mbldProductNonSelect) {
 		AttributePair nonSelectAttributes = new AttributePair();
@@ -300,12 +311,11 @@ public static String EACH_1 = "Ea ";//Each with space
 		 * attributes[] holds the names of the attributes in order that they appear in the Attribute Set Instance dialog box.
 		 * Original plan was to 'interpret' parts required from the MAI then match them to BOM items. This is a bad idea.
 		 * BETTER would be to select the parts directly from BOM via the MtmButton.
-		 *HACK: Add to MProducts something like 'blind control', 'blind bracket', 'blind tube', 'blind bottom bar' etc.
+		 * HACK: Add to MProducts something like 'blind control', 'blind bracket', 'blind tube', 'blind bottom bar' etc.
 		 * 
 		 * So what do we set with MAIs? Things that aren't directly related to parts!
 		 * Width, drop, control side, location - what else?
-		 * But what happens when the tube size changes as blinds get bigger, ie going from a 38mm to 44mm tube? 
-		 * The mech parts change. So the blind controls will have to stay as MAIs. As will most other parts.
+		 * MbldLineProduct instance (Product options) in conjunction with BOM triggers handle changes in parts related to size and Mattribute instance triggered changes.
 		 */
 		
 		MAttribute[] attributes = mAttributeSet.getMAttributes(true);
