@@ -206,6 +206,13 @@ public static String EACH_1 = "Ea ";//Each with space
 		return true;
 	}//setAutoSelectedPartIds()
 
+	/**
+	 * 
+	 * @param mbldProductNonSelect
+	 * @param mBLDProductPartTypeArray
+	 * @param operation
+	 * @return
+	 */
 	private boolean performOperationAttributeBased(MBLDProductNonSelect mbldProductNonSelect, MBLDProductPartType mBLDProductPartTypeArray, String operation) {
 		
 		AttributePair[] attributePairs = getMAttributeSetInstance();

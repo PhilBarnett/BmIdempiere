@@ -1020,10 +1020,29 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		
 	}
 	
-	public static double getHeadingWidth(int trackWidth) {
+	/**
+	 * Gets heading width for swave or std curtains
+	 * @param trackWidth
+	 * @param sWaveDepth
+	 * @param numberOfSwaveCarriers
+	 * @return
+	 */
+	public static double getHeadingWidthStdCarriers(int trackWidth) {
 		Double creepage = getCreepage(trackWidth);
 		return ((creepage/100)*trackWidth)+trackWidth;
+		
 	}
+	
+	public static double getHeadingWidthSwave(int sWaveDepth, int sWaveRunnerCount) {
+		if(sWaveDepth > 0 && sWaveRunnerCount > 0)
+		{
+			return Double.valueOf(sWaveDepth * sWaveRunnerCount);
+		}
+		return 0;
+		
+	}
+	
+	
 	/**
 	 * Gets runner count for curtain carriers
 	 * @param trackWidth

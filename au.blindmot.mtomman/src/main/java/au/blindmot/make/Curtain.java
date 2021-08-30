@@ -35,10 +35,12 @@ public class Curtain extends RollerBlind {
 	protected static final String ATTRIBUTE_CURTAIN_OPENING = "Curtain opening";
 	protected static final String ATTRIBUTE_CURTAIN_HEADING = "Heading";//Heading to be either 'Swave' or 'Standard'.
 	protected static final String ATTRIBUTE_CARRIER_PITCH = "Carrier pitch";
+	protected static final String ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH = "Swave tape depth";
 	
 	private static final String PART_TYPE_CURTAIN_CARRIER = "Curtain carrier";
 	private static final String PART_TYPE_CURTAIN_TRACK = "Curtain track";
 	private static final String PART_TYPE_CURTAIN_LINING = "Lining";
+	private static final String PART_TYPE_SWAVE_CURTAIN_TAPE = "Swave tape";
 	//private static String PART_TYPE_
 	//private static String PART_TYPE_
 
@@ -143,21 +145,20 @@ public class Curtain extends RollerBlind {
 	 * 
 	 */
 	public void addFabricCuts() {
+		BigDecimal qty = getCurtainFabricQty(fabricID);
 		
 		if(isContinuous())
 		{
-			if(isSwave)
-			{
+			
+			
 				//Swave? get the fabric based on tape spacing
-			}
-			else
-			{
-				/*
-				 * Not Swave? Use target fullness to get drops needed
-				 * For cuts, width = roll width, for 1/2 drops 1/2 width.
-				 * Waste?
-				 */
-			}
+				
+			//	addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);
+				
+				
+			
+		//	else
+			
 			
 			
 		}
@@ -226,22 +227,53 @@ public class Curtain extends RollerBlind {
 	}//getBomQty
 	
 	
-	
+	/**
+	 * Returns the length of fabric needed. 
+	 * @param fabricID
+	 * @return
+	 */
 	private BigDecimal getCurtainFabricQty(int fabricID) {
 		BigDecimal measuredDrop = new BigDecimal(high);
 		BigDecimal makeDrop = getMakeDrop(measuredDrop);
-		if(isContinuous()) 
+		BigDecimal fullness = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FULLNESS_TARGET, trxName);
+		int carrierID = getBomProductID(PART_TYPE_CURTAIN_CARRIER);
+		int numOfCurtains = getNumberOfCurtains();
+		
+		BigDecimal fabricAddition = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName);
+		BigDecimal fabricCutDrop = makeDrop.add(fabricAddition);
+		
+		if(isSwave) 
 		{
-			BigDecimal fullness = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FULLNESS_TARGET, trxName);
-			return fullness.multiply(new BigDecimal(wide));
+			int headingTapeID = getBomProductID(PART_TYPE_SWAVE_CURTAIN_TAPE);
+			BigDecimal waveDepth = (BigDecimal) MtmUtils.getMattributeInstanceValue(headingTapeID, ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH, trxName);
+			Double carrierPitch = (Double)MtmUtils.getMattributeInstanceValue(carrierID, ATTRIBUTE_CURTAIN_HEADING, ATTRIBUTE_CARRIER_PITCH);
+			Double runnerCount = MtmUtils.getRunnerCount(wide/numOfCurtains, carrierPitch);//gets runners per curtain
+			BigDecimal headingWidth = BigDecimal.valueOf(MtmUtils.getHeadingWidthSwave(waveDepth.intValue(), runnerCount.intValue()));
+			if(isContinuous())
+			{
+				//calculate based on heading tape
+				return headingWidth.multiply(BigDecimal.valueOf(numOfCurtains));
+			}
+			else
+			{
+				//Get the number of drops and multiply by (measured drop + MTM_FABRIC_ADDITION) * number of curtains
+				BigDecimal dropsPerCurtain = MtmUtils.getDropsPerCurtain(fabricID, m_product_id, numOfCurtains, headingWidth.intValue(), trxName);
+				return dropsPerCurtain.multiply(fabricCutDrop).multiply(BigDecimal.valueOf(numOfCurtains));
+			}
 		}
 		else
 		{
-			//getDropsPerCurtain(int fabricID, int curtainID, int numOfCurtains, int headingWidth, String trxName)
-			int numOfCurtains = getNumberOfCurtains();
-			Double headingWidth = MtmUtils.getHeadingWidth(wide);
-			BigDecimal dropsPerCurtain = MtmUtils.getDropsPerCurtain(fabricID, m_product_id, numOfCurtains, headingWidth.intValue(), trxName);
-			return dropsPerCurtain.multiply(makeDrop);
+			if(isContinuous())
+			{
+				return fullness.multiply(new BigDecimal(wide));
+			}
+			else
+			{
+				//heading width std carriers * drops/curtain * num of curtains
+				Double headingWidthStd = MtmUtils.getHeadingWidthStdCarriers(wide);
+				BigDecimal dropsPerCurtain = MtmUtils.getDropsPerCurtain(fabricID, m_product_id, numOfCurtains, headingWidthStd.intValue(), trxName);
+				return dropsPerCurtain.multiply(fabricCutDrop).multiply(BigDecimal.valueOf(numOfCurtains));
+			}
 		}
 	}
 
