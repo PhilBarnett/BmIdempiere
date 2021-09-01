@@ -996,17 +996,15 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 	 * @param fabricID
 	 * @param curtainID
 	 * @param numOfCurtains
-	 * @param headingWidth
+	 * @param headingWidth: Total heading width
 	 * @param trxName
 	 * @return
 	 */
 	public static BigDecimal getDropsPerCurtain(int fabricID, int curtainID, int numOfCurtains, int headingWidth, String trxName) {
 		//Get the fullness range, start with a 1/2 drop then go in halves until the right drops is found.
-		//BigDecimal fullnessLower = (BigDecimal) getMattributeInstanceValue(curtainID, MTM_FULLNESS_LOW, trxName);
 		BigDecimal fullnessTarget = (BigDecimal) getMattributeInstanceValue(curtainID, MTM_FULLNESS_TARGET, trxName);
-		//BigDecimal fullnessHigh = (BigDecimal) getMattributeInstanceValue(curtainID, MTM_FULLNESS_HIGH, trxName);
 		BigDecimal rollWidth = (BigDecimal) getMattributeInstanceValue(curtainID, ROLL_WIDTH, trxName);
-		BigDecimal headWidth = new BigDecimal(headingWidth);
+		BigDecimal headWidth = new BigDecimal(headingWidth).divide(BigDecimal.valueOf(numOfCurtains));//Heading width PER curtain.
 		BigDecimal fullness = Env.ZERO;
 		BigDecimal drops = Env.ZERO;
 		
@@ -1021,10 +1019,10 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 	}
 	
 	/**
-	 * Gets heading width for swave or std curtains
-	 * @param trackWidth
+	 * Gets heading width standard (non Swave)curtains. Note this should be called FOR EACH curtain.
+	 * @param trackWidth: Track width.
 	 * @param sWaveDepth
-	 * @param numberOfSwaveCarriers
+	 * @param numberOfSwaveCarriers: Should be PER CURTAIN
 	 * @return
 	 */
 	public static double getHeadingWidthStdCarriers(int trackWidth) {
@@ -1033,6 +1031,12 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		
 	}
 	
+	/**Gets heading width for swave curtains. Note this should be called FOR EACH curtain.
+	 * 
+	 * @param sWaveDepth
+	 * @param sWaveRunnerCount
+	 * @return
+	 */
 	public static double getHeadingWidthSwave(int sWaveDepth, int sWaveRunnerCount) {
 		if(sWaveDepth > 0 && sWaveRunnerCount > 0)
 		{
@@ -1045,33 +1049,37 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 	
 	/**
 	 * Gets runner count for curtain carriers
+	 * NOTE: This gets the runner count for each curtain then returns the count per curtain * number of curtains. The runner count per curtain is always rounded up to even;
+	 * To get the runner count per curtain, dividing back to the number of curtains will always get an even number. This method is used for both Swave and standard carriers.
+	 * Swave curtains MUST have an even number of carriers.
 	 * @param trackWidth
+	 * @param numOfCurtains 
 	 * @param carrierPitch
 	 * @return
 	 */
-	public static Double getRunnerCount(int trackWidth, Double carrierPitch) {
+	public static Double getTotalRunnerCount(int trackWidth, int numOfCurtains, Double carrierPitch) {
 		//Runner count = EVEN((((Creepage%/100)*trackWidth)+trackWidth)/carrierPitch)
 		//Creepage = (10*EXP(trackWidth*-0.0035))/0.7
-		Double creepage = getCreepage(trackWidth);
+		Double creepage = getCreepage(trackWidth/numOfCurtains);
 		Double runnerCountUnRounded = Double.valueOf((((creepage/100)*trackWidth)+trackWidth)/carrierPitch);
 		Double runnerCountRoundedUp = Math.ceil(runnerCountUnRounded);
 		if(runnerCountRoundedUp % 2 == 0)
 		{
-			return runnerCountRoundedUp;//It's even
+			return runnerCountRoundedUp * numOfCurtains;//It's even
 		
 		}
 		else
 		{
-			return runnerCountRoundedUp + 1; //Add 1 to make it even.
+			return (runnerCountRoundedUp + 1) * numOfCurtains; //Add 1 to make it even.
 		}
 	}
 	
 	/** Calculates creepage
-	 * Creepage = (10*EXP(trackWidth*-0.0035))/0.7
+	 * Creepage = (10*EXP(trackWidth in centimeters *-0.0035))/0.7
 	 * @param trackWidth
 	 * @return
 	 */
 	public static Double getCreepage(int trackWidth) {
-		return Double.valueOf(10*Math.exp(trackWidth*0.0035)/0.7);
+		return Double.valueOf((10*Math.exp((trackWidth/10)*-0.0035))/0.7);
 	}
 }

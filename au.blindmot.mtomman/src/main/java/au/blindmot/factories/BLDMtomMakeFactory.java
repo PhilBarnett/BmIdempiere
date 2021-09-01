@@ -9,6 +9,7 @@ import org.compiere.util.DB;
 import org.compiere.util.Env;
 
 import au.blindmot.make.AwningBlind;
+import au.blindmot.make.Curtain;
 import au.blindmot.make.FoldingArmAwning;
 import au.blindmot.make.MadeToMeasureProduct;
 import au.blindmot.make.PanelGlide;
@@ -79,7 +80,7 @@ public class BLDMtomMakeFactory {
 		else if ( classification.equals("faawning") || productCategory.equals(FOLDING_ARM_AWNING))
 			return new FoldingArmAwning(mProduct_ID, mtom_item_line_id, trxnName);
 		else if ( classification.equals("curtain") || productCategory.equals(CURTAIN))
-			return new FoldingArmAwning(mProduct_ID, mtom_item_line_id, trxnName);
+			return new Curtain(mProduct_ID, mtom_item_line_id, trxnName);
 	    
 
 	    return null;

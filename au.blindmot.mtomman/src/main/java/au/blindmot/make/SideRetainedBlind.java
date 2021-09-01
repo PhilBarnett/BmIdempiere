@@ -111,7 +111,7 @@ public class SideRetainedBlind extends RollerBlind  {
 			}
 		
 		int bottombarIDToUse = 0;
-		int bottombID = getBomProductID(PART_TYPE_BOTTOM_BAR);
+		int bottombID = getBomDerivedProductID(PART_TYPE_BOTTOM_BAR);
 		if(bottombID > 0)
 		{
 			bottombarIDToUse = bottombID;
@@ -205,7 +205,7 @@ public class SideRetainedBlind extends RollerBlind  {
 				|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX_BACK)
 				|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX))
 		{
-			bomDerivedQty = getBomQty(mProductID, partType);
+			bomDerivedQty = getBomQty(mProductID /*, partType*/);
 			addTriggeredLine(mProductID, uom, bigTriggeredQty, bomDerivedQty);
 		}
 		else //If it's something we don't specifically care about then add using generic Superclass method
@@ -254,7 +254,7 @@ public class SideRetainedBlind extends RollerBlind  {
 					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX_BACK) 
 					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX))
 			{
-				lines.setQty(getBomQty(mProductID,partType));
+				lines.setQty(getBomQty(mProductID/*, partType*/));
 				lines.saveEx();
 			}
 		
@@ -270,15 +270,21 @@ public class SideRetainedBlind extends RollerBlind  {
 		return true;
 	}
 	
-	private BigDecimal getBomQty(int bomItemProductID, String partType) {
+	/**
+	 * 
+	 */
+	public BigDecimal getBomQty(int bomItemProductID/*, String partType*/) {
 		{
 			//get qty and adjust bomDerived line
+		
 			BigDecimal qty = Env.ZERO;
 			BigDecimal waste = Env.ZERO;
 			MProduct parentProduct = MProduct.get(Env.getCtx(), m_product_id);
 			int parentBomID = getParentBOMLineID(bomItemProductID);
 			MProductBOM mBomItem = new MProductBOM(Env.getCtx(), parentBomID, null);
 			MProduct bomProduct = MProduct.get(Env.getCtx(),mBomItem.getM_ProductBOM_ID());
+			X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), mBomItem.getM_PartType_ID(), null);
+			String partType = mPartType.getName();
 			
 			MtmUtils.attributePreCheck("Waste");
 			MtmUtils.attributePreCheck(MtmUtils.MTM_OVERALL_DEDUCTION);
@@ -313,7 +319,15 @@ public class SideRetainedBlind extends RollerBlind  {
 				if(overallDeduction == -1) log.warning("Overall deduction is -1, check the Overall deduction attribute in the parent product");
 				qty = new BigDecimal(wide - overallDeduction);
 			}
-			return qty.add(qty.multiply(waste.divide(oneHundred)));	
+			if(waste.compareTo(Env.ZERO) > 0)
+			{
+				return qty.add(qty.multiply(waste.divide(oneHundred)));	
+			}
+			else
+			{
+				return qty;
+			}
+			
 		}
 	}//getBomQty
 	

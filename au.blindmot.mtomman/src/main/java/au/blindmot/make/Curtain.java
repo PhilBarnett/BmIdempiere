@@ -4,12 +4,17 @@
 package au.blindmot.make;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.compiere.model.MTree_NodeMM;
+import org.compiere.model.X_M_PartType;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.Env;
 
+import au.blindmot.model.MBLDLineProductInstance;
+import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
 /**
@@ -21,9 +26,21 @@ public class Curtain extends RollerBlind {
 	private static final String ERROR_NO_HOOK_CLEARANCE = "Hook clearance cannot be determined. Check that the Attributes are correctly setup for the track selected";
 	private static final String ERROR_NO_HEADER = "Header cannot be determined. Check that the Attributes are correctly setup for the track selected";
 	private static final String ERROR_NO_CARRIER = "Carrier part not in Product options or not setup to be added to BOM. Check the Product Options (BLD Productset Instance) for this product.";
+	private static final String ERROR_NO_SWAVE_DEPTH = "No Swave depth detected for curtain tape. Check the curtain tape on the BOM derived for attribute ";
+	private static final String ERROR_NO_BRACKETS = "No brackets found. Ensure any brackets on the parent product's BOM have the 'Brackets per metre' attribute set to something meaningful";
+	private static final String ERROR_NO_CARRIER_PITCH = "No carrier pitch determined. This is an attribute called 'Carrier pitch' in the product with partType 'Carrier type'.";
+	private static final String ERROR_NO_SWAVE_TAPE = "No Swave tape found. Check product setup";
 	protected int curtainTrackID = 0;
+	protected int carrierID = 0;
+	protected int curtainTapeID = 0;
+	protected int curtainBracketID = 0;
 	protected boolean isSwave = false;
+	private boolean isFaceFix = false;
 	private int liningID = 0;
+	private String heading;
+	private BigDecimal floorClearance;
+	private String curtainOpening;
+	private String position;
 	
 	protected static final String CURTAIN_POSITION_FRONT = "Front";
 	protected static final String CURTAIN_OPENING_CENTRE = "Centre, 2 curtains";
@@ -35,21 +52,41 @@ public class Curtain extends RollerBlind {
 	protected static final String ATTRIBUTE_CURTAIN_OPENING = "Curtain opening";
 	protected static final String ATTRIBUTE_CURTAIN_HEADING = "Heading";//Heading to be either 'Swave' or 'Standard'.
 	protected static final String ATTRIBUTE_CARRIER_PITCH = "Carrier pitch";
-	protected static final String ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH = "Swave tape depth";
+	protected static final String ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH = "Swave depth";
+	private static final String ATTRIBUTE_FLOOR_CLEARANCE = "Floor Clearance (mm)";
+	private static final String ATTRIBUTE_IS_FACE_FIT = "Is face fit?";
+	private static final String ATTRIBUTE_BRACKETS_PER_METRE = "Brackets per metre";
 	
-	private static final String PART_TYPE_CURTAIN_CARRIER = "Curtain carrier";
-	private static final String PART_TYPE_CURTAIN_TRACK = "Curtain track";
-	private static final String PART_TYPE_CURTAIN_LINING = "Lining";
-	private static final String PART_TYPE_SWAVE_CURTAIN_TAPE = "Swave tape";
+	public static final String PART_TYPE_CURTAIN_CARRIER = "Curtain carrier";
+	public static final String PART_TYPE_CURTAIN_TRACK = "Curtain track";
+	public static final String PART_TYPE_CURTAIN_LINING = "Lining";
+	public static final String PART_TYPE_CURTAIN_TAPE = "Curtain tape";
+	public static final String PART_TYPE_CURTAIN_BRACKET = "Curtain bracket";
+	
+	
+	//private static String PART_TYPE_Is face fit?
 	//private static String PART_TYPE_
-	//private static String PART_TYPE_
+	
+	
 
 	public Curtain(int mProduct_ID, int mtom_item_line_id, String trxnName) {
 		super(mProduct_ID, mtom_item_line_id, trxnName);
+		interpretMattributeSetInstance();
+		setUserSelectedPartIds();
 		setIsSwave();
 	}
 	
 	private void setIsSwave() {
+		
+		if (heading.contains("Swave")||heading.contains("Sfold"))
+		{
+			isSwave = true;
+		}
+		else
+		{
+			isSwave = false;
+		}
+		/*
 		int carrierID = getBomProductID(PART_TYPE_CURTAIN_CARRIER);
 		if(carrierID < 1)
 		{
@@ -63,6 +100,43 @@ public class Curtain extends RollerBlind {
 		else
 		{
 			isSwave = false;
+		}
+		*/
+	}
+	
+	/**
+	 * 
+	 */
+	@Override
+	public void interpretMattributeSetInstance() {
+		AttributePair[] attributePair = getMAttributeSetInstance();
+		String mInstance;
+		String mInstanceValue;
+		//MBLDMtomItemLine mtmrolleritem = new MBLDMtomItemLine(Env.getCtx(), mtom_item_line_id, trxName);getBomQty(int mProductBomid)
+		
+		//Set fields based on the AttributePair[] contents.
+		for(int i = 0; i < attributePair.length; i++)
+		{
+			mInstance = attributePair[i].getInstance();
+			mInstanceValue = attributePair[i].getInstanceValue();
+	
+			if(mInstance.equalsIgnoreCase(ATTRIBUTE_CURTAIN_HEADING))
+			{
+				heading = mInstanceValue;
+			}
+			else if(mInstance.equalsIgnoreCase(ATTRIBUTE_FLOOR_CLEARANCE))
+			{
+				floorClearance = new BigDecimal(mInstanceValue);
+			}
+			else if(mInstance.equalsIgnoreCase(ATTRIBUTE_CURTAIN_OPENING))
+			{
+				curtainOpening = mInstanceValue;
+			}
+			else if(mInstance.equalsIgnoreCase(MtmUtils.MTM_CURTAIN_POSITION)) 
+			{
+				position = mInstanceValue;
+			}
+			
 		}
 		
 	}
@@ -81,8 +155,8 @@ public class Curtain extends RollerBlind {
 		 * iterate -> get cut based on parttype
 		 */
 			/**********************Code from HERE*/
-		int trackID = getBomProductID(PART_TYPE_CURTAIN_TRACK);
-		log.warning("--------Roller tube ID found: " + trackID);
+		int trackID = getBomDerivedProductID(PART_TYPE_CURTAIN_TRACK);
+		log.warning("--------Curtain track ID found: " + trackID);
 		int trackIDToUse = 0;
 		if(trackID > 0)
 		{
@@ -115,15 +189,11 @@ public class Curtain extends RollerBlind {
 		 *-Get fabric qty based on 
 		 */
 		
-		//Get a value for field fabricWidth & fabricDrop
-		BigDecimal fabricWidth = getFabricWidth();
-		BigDecimal fabricDrop = getFabricDrop();
-		
 		
 		if(fabricID !=0 )
 
 			{
-				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);	
+				addFabricCuts();
 			}
 	
 		
@@ -146,32 +216,62 @@ public class Curtain extends RollerBlind {
 	 */
 	public void addFabricCuts() {
 		BigDecimal qty = getCurtainFabricQty(fabricID);
-		
+		int numberOfCurtains = getNumberOfCurtains();
+		int fabricWidth = Integer.valueOf((String) MtmUtils.getMattributeInstanceValue(fabricID, MtmUtils.ROLL_WIDTH, trxName));
 		if(isContinuous())
-		{
-			
-			
-				//Swave? get the fabric based on tape spacing
-				
-			//	addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);
-				
-				
-			
-		//	else
-			
-			
-			
+		{	
+			for(int i = 0; i < numberOfCurtains; i++)
+			{
+				addBldMtomCuts(fabricID, qty.intValue()/numberOfCurtains, fabricWidth, 0);	
+			}
 		}
-		else//it's in drops
+		else
 		{
+			Double runnerCountTotal = Double.valueOf(0);
+			Double headingWidthPerCurtain = Double.valueOf(0);
+			BigDecimal makeDrop = getMakeDrop(BigDecimal.valueOf(high));
+			BigDecimal fabricLengthAdd = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName);
+			BigDecimal dropCutLength = makeDrop.add(fabricLengthAdd);
+			if(isSwave)
+				{
+					int tapeID = getBomDerivedProductID(PART_TYPE_CURTAIN_TAPE);
+					int carrierID = getBomDerivedProductID(PART_TYPE_CURTAIN_CARRIER);
+					Double carrierPitch = (Double) MtmUtils.getMattributeInstanceValue(carrierID, ATTRIBUTE_CARRIER_PITCH, trxName);
+					runnerCountTotal = MtmUtils.getTotalRunnerCount(wide, numberOfCurtains, carrierPitch);
+					
+					int swaveDepth = (int) MtmUtils.getMattributeInstanceValue(tapeID, ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH, trxName);
+					if(swaveDepth < 1)throw new AdempiereUserError(ERROR_NO_SWAVE_DEPTH + ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH);
+					headingWidthPerCurtain = MtmUtils.getHeadingWidthSwave(swaveDepth,(int)(runnerCountTotal/numberOfCurtains));
+				}
+			else
+				{
+					headingWidthPerCurtain = MtmUtils.getHeadingWidthStdCarriers(wide/numberOfCurtains);
+				}
 			
+				BigDecimal dropsPerCurtain = MtmUtils.getDropsPerCurtain(fabricID, m_product_id, numberOfCurtains, headingWidthPerCurtain.intValue(), trxName);
+				int dropsPerCurtainInt = dropsPerCurtain.intValue();
+				BigDecimal remainder = dropsPerCurtain.remainder(new BigDecimal(1));//Handles drops per curtain such as 3.5
+				BigDecimal remainderWidth = remainder.multiply(BigDecimal.valueOf(fabricWidth));
+				
+				for(int i = 0; i < numberOfCurtains; i++)//Loop through each curtain
+				{
+					
+					for(int j = 0; j < dropsPerCurtainInt; j++) 
+					{
+						//Add whole drops
+						addBldMtomCuts(fabricWidth, dropCutLength.intValue(), fabricWidth, 0);
+					}
+					//Add the remainder
+					addBldMtomCuts(remainderWidth.intValue(), dropCutLength.intValue(), fabricWidth, 0);
+				}
 		}
+			
+	}//addFabricCuts()
 		
-	}
 	
 	private boolean isContinuous() {
-		BigDecimal rollWidth = (BigDecimal) MtmUtils.getMattributeInstanceValue(fabricID, MtmUtils.ROLL_WIDTH, trxName);
-		BigDecimal dropAdd = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName);
+		BigDecimal rollWidth = new BigDecimal ((String)MtmUtils.getMattributeInstanceValue(fabricID, MtmUtils.ROLL_WIDTH, trxName));
+		BigDecimal dropAdd = new BigDecimal ((String)MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName));
 		BigDecimal measuredDrop = new BigDecimal(high);
 		if(rollWidth.compareTo(measuredDrop.add(dropAdd)) == 1) return true;//It's continuous
 		return false;
@@ -187,6 +287,26 @@ public class Curtain extends RollerBlind {
 	@Override
 	public BigDecimal getBomQty(int mProductBomid) { 
 		//Curtain BOM qtys needed: track, curtain fabric, runners, flick sticks?, stop carriers?, 
+		int carrierFoundID = 0;
+		if(carrierID > 0)
+		{
+			carrierFoundID = carrierID;
+		}
+		else
+		{
+			carrierFoundID = getBomDerivedProductID(PART_TYPE_CURTAIN_CARRIER);
+		}
+		
+		int headingTapeID = 0;
+		if(curtainTapeID > 0)
+		{
+			headingTapeID = curtainTapeID;
+		}
+		else
+		{
+			headingTapeID = getBomDerivedProductID(PART_TYPE_CURTAIN_TAPE);
+		}
+		
 		
 		BigDecimal qty = BigDecimal.ZERO;
 		if(mProductBomid == curtainTrackID)
@@ -199,7 +319,7 @@ public class Curtain extends RollerBlind {
 				
 			} else if(mProductBomid == fabricID)
 			{
-				qty = getCurtainFabricQty(fabricID);//create method
+				qty = getCurtainFabricQty(fabricID);
 				if(qty != BigDecimal.ZERO)
 				{
 					return qty;
@@ -214,19 +334,62 @@ public class Curtain extends RollerBlind {
 					return qty;
 				}
 			}
-			else if(mProductBomid == getBomProductID(PART_TYPE_CURTAIN_CARRIER))
+			else if(mProductBomid == carrierFoundID)
 			{
-				Double carrierPitch = (Double) MtmUtils.getMattributeInstanceValue(mProductBomid, ATTRIBUTE_CARRIER_PITCH, trxName);
-				qty = BigDecimal.valueOf(MtmUtils.getRunnerCount(wide, carrierPitch));
+				Double carrierPitch = Double.valueOf((String) MtmUtils.getMattributeInstanceValue(mProductBomid, ATTRIBUTE_CARRIER_PITCH, trxName));
+				qty = BigDecimal.valueOf(MtmUtils.getTotalRunnerCount(wide, getNumberOfCurtains(), carrierPitch));
 				if(qty != BigDecimal.ZERO)
 				{
 					return qty;
 				}
 			}
-		return super.getBomQty(mProductBomid);
+			else if(mProductBomid == headingTapeID)
+			{
+				Double carrierPitch = Double.valueOf((String) MtmUtils.getMattributeInstanceValue(carrierFoundID, ATTRIBUTE_CARRIER_PITCH, trxName));
+				BigDecimal totalRunnerCount = BigDecimal.valueOf(MtmUtils.getTotalRunnerCount(wide, getNumberOfCurtains(), carrierPitch));
+				BigDecimal sWaveDepth = new BigDecimal ((String)MtmUtils.getMattributeInstanceValue(mProductBomid, ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH, trxName));
+				qty = totalRunnerCount.multiply(sWaveDepth);
+				if(qty != BigDecimal.ZERO)
+				{
+					return qty;
+				}
+			}
+			else if(mProductBomid == curtainBracketID)
+			{
+				setIsFaceFix(mProductBomid);
+				int bracketsPerMetre = Integer.valueOf((String) MtmUtils.getMattributeInstanceValue(mProductBomid, ATTRIBUTE_BRACKETS_PER_METRE, trxName));
+				BigDecimal bigBracketsPerMetre = BigDecimal.valueOf(bracketsPerMetre);
+				BigDecimal bigTrackWidth = BigDecimal.valueOf(wide);
+				
+				BigDecimal bracketsNeeded = bigTrackWidth.divide(new BigDecimal(1000)).multiply(bigBracketsPerMetre);
+				BigDecimal bracketsRounded = bracketsNeeded.setScale(0, RoundingMode.HALF_UP);
+				if(bracketsRounded.compareTo(Env.ZERO) > 0)
+				{
+					return bracketsRounded;
+				}
+				else
+				{
+					throw new AdempiereUserError(ERROR_NO_BRACKETS);
+				} 
+			}
+		return qty;//Default
+		//return super.getBomQty(mProductBomid);//Default
 	}//getBomQty
 	
 	
+	private void setIsFaceFix(int mProductBomid) {
+		String isFaceFixed = (String) MtmUtils.getMattributeInstanceValue(mProductBomid, ATTRIBUTE_IS_FACE_FIT, trxName);
+		if(isFaceFixed.equalsIgnoreCase("Yes"))
+		{
+			isFaceFix = true;
+		}
+		else
+		{
+			isFaceFix = false;
+		}
+		
+	}
+
 	/**
 	 * Returns the length of fabric needed. 
 	 * @param fabricID
@@ -235,19 +398,56 @@ public class Curtain extends RollerBlind {
 	private BigDecimal getCurtainFabricQty(int fabricID) {
 		BigDecimal measuredDrop = new BigDecimal(high);
 		BigDecimal makeDrop = getMakeDrop(measuredDrop);
-		BigDecimal fullness = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FULLNESS_TARGET, trxName);
-		int carrierID = getBomProductID(PART_TYPE_CURTAIN_CARRIER);
+		BigDecimal targetFullness = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FULLNESS_TARGET, trxName));
 		int numOfCurtains = getNumberOfCurtains();
+		int carrierFoundID = 0;
+		if(carrierID > 0)
+		{
+			carrierFoundID = carrierID;
+		}
+		else
+		{
+			carrierFoundID = getBomDerivedProductID(PART_TYPE_CURTAIN_CARRIER);
+		}
+		//if(carrierFoundID < 1)throw new AdempiereUserError(ERROR_NO_CARRIER);
 		
-		BigDecimal fabricAddition = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName);
+		
+		if(carrierFoundID == 0)
+		{
+			log.warning("------In Curtain.getCurtainFabricQty(int fabricID) --> No carrierID, returning ZERO");
+			return BigDecimal.ZERO;
+		}
+		
+		BigDecimal fabricAddition = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName));
 		BigDecimal fabricCutDrop = makeDrop.add(fabricAddition);
 		
 		if(isSwave) 
 		{
-			int headingTapeID = getBomProductID(PART_TYPE_SWAVE_CURTAIN_TAPE);
-			BigDecimal waveDepth = (BigDecimal) MtmUtils.getMattributeInstanceValue(headingTapeID, ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH, trxName);
-			Double carrierPitch = (Double)MtmUtils.getMattributeInstanceValue(carrierID, ATTRIBUTE_CURTAIN_HEADING, ATTRIBUTE_CARRIER_PITCH);
-			Double runnerCount = MtmUtils.getRunnerCount(wide/numOfCurtains, carrierPitch);//gets runners per curtain
+			int headingTapeID = 0;
+			if(curtainTapeID > 0)
+			{
+				headingTapeID = curtainTapeID;
+			}
+			else
+			{
+				headingTapeID = getBomDerivedProductID(PART_TYPE_CURTAIN_TAPE);
+			}
+			if(headingTapeID < 1)
+			{
+				throw new AdempiereUserError(ERROR_NO_SWAVE_TAPE);
+			}
+			
+			//Integer[] headingTapeProductIDs = getProductIDFromBldLineSetInstance(PART_TYPE_CURTAIN_TAPE);
+			
+			//if(headingTapeProductIDs.length > 2) log.warning("-------------More than 1 heading tape found in partset");
+			//if(headingTapeProductIDs.length > 0) headingTapeID = headingTapeProductIDs[0].intValue();
+			//if(headingTapeID == 0) throw new AdempiereUserError(ERROR_NO_SWAVE_TAPE);
+			
+			BigDecimal waveDepth = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(headingTapeID, ATTRIBUTE_SWAVE_CURTAIN_TAPE_DEPTH, trxName));
+			Double carrierPitch = Double.valueOf((String) MtmUtils.getMattributeInstanceValue(carrierFoundID, ATTRIBUTE_CARRIER_PITCH, trxName));
+			if(carrierPitch == null) throw new AdempiereUserError(ERROR_NO_CARRIER_PITCH);
+			
+			Double runnerCount = MtmUtils.getTotalRunnerCount(wide, numOfCurtains, carrierPitch);//gets runners per curtain
 			BigDecimal headingWidth = BigDecimal.valueOf(MtmUtils.getHeadingWidthSwave(waveDepth.intValue(), runnerCount.intValue()));
 			if(isContinuous())
 			{
@@ -265,11 +465,11 @@ public class Curtain extends RollerBlind {
 		{
 			if(isContinuous())
 			{
-				return fullness.multiply(new BigDecimal(wide));
+				return targetFullness.multiply(new BigDecimal(wide));
 			}
 			else
 			{
-				//heading width std carriers * drops/curtain * num of curtains
+				//=heading width std carriers * drops/curtain * num of curtains
 				Double headingWidthStd = MtmUtils.getHeadingWidthStdCarriers(wide);
 				BigDecimal dropsPerCurtain = MtmUtils.getDropsPerCurtain(fabricID, m_product_id, numOfCurtains, headingWidthStd.intValue(), trxName);
 				return dropsPerCurtain.multiply(fabricCutDrop).multiply(BigDecimal.valueOf(numOfCurtains));
@@ -278,9 +478,9 @@ public class Curtain extends RollerBlind {
 	}
 
 	private int getNumberOfCurtains() {
-		String key = (String) MtmUtils.getMattributeInstanceValue(m_product_id, ATTRIBUTE_CURTAIN_OPENING, trxName);
+		//String curtainOpening = (String) MtmUtils.getMattributeInstanceValue(m_product_id, ATTRIBUTE_CURTAIN_OPENING, trxName);
 		int numberOfCurtains = 0;
-		switch (key) {
+		switch (curtainOpening) {
 		case CURTAIN_OPENING_1_FREE:
 			numberOfCurtains = 1;
 			break;
@@ -303,10 +503,19 @@ public class Curtain extends RollerBlind {
 		return numberOfCurtains;
 	}
 
+	/**
+	 * Swave curtain have no header: header = Env.ZERO;
+	 * Std curtains: Face fit curtains usually have a larger header, top fix or curtains on the rear tracks 
+	 * have a smaller header.
+	 * The make drop calculation is measuredDrop.subtract(floorClearance).subtract(hookClearance).add(header);
+	 * @param measuredDrop
+	 * @return
+	 */
 	private BigDecimal getMakeDrop(BigDecimal measuredDrop) {
-		BigDecimal floorClearance = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FLOOR_CLEARANCE, trxName);
-		String position = (String) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_CURTAIN_POSITION, trxName);
-		String fit = (String) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_CURTAIN_POSITION, trxName);
+		//floorClearance = (BigDecimal) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FLOOR_CLEARANCE, trxName);
+		// /*String*/ position = (String) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_CURTAIN_POSITION, trxName);
+		//String fit = (String) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_CURTAIN_POSITION, trxName);
+		//TODO: Get the fit from a bracket attribute
 		BigDecimal hookClearance = null;
 		BigDecimal header = null;
 		BigDecimal makeDrop = Env.ZERO;
@@ -314,36 +523,50 @@ public class Curtain extends RollerBlind {
 		{
 			header = Env.ZERO;
 		}
-		else if(position.equalsIgnoreCase(CURTAIN_POSITION_FRONT) && fit.contains("Face"))//It's face fit on front track
+		
+		Integer[] bracketProductIDs = getProductIDFromBldLineSetInstance(PART_TYPE_CURTAIN_BRACKET);
+		Integer[] trackProductIDs = getProductIDFromBldLineSetInstance(PART_TYPE_CURTAIN_TRACK);
+
+		if(bracketProductIDs.length > 0) log.warning("-------------More than 1 bracket found in partset");
+		if(trackProductIDs.length > 0) log.warning("-------------More than 1 track found in partset");
+		int bracketID = bracketProductIDs[0].intValue();
+		int trackID = trackProductIDs[0].intValue();
+		String facefitYorN = (String) MtmUtils.getMattributeInstanceValue(bracketID, ATTRIBUTE_IS_FACE_FIT, trxName);
+		
+		
+		if(position.equalsIgnoreCase(CURTAIN_POSITION_FRONT) && facefitYorN.equalsIgnoreCase("Y"))//It's face fit on front track
 		{
-			if(!isSwave)
+			if(isSwave)//it's FF Swave
 			{
-					hookClearance = (BigDecimal) MtmUtils.getMattributeInstanceValue(curtainTrackID, MtmUtils.MTM_HOOK_CLEARANCE_FF, trxName);
-					header = (BigDecimal) MtmUtils.getMattributeInstanceValue(curtainTrackID, MtmUtils.MTM_HEADER_FF, trxName);
+				hookClearance = (BigDecimal) MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HOOK_CLEARANCE_FF, trxName);
+					
 			}
-			else//it's FF Swave
+			else//It's FF std
 			{
-				hookClearance = (BigDecimal) MtmUtils.getMattributeInstanceValue(curtainTrackID, MtmUtils.MTM_HOOK_CLEARANCE_FF_SW, trxName);
+				hookClearance = (BigDecimal) MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HOOK_CLEARANCE_FF_SW, trxName);
+				header = (BigDecimal) MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HEADER_FF, trxName);
 			}
 			
 		
 		}
 		else//It's top fix or track other than front
 		{
-			if(!isSwave)
+			if(isSwave)//It's TF Swave
 			{
-				hookClearance = (BigDecimal) MtmUtils.getMattributeInstanceValue(curtainTrackID, MtmUtils.MTM_HOOK_CLEARANCE_TF, trxName);
-				header = (BigDecimal) MtmUtils.getMattributeInstanceValue(curtainTrackID, MtmUtils.MTM_HEADER_TF, trxName);
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HOOK_CLEARANCE_TF, trxName));
+				
 			}
-			else//It's TF Swave
+			else//It's TF Std
 			{
-				hookClearance = (BigDecimal) MtmUtils.getMattributeInstanceValue(curtainTrackID, MtmUtils.MTM_HOOK_CLEARANCE_TF_SW, trxName);
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HOOK_CLEARANCE_TF_SW, trxName));
+				header = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HEADER_TF, trxName));
 			}
 			
 		}
 		if(hookClearance == null)throw new AdempiereUserError(ERROR_NO_HOOK_CLEARANCE);
 		if(header == null)throw new AdempiereUserError(ERROR_NO_HEADER);
 		makeDrop = measuredDrop.subtract(floorClearance).subtract(hookClearance).add(header);
+		log.warning("-------- Measured Drop: " + measuredDrop.toString() + ", Floor clearance: " + floorClearance.toString() + ", Hook clearance: " + hookClearance.toString() + ", Header: " + header.toString());
 		
 		return makeDrop;
 	}
@@ -383,5 +606,48 @@ public class Curtain extends RollerBlind {
 		return config;
 	
 	}
+
+	/**
+	 * Sets fields from parts that users can select from the part dialog selection.
+	 */
+	protected void setUserSelectedPartIds(){
+		
+		MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance(); 
+		for(int i = 0; i < mBLDLineProductInstance.length; i++)
+		{
+				int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
+				int mPartTypeID = mBLDLineProductInstance[i].getBLD_Product_PartType_ID();
+				MBLDProductPartType mBLDProductPartType  = new MBLDProductPartType(Env.getCtx(), mPartTypeID, null);
+				int xMPartTypeID = mBLDProductPartType.getM_PartTypeID();
+				X_M_PartType mPartType  = new X_M_PartType (Env.getCtx(), xMPartTypeID , null);
+				String parTypeName = mPartType.getName();
+				
+				if(parTypeName.equals(PART_TYPE_CURTAIN_TRACK))
+				{
+					curtainTrackID = mProductId;
+				}
+				else if(parTypeName.equals(PART_TYPE_CURTAIN_CARRIER))
+				{
+					carrierID = mProductId;
+				}
+				else if(parTypeName.equals(PART_TYPE_CURTAIN_TAPE))
+				{
+					curtainTapeID = mProductId;
+				}
+				else if(parTypeName.equals(PART_TYPE_CURTAIN_BRACKET))
+				{
+					curtainBracketID = mProductId;
+				}
+				else if(parTypeName.equals(PART_TYPE_FABRIC))
+				{
+					fabricID = mProductId;
+				}
+				else if(parTypeName.equals(PART_TYPE_CURTAIN_LINING))
+				{
+					liningID = mProductId;
+				}
+				
+		}
+    }//setUserSelectedPartIdsprotected int curtainTrackID = 0;
 	
 }

@@ -79,6 +79,7 @@ import org.zkoss.zul.Separator;
 import org.zkoss.zul.South;
 import org.zkoss.zul.impl.InputElement;
 
+import au.blindmot.make.Curtain;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDProductPartType;
@@ -101,6 +102,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 */
 	private static final long serialVersionUID = -7810825026970615029L;
 	private static String ATTRIBUTE_PREFIX = "attPrefix";
+	private static String CATEGORY_ROLLER_BLIND = "Roller blind";
+	private static String CATEGORY_CURTAIN = "Curtain";
 	private Object ma_value;
 	private Component theComponent;
 	private Button attrbButton;
@@ -334,9 +337,10 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			MProductCategory  mProductCategory = new MProductCategory(Env.getCtx(),mProduct.getM_Product_Category_ID(), null);
 			
-			if(mProductCategory.getName() != null && mProduct.getClassification() != null)
+			if(mProductCategory.getName() != null || mProduct.getClassification() != null)
 			{
-				if(mProduct.getClassification().equalsIgnoreCase("roller")||mProductCategory.getName().equalsIgnoreCase("Roller Blind"))
+				if(/*mProduct.getClassification().equalsIgnoreCase("roller")||*/mProductCategory.getName().equalsIgnoreCase(CATEGORY_ROLLER_BLIND)||
+						mProductCategory.getName().equalsIgnoreCase(CATEGORY_CURTAIN))
 				{//Add dual roller option if it's a roller blind.
 					Row row1 = new Row();
 					row1.appendChild(cbDualRoller);
@@ -472,7 +476,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				isLink = true;
 				values = modifyDualTypes(values, isDualRoller);
 			}
-			if(desc.equalsIgnoreCase(BRACKET) || mBLDpartType.getName().equalsIgnoreCase(BRACKET))
+			if(desc.equalsIgnoreCase(BRACKET) || mBLDpartType.getName().equalsIgnoreCase(BRACKET) || 
+					mBLDpartType.getName().equalsIgnoreCase(Curtain.PART_TYPE_CURTAIN_BRACKET))
 			{
 				log.warning("--------In WBldPartsDialog.addAttributeLine() IS_LINK = true");
 				setIsDualFlag(mBLDpartType.get_ID());
@@ -1041,7 +1046,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				setListAttribute(partTypes1[q], ctrlBox);
 			}
 			*/
-			/*else*/ if(partTypes1[q].getName().equalsIgnoreCase(BRACKET))
+			/*else*/ if(partTypes1[q].getName().equalsIgnoreCase(BRACKET) || partTypes1[q].getName().equalsIgnoreCase(Curtain.PART_TYPE_CURTAIN_BRACKET))
 			{
 				resetEditor(bracketBox, partTypes1[q].getBLD_M_PartType_ID());
 				setListAttribute(partTypes1[q], bracketBox);
@@ -1633,7 +1638,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		 MBLDLineProductInstance controlInstance = controlPart.getMBldLineProductInstance(m_MbldLineProductsetInstanceID);
 		 if(controlInstance != null)//will default to false if null
 		 {
-			 
 			 int intialControlID = controlInstance.getM_Product_ID();
 			 String isDualCtrl = (String) MtmUtils.getMattributeInstanceValue(intialControlID, MtmUtils.MTM_IS_DUAL, null);
 			 if(isDualCtrl != null)

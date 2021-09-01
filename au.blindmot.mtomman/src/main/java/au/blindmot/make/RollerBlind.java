@@ -43,7 +43,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	protected static String PART_TYPE_ROLLER_TUBE = "Roller tube";
 	private static String PART_TYPE_LIFT_SPRING = "Lift spring";
 	private static String PART_TYPE_END_CAP = "End Cap";
-	private static String PART_TYPE_FABRIC = "Fabric";
+	public static String PART_TYPE_FABRIC = "Fabric";
 	private static String IS_CHAIN_CONTROL = "Is chain control";
 	private static String LIFT_SPRING_CAPACITY_UPPER = "Lift Spring capacity upper";
 	private static String LIFT_SPRING_ROTATION = "Lift Spring rotation";
@@ -123,7 +123,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);	
 			}
 		
-		int rollerTID = getBomProductID(PART_TYPE_ROLLER_TUBE);
+		int rollerTID = getBomDerivedProductID(PART_TYPE_ROLLER_TUBE);
 		log.warning("--------Roller tube ID found: " + rollerTID);
 		int rollerIDToUse = 0;
 		if(rollerTID > 0)
@@ -142,7 +142,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			}
 		
 		int bottombarIDToUse = 0;
-		int bottombID = getBomProductID(PART_TYPE_BOTTOM_BAR);
+		int bottombID = getBomDerivedProductID(PART_TYPE_BOTTOM_BAR);
 		if(bottombID > 0)
 		{
 			bottombarIDToUse = bottombID;
@@ -338,7 +338,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 					return qty;
 				}
 			}
-		return super.getBomQty(mProductBomid);
+		return qty;//Default
+		//return super.getBomQty(mProductBomid);
 	}//getBomQty
 		
 		/*
@@ -402,6 +403,11 @@ public class RollerBlind extends MadeToMeasureProduct{
 		}
     }//setUserSelectedPartIds
 	
+	/**
+	 * 
+	 * @param partProduct_id
+	 * @param description
+	 */
 	private void addBomDerivedLines(int partProduct_id, String description){
 		if(partProduct_id != 0)
 		{
@@ -525,12 +531,12 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 
 	 /**
 	  * This method gets the BOM line product IDs and was part of a refactor 
-	  * to allow the user to change BOM line product types.
-	  * MOVE TO SUPERCLASS
+	  * to allow the user to change BOM line product types. Must be called after the BOM has been populated, ie after createBomDerived()
+	  * MOVED TO SUPERCLASS 31/8/2021
 	  * @param partType
 	  * @return
-	  */
-	 public int getBomProductID(String partType) {
+	  
+	 public int getBomDerivedProductID(String partType) {
 		 log.warning("---------In getBomProductID(String partType)---> String partType = " + partType);
 		 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
 		 log.warning("--------In getBomProductID() bomDerived: " + bomDerived.toString());
@@ -559,7 +565,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			 
 		 }
 		 return 0;
-	 }//getBomProductID
+	 }*///getBomProductID
 	 
 	 private int getLiftSpring(boolean useWeight) {
 		/*
@@ -689,7 +695,12 @@ public boolean performOperationAddition(MBLDProductNonSelect mBLDPNonSelect, MBL
 			 }
 			 else
 			 {
-				 addMBLDBomDerived(addID, getBomQty(addID), trxName);
+				 BigDecimal qty = getBomQty(addID);
+				 if(qty.compareTo(BigDecimal.ZERO) == 0)
+				 {
+					 qty = BigDecimal.ONE;//Make Sure it gets added as zeros get skipped in addMBLDBomDerived(addID, qty, trxName);
+				 }
+				 addMBLDBomDerived(addID, qty, trxName);
 			 }
 			 	
 		 } return true;
@@ -729,13 +740,13 @@ public boolean performOperationConditionSet(MBLDProductNonSelect mBLDPNonSelect)
 
 	public void setupTubeFabric() {
 	
-		int fabId = getBomProductID("Fabric");
+		int fabId = getBomDerivedProductID("Fabric");
 		if(fabId > 0)
 			{
 				fabricID = fabId;
 			}
 		
-		int rollerTID = getBomProductID(PART_TYPE_ROLLER_TUBE);
+		int rollerTID = getBomDerivedProductID(PART_TYPE_ROLLER_TUBE);
 		log.warning("--------Roller tube ID found: " + rollerTID);
 		if(rollerTID > 0)
 		{

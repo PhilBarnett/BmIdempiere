@@ -1,5 +1,6 @@
 package au.blindmot.make;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public class PanelGlide extends MadeToMeasureProduct {
@@ -76,6 +77,12 @@ public class PanelGlide extends MadeToMeasureProduct {
 	public boolean addTriggeredBom(int parentBomID, int qty) {
 		super.addTriggeredBom(parentBomID, qty);
 		return false;
+	}
+
+	@Override
+	public BigDecimal getBomQty(int addID) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

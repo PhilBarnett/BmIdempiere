@@ -3,6 +3,7 @@
  */
 package au.blindmot.make;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -90,6 +91,12 @@ public class FoldingArmAwning extends MadeToMeasureProduct {
 	public void interpretMattributeSetInstance() {
 		// TODO Auto-generated method stub
 
+	}
+
+	@Override
+	public BigDecimal getBomQty(int mProductBomid) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

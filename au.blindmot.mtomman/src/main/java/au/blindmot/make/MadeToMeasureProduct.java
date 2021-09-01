@@ -122,7 +122,7 @@ public static String EACH_1 = "Ea ";//Each with space
 		int mProductID = mBomItem.getM_ProductBOM_ID();
 		MProduct bomProduct = MProduct.get(Env.getCtx(), mProductID);
 		//X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
-		BigDecimal qty = mBomItem.getBOMQty();//getBomQty() returns the qty from the parent product's BOM
+		BigDecimal qty = mBomItem.getBOMQty();//getBOMQty() returns the qty from the parent product's BOM
 		BigDecimal bigTriggeredQty = new BigDecimal(triggeredQty);
 		String uom = bomProduct.getUOMSymbol();
 		
@@ -246,6 +246,7 @@ public static String EACH_1 = "Ea ";//Each with space
 		{
 			int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
 			BigDecimal qty = getBomQty(mProductId);
+			if(qty.compareTo(Env.ZERO)<1) qty = getMProductBomQty(mProductId);//Get a default from parent BOM
 			addMBLDBomDerived(mProductId, qty, trxName);
 		}
 		return true;
@@ -444,6 +445,10 @@ public static String EACH_1 = "Ea ";//Each with space
 			 }
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
 	public MBLDLineProductInstance[] getMBLDLineProductInstance() {
 		int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
 		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
@@ -491,8 +496,12 @@ public static String EACH_1 = "Ea ";//Each with space
 		 
 		 if(addPartType != null)
 		 {
-			addMBLDBomDerived(addID, getBomQty(addID), trxName);
-			 	
+			 BigDecimal qty = getBomQty(addID);
+			 if(qty.compareTo(BigDecimal.ZERO) == 0)
+			 {
+				 qty = BigDecimal.ONE;//Make Sure it gets added as zeros get skipped in addMBLDBomDerived(addID, qty, trxName);
+			 }
+			 addMBLDBomDerived(addID, qty, trxName); 	
 		 }
 		
 		return true;
@@ -501,14 +510,54 @@ public static String EACH_1 = "Ea ";//Each with space
 		//return true;
 	}//performOperationAddition
 	
-	public BigDecimal getBomQty(int addID) {
+	/**
+	 * Gets the Bom qty required for product to go onto the concrete class' BOM.
+	 * Return BigDecimal.ZERO if the mProductBomid is not found in the if() statements.
+	 * @Override
+	public BigDecimal getBomQty(int mProductBomid) { 
+		BigDecimal qty = BigDecimal.ZERO;
+		if(mProductBomid == rollerTubeID)
+			{
+				qty = getRollerTubeQty(rollerTubeID);
+				if(qty != BigDecimal.ZERO)
+				{
+					return qty;
+				}
+				
+			} else if(mProductBomid == fabricID)
+			{
+				qty = getFabricQty();
+				if(qty != BigDecimal.ZERO)
+				{
+					return qty;
+				}
+			} else if(mProductBomid == bottomBarID)
+			{
+				qty = getBottomBarQty();
+				if(qty != BigDecimal.ZERO)
+				{
+					return qty;
+				}
+			}
+		return qty;//Default
+	 * @param addID
+	 * @return
+	 */
+	public abstract BigDecimal getBomQty(int mProductBomid); 
+	
+	/**
+	 * Gets the BOM qty from the Parent BOM product.
+	 * @param mProductBomID
+	 * @return
+	 */
+	public BigDecimal getMProductBomQty(int mProductBomID) {
 		
 		StringBuilder sql = new StringBuilder("SELECT m_product_bom_id ");
         sql.append("FROM m_product_bom ");
         sql.append("WHERE m_product_id = ");
         sql.append(m_product_id);
         sql.append(" AND m_productbom_id = ");
-        sql.append(addID);
+        sql.append(mProductBomID);
         
         int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
 		MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, trxName);
@@ -625,5 +674,103 @@ public static String EACH_1 = "Ea ";//Each with space
 		return null;
 	}
 	
+	 /**
+	  * This method gets the BOM line product IDs and was part of a refactor 
+	  * to allow the user to change BOM line product types. Must be called after the BOM has been populated, ie after createBomDerived()
+	  * MOVED TO SUPERCLASS 31/8/2021
+	  * @param partType
+	  * @return
+	  */
+	 public int getBomDerivedProductID(String partType) {
+		 log.warning("---------In getBomProductID(String partType)---> String partType = " + partType);
+		 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
+		 log.warning("--------In getBomProductID() bomDerived: " + bomDerived.toString());
+		 
+		 for(int p = 0; p < bomDerived.length; p++)
+		 {
+			 int productID = bomDerived[p].getM_Product_ID();
+			 MProduct mProduct = new MProduct(Env.getCtx(), productID, trxName);
+			 int mPartTypeID = mProduct.getM_PartType_ID();
+			 StringBuilder sql = new StringBuilder("SELECT name FROM m_parttype ");
+			 sql.append(" WHERE m_parttype_id = ?");
+			 String partName = DB.getSQLValueString(trxName, sql.toString(), mPartTypeID);
+		
+			 if(partName != null)
+			 {
+				 if(partName.equalsIgnoreCase(partType)) 
+				 {
+					 log.warning("---------returning mProduct: " + mProduct.getName() + "For parttype: " + partType);
+					 return productID; 
+				 }
+			 }
+			 else
+			 {
+				 log.warning("Could not get a part name for partType: " + partType);
+			 }
+			 
+		 }
+		 return 0;
+	 }//getBomProductID
+	 
+	 /**
+	  * 
+	  * @param partType
+	  * @return
+	  */
+	 public Integer[] getProductIDFromBldLineSetInstance(String partType) {
+		 log.warning("---------In getProductIDFromBldLineSetInstance(String partType)---> String partType = " + partType);
+		 MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance();
+		 ArrayList<Integer> foundIDs = new ArrayList<Integer>();
+		 
+		 /*
+		 for (int i = 0; i < mBLDLineProductInstance.length; i++)
+			{
+				
+				if (mBLDLineProductInstance != null && mBLDLineProductInstance[i].getM_Product_ID() > 0)
+				{
+					MProduct bldPartSetProduct = new MProduct(Env.getCtx(), mBLDLineProductInstance[i].getM_Product_ID(), trxName);
+					//if (sb.length() > 0)
+						//sb.append("_");
+					//sb.append(nameAdd.getName());
+				}
+			}
+		 */
+		 
+		 for(int i = 0; i < mBLDLineProductInstance.length; i++)
+		 {
+			System.out.println(mBLDLineProductInstance[i].getBLD_Product_PartType());
+			MProduct bldPartSetProduct = new MProduct(Env.getCtx(), mBLDLineProductInstance[i].getM_Product_ID(), trxName);
+			X_M_PartType xMPartType = new X_M_PartType(Env.getCtx(), bldPartSetProduct.getM_PartType_ID(), trxName);
+			
+			 if(xMPartType.getName().equalsIgnoreCase(partType))
+			 {
+				int partTypeID = mBLDLineProductInstance[i].getM_Product_ID();
+				foundIDs.add(Integer.valueOf(partTypeID));
+			 }
+		 }
+		 
+		return foundIDs.toArray(new Integer[foundIDs.size()]);
+
+	 }
+	 
+	 public boolean updateBomQty() {
+		 //Get Bom derived
+		 MBLDBomDerived[] bomDerived = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mBLDMtomItemLine.getbld_mtom_item_line_ID());
+		 for(int x = 0; x < bomDerived.length; x++ )
+		 {
+			 //Loop through Bom derived, call getBomQty(productID) for each line
+			 int mProductBomID = bomDerived[x].getMBOMProductID();
+			 int mProductID = bomDerived[x].getM_Product_ID();
+			 MProduct productToUpdate = MProduct.get(mProductID);
+			 log.warning("-----Product checking qty for is: " + productToUpdate.getName());
+			 BigDecimal qty = getBomQty(mProductID);//returns 0 if a qty is not set.
+			 if(qty.compareTo(Env.ZERO) > 0)
+			 {
+				 bomDerived[x].setQty(qty);
+				 bomDerived[x].saveEx(trxName);
+			 }
+		 }
+		 return true;
+	 }
 	
 }//MadeToMeasureProduct

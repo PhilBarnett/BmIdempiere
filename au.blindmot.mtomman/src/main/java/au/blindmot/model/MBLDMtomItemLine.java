@@ -169,8 +169,14 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		if(!isprocessed())//If it is already processed or it's being voided, skip processing
 		{
 			if((action.equalsIgnoreCase(DocumentEngine.ACTION_Void)))return false;
-		
-		if(mTmProduct.getCuts())
+			
+		/*mTmProduct.updateBomQty() added 1/9/2021.
+		 * Done because some BOM items rely on the existence of other BOM items to get their quantities; previous
+		 * logic path attempted to find BOM items that weren't added at the time of execution.
+		 */
+		if(mTmProduct.updateBomQty())
+		{
+			if(mTmProduct.getCuts())
 			{
 				/*{*/
 					if(createLines(false)>0)
@@ -182,8 +188,8 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 				/*}*/
 return true;
 			}
-				
 		}
+	}
 return false;
 	}
 	/**
