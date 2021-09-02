@@ -87,7 +87,7 @@ public class SideRetainedBlind extends RollerBlind  {
 		
 		log.warning("---------In getCuts()");
 		
-	    setUserSelectedPartIds();
+	    //setUserSelectedPartIds();
 	    setChainControl(controlID);
 		populatePartTypes(m_product_id);//Gets the ArrayLists of partsget
 		setupTubeFabric();

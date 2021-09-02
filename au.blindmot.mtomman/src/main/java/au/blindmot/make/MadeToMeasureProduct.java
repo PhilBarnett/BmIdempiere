@@ -98,6 +98,7 @@ public static String EACH_1 = "Ea ";//Each with space
 	public abstract boolean createBomDerived();//Return true if successful, delete created records if fail.
 	public abstract boolean deleteBomDerived();
 	public abstract boolean deleteCuts(); 
+	public abstract boolean setUserSelectedPartIds();
 	
 	/**
 	 * 

@@ -6,13 +6,15 @@ package au.blindmot.make;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import org.compiere.model.MTree_NodeMM;
 import org.compiere.model.X_M_PartType;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.Env;
 
+import au.blindmot.make.Curtain.CurtainConfig;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
@@ -57,7 +59,7 @@ public class Curtain extends RollerBlind {
 	private static final String ATTRIBUTE_IS_FACE_FIT = "Is face fit?";
 	private static final String ATTRIBUTE_BRACKETS_PER_METRE = "Brackets per metre";
 	
-	public static final String PART_TYPE_CURTAIN_CARRIER = "Curtain carrier";
+	//public static final String PART_TYPE_CURTAIN_CARRIER = "Curtain carrier";
 	public static final String PART_TYPE_CURTAIN_TRACK = "Curtain track";
 	public static final String PART_TYPE_CURTAIN_LINING = "Lining";
 	public static final String PART_TYPE_CURTAIN_TAPE = "Curtain tape";
@@ -72,13 +74,12 @@ public class Curtain extends RollerBlind {
 	public Curtain(int mProduct_ID, int mtom_item_line_id, String trxnName) {
 		super(mProduct_ID, mtom_item_line_id, trxnName);
 		interpretMattributeSetInstance();
-		setUserSelectedPartIds();
-		setIsSwave();
 	}
 	
 	private void setIsSwave() {
 		
-		if (heading.contains("Swave")||heading.contains("Sfold"))
+		if (heading.contains(CurtainConfig.INSTANCE_ATTRIBUTE_CURTAIN_HEADING_VALUE_SWAVE.toString())
+				||heading.contains(CurtainConfig.INSTANCE_ATTRIBUTE_CURTAIN_HEADING_VALUE_SFOLD.toString()))
 		{
 			isSwave = true;
 		}
@@ -123,6 +124,7 @@ public class Curtain extends RollerBlind {
 			if(mInstance.equalsIgnoreCase(ATTRIBUTE_CURTAIN_HEADING))
 			{
 				heading = mInstanceValue;
+				setIsSwave();
 			}
 			else if(mInstance.equalsIgnoreCase(ATTRIBUTE_FLOOR_CLEARANCE))
 			{
@@ -147,6 +149,10 @@ public class Curtain extends RollerBlind {
 	 * 
 	 */
 	public boolean getCuts() {
+		
+		//setUserSelectedPartIds();
+		//setIsSwave();
+		
 		log.warning("---------In getCuts()");
 		/*
 		 * /TODO: get the fabricID, rollerTubeID (curtain track), bottomBarID from BOM lines in case they've been edited by user.
@@ -235,7 +241,8 @@ public class Curtain extends RollerBlind {
 			if(isSwave)
 				{
 					int tapeID = getBomDerivedProductID(PART_TYPE_CURTAIN_TAPE);
-					int carrierID = getBomDerivedProductID(PART_TYPE_CURTAIN_CARRIER);
+					CurtainConfig.PART_TYPE_CURTAIN_CARRIER.toString();
+					int carrierID = getBomDerivedProductID(CurtainConfig.PART_TYPE_CURTAIN_CARRIER.toString());
 					Double carrierPitch = (Double) MtmUtils.getMattributeInstanceValue(carrierID, ATTRIBUTE_CARRIER_PITCH, trxName);
 					runnerCountTotal = MtmUtils.getTotalRunnerCount(wide, numberOfCurtains, carrierPitch);
 					
@@ -294,9 +301,9 @@ public class Curtain extends RollerBlind {
 		}
 		else
 		{
-			carrierFoundID = getBomDerivedProductID(PART_TYPE_CURTAIN_CARRIER);
+			carrierFoundID = getBomDerivedProductID(CurtainConfig.PART_TYPE_CURTAIN_CARRIER.toString());
 		}
-		
+		System.out.println("label " +CurtainConfig.PART_TYPE_CURTAIN_CARRIER.toString());
 		int headingTapeID = 0;
 		if(curtainTapeID > 0)
 		{
@@ -407,7 +414,7 @@ public class Curtain extends RollerBlind {
 		}
 		else
 		{
-			carrierFoundID = getBomDerivedProductID(PART_TYPE_CURTAIN_CARRIER);
+			carrierFoundID = getBomDerivedProductID(CurtainConfig.PART_TYPE_CURTAIN_CARRIER.toString());
 		}
 		//if(carrierFoundID < 1)throw new AdempiereUserError(ERROR_NO_CARRIER);
 		
@@ -576,7 +583,9 @@ public class Curtain extends RollerBlind {
 	 * @see au.blindmot.make.MtmInfo#getConfig()
 	 */	
 	public List<String> getConfig() {
-		ArrayList <String> config = new ArrayList<String>();
+		
+		return CurtainConfig.getConfig();
+		/*ArrayList <String> config = new ArrayList<String>();
 		config.add("The main product is Curtain. Any other products mentioned that aren't 'Curtain' below are to be on the BOM of the Curtain");
 		config.add("Instance Attribute: Width; Number; for product Curtain");
 		config.add("Instance Attribute: Drop; Number; for product Curtain");
@@ -603,16 +612,18 @@ public class Curtain extends RollerBlind {
 		config.add("Attribute: Hook clearance top fix Swave; Number; for Product track");
 		config.add("Attribute: Roll width; Number; for Product fabric");
 		
-		return config;
+		return config; */
 	
 	}
 
 	/**
 	 * Sets fields from parts that users can select from the part dialog selection.
+	 * @return 
 	 */
-	protected void setUserSelectedPartIds(){
+	public boolean setUserSelectedPartIds(){
 		
 		MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance(); 
+		
 		for(int i = 0; i < mBLDLineProductInstance.length; i++)
 		{
 				int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
@@ -626,7 +637,7 @@ public class Curtain extends RollerBlind {
 				{
 					curtainTrackID = mProductId;
 				}
-				else if(parTypeName.equals(PART_TYPE_CURTAIN_CARRIER))
+				else if(parTypeName.equals(CurtainConfig.PART_TYPE_CURTAIN_CARRIER.toString()))
 				{
 					carrierID = mProductId;
 				}
@@ -634,6 +645,7 @@ public class Curtain extends RollerBlind {
 				{
 					curtainTapeID = mProductId;
 				}
+				
 				else if(parTypeName.equals(PART_TYPE_CURTAIN_BRACKET))
 				{
 					curtainBracketID = mProductId;
@@ -646,8 +658,74 @@ public class Curtain extends RollerBlind {
 				{
 					liningID = mProductId;
 				}
-				
 		}
-    }//setUserSelectedPartIdsprotected int curtainTrackID = 0;
+		return true;
+    }//setUserSelectedPartIds
 	
+	
+	public enum CurtainConfig {
+	    PART_TYPE_CURTAIN_CARRIER("Curtain carrier"),
+	    ATTRIBUTE_CURTAIN_LENGTH_ADDITION("Length addition"),
+		INSTANCE_ATTRIBUTE_CURTAIN_HEADING_VALUE_SWAVE("SWave"),
+		INSTANCE_ATTRIBUTE_CURTAIN_HEADING_VALUE_SFOLD("SFold");
+	    // ...
+	    //NE("Neon", 10, 20.180f);
+
+	    private static final Map<String, CurtainConfig> BY_LABEL = new HashMap<>();
+	    //private static final Map<Integer, Element> BY_ATOMIC_NUMBER = new HashMap<>();
+	    //private static final Map<Float, Element> BY_ATOMIC_WEIGHT = new HashMap<>();
+	    private static final List<String> CONFIG = new ArrayList<String>();
+	    
+	 /*   static {
+	        for (CurtainConfig e : values()) {
+	            BY_LABEL.put(e.label, e);
+	            //BY_ATOMIC_NUMBER.put(e.atomicNumber, e);
+	            //BY_ATOMIC_WEIGHT.put(e.atomicWeight, e);
+	        }
+	    }*/
+
+	    public final String label;
+	    //public final int atomicNumber;
+	    //public final float atomicWeight;
+
+	    private CurtainConfig(String label/*, int atomicNumber, float atomicWeight*/) {
+	        this.label = label;
+	        //this.atomicNumber = atomicNumber;
+	        //this.atomicWeight = atomicWeight;
+	    }
+	    
+	    public static List<String> getConfig() {
+	    	CONFIG.clear();
+	    	CurtainConfig[] curtainConfig = CurtainConfig.values();
+	    	
+	    	for(CurtainConfig cConfig : curtainConfig)
+	    	{
+	    		StringBuilder configToAdd = new StringBuilder(/*"Curtain Config: "*/);
+	    		//configToAdd.append("cConfig.name(), ");
+	    		configToAdd.append(cConfig.name());
+	    		configToAdd.append(", Value: ");
+	    		configToAdd.append(cConfig.toString());
+	    		configToAdd.append("\n");
+	    		CONFIG.add(configToAdd.toString());
+	    	}
+	    	
+	    	return CONFIG;
+	    }
+
+	    public static CurtainConfig valueOfLabel(String label) {
+	        return BY_LABEL.get(label);
+	    }
+	    
+	    public String toString() { 
+	        return this.label; 
+	    }
+	/*
+	    public static Element valueOfAtomicNumber(int number) {
+	        return BY_ATOMIC_NUMBER.get(number);
+	    }
+
+	    public static Element valueOfAtomicWeight(float weight) {
+	        return BY_ATOMIC_WEIGHT.get(weight);
+	    } */
+	}
 }

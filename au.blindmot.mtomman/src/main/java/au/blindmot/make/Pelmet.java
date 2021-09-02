@@ -39,7 +39,7 @@ public class Pelmet extends MadeToMeasureProduct {
 	 * 
 	 */
 	public boolean getCuts() {
-		setUserSelectedPartIds();
+		//setUserSelectedPartIds();
 		if(pelmetAngleID != 0)
 		{
 			addBldMtomCuts(pelmetAngleID, 0, wide, 0);
@@ -128,7 +128,7 @@ public class Pelmet extends MadeToMeasureProduct {
 	/**
 	 * 	
 	 */
-	private void setUserSelectedPartIds(){
+	public boolean setUserSelectedPartIds(){
 			
 			MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance(); 
 			for(int i = 0; i < mBLDLineProductInstance.length; i++)
@@ -153,6 +153,7 @@ public class Pelmet extends MadeToMeasureProduct {
 					}
 				
 			}
+			return true;
 	    }//setUserSelectedPartIds
 		
 	public boolean addMtmInstancePartsToBomDerived() {

@@ -26,6 +26,7 @@ import org.compiere.util.Util;
 
 import au.blindmot.factories.BLDMtomMakeFactory;
 import au.blindmot.make.MadeToMeasureProduct;
+import au.blindmot.make.Curtain.CurtainConfig;
 
 public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 
@@ -174,8 +175,12 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		 * Done because some BOM items rely on the existence of other BOM items to get their quantities; previous
 		 * logic path attempted to find BOM items that weren't added at the time of execution.
 		 */
+			mTmProduct.setUserSelectedPartIds();
+			
 		if(mTmProduct.updateBomQty())
 		{
+			mTmProduct.setUserSelectedPartIds();
+			
 			if(mTmProduct.getCuts())
 			{
 				/*{*/

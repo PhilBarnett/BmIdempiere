@@ -106,7 +106,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 * iterate -> get cut based on parttype
 		 */
 		
-	    setUserSelectedPartIds();
+	    //setUserSelectedPartIds();
 	    setChainControl(controlID);
 		populatePartTypes(m_product_id);//Gets the ArrayLists of partsget
 		setupTubeFabric();
@@ -366,9 +366,10 @@ public class RollerBlind extends MadeToMeasureProduct{
 
 	/**
 	 * Sets fields from parts that users can select from the part dialog selection.
+	 * @return 
 	 */
 	//TODO: Modify so all parts are added to BOMDerived
-	protected void setUserSelectedPartIds(){
+	public boolean setUserSelectedPartIds(){
 		
 		MBLDLineProductInstance[] mBLDLineProductInstance = getMBLDLineProductInstance(); 
 		for(int i = 0; i < mBLDLineProductInstance.length; i++)
@@ -401,6 +402,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 					bottomBarID = mProductId;
 				}
 		}
+		return true;
     }//setUserSelectedPartIds
 	
 	/**

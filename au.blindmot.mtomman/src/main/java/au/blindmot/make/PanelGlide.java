@@ -85,4 +85,10 @@ public class PanelGlide extends MadeToMeasureProduct {
 		return null;
 	}
 
+	@Override
+	public boolean setUserSelectedPartIds() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 }

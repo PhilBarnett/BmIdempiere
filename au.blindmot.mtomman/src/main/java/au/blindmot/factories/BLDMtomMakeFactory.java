@@ -44,7 +44,7 @@ public class BLDMtomMakeFactory {
 	
 	  public static MadeToMeasureProduct getMtmProduct(int m_Product_ID, int bld_mtom_item_line_id, String trxnName)
 	  {
-		 String sql = new String("SELECT classification from m_product WHERE m_product_id = ?");
+		String sql = new String("SELECT classification from m_product WHERE m_product_id = ?");
 		 String classification = DB.getSQLValueString(null, sql, m_Product_ID);
 		 
 		 StringBuilder sql1 = new StringBuilder("SELECT mpc.name FROM m_product_category mpc ");
