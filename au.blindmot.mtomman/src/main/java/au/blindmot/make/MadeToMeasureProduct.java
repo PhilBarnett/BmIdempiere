@@ -137,13 +137,13 @@ public static String EACH_1 = "Ea ";//Each with space
 		if(bigTriggeredQty.compareTo(Env.ZERO) == 0 || bigTriggeredQty.compareTo(Env.ZERO) < 0 ) bigTriggeredQty = BigDecimal.ONE;
 		if(uom.equalsIgnoreCase(EACH) || uom.equalsIgnoreCase(EACH_1))//if it's 'each' just add the required qty to BOM derived
 		{
-			addMBLDBomDerived(mProductID, bigTriggeredQty, "Added by BOM trigger");
+			addMBLDBomDerived(mProductID, bigTriggeredQty, 0, "Added by BOM trigger");
 		}
 		else//if it's not 'each', add a line for each
 		{
 			for(int i=0; i<bigTriggeredQty.intValue(); i++)
 			{
-				addMBLDBomDerived(mProductID, parentBOMqty, "Added by BOM trigger");
+				addMBLDBomDerived(mProductID, parentBOMqty, 0, "Added by BOM trigger");
 			}
 		}
 	}
@@ -247,8 +247,9 @@ public static String EACH_1 = "Ea ";//Each with space
 		{
 			int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
 			BigDecimal qty = getBomQty(mProductId);
+			int mAttributeSetInstanceId = mBLDLineProductInstance[i].getM_AttributeSetInstance_ID();
 			if(qty.compareTo(Env.ZERO)<1) qty = getMProductBomQty(mProductId);//Get a default from parent BOM
-			addMBLDBomDerived(mProductId, qty, trxName);
+			addMBLDBomDerived(mProductId, qty, mAttributeSetInstanceId, "Added by addMtmInstancePartsToBomDerived()");
 		}
 		return true;
 	}//addMtmInstancePartsToBomDerived
@@ -416,9 +417,10 @@ public static String EACH_1 = "Ea ";//Each with space
 	 * Set other fields unique to concrete class
 	 * e.g. int theLeftMech = //some code;
 	 * this.leftMech = theLeftMech;//set the product_iD of the left mech
+	 * @param mAttributeSetInstanceId 
 	 */ 
 
-	public void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {
+	public void addMBLDBomDerived(int mProductId, BigDecimal qty, int mAttributeSetInstanceId, String description) {
 		log.warning("---------In addMBLDBomDerived(int mProductId, BigDecimal qty, String description) with mProductId: " + mProductId + " qty:" + qty + " description: " + description);
 		log.warning("---------mProductId: " + mProductId + " qty: " + qty);
 		if(mProductId > 0 && qty.compareTo(BigDecimal.ZERO) > 0)
@@ -428,11 +430,16 @@ public static String EACH_1 = "Ea ";//Each with space
 			mBomDerived.setM_Product_ID(mProductId);
 			qty.setScale(2, RoundingMode.HALF_EVEN);
 			mBomDerived.setQty(qty);
+			mBomDerived.setM_AttributeSetInstance_ID(mAttributeSetInstanceId);
 			int mProductBomID = getParentBOMLineID(mProductId);
 			mBomDerived.setMProductBomID(mProductBomID);
 			if(description != null)mBomDerived.setDescription(description);
 			mBomDerived.saveEx();
 		}
+	}
+	
+	public void addMBLDBomDerived(int mProductId, BigDecimal qty, String description) {
+		addMBLDBomDerived(mProductId, qty, 0, description);
 	}
 	
 	public MBLDProductPartType[] getMBLDProductPartTypeLines() {
@@ -500,9 +507,9 @@ public static String EACH_1 = "Ea ";//Each with space
 			 BigDecimal qty = getBomQty(addID);
 			 if(qty.compareTo(BigDecimal.ZERO) == 0)
 			 {
-				 qty = BigDecimal.ONE;//Make Sure it gets added as zeros get skipped in addMBLDBomDerived(addID, qty, trxName);
+				 qty = BigDecimal.ONE;//Makes Sure it gets added as zeros get skipped in addMBLDBomDerived(addID, qty, trxName);
 			 }
-			 addMBLDBomDerived(addID, qty, trxName); 	
+			 addMBLDBomDerived(addID, qty, 0, trxName); 	
 		 }
 		
 		return true;
@@ -771,6 +778,10 @@ public static String EACH_1 = "Ea ";//Each with space
 				 bomDerived[x].saveEx(trxName);
 			 }
 		 }
+		 return true;
+	 }
+	 
+	 public boolean addMtomItemDetail() {
 		 return true;
 	 }
 	

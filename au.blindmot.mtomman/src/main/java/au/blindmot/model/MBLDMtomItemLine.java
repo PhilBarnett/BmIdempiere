@@ -28,7 +28,7 @@ import au.blindmot.factories.BLDMtomMakeFactory;
 import au.blindmot.make.MadeToMeasureProduct;
 import au.blindmot.make.Curtain.CurtainConfig;
 
-public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
+public class MBLDMtomItemLine extends X_BLD_Mtom_Item_Line {
 
 	/**
 	 * 
@@ -181,8 +181,10 @@ public class MBLDMtomItemLine extends X_BLD_mtom_item_line {
 		{
 			mTmProduct.setUserSelectedPartIds();
 			
+			
 			if(mTmProduct.getCuts())
 			{
+				mTmProduct.addMtomItemDetail();
 				/*{*/
 					if(createLines(false)>0)
 					/*{

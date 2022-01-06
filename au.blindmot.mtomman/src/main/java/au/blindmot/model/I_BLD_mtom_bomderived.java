@@ -103,7 +103,7 @@ public interface I_BLD_mtom_bomderived
 	/** Get Made to measure items	  */
 	public int getbld_mtom_item_line_ID();
 
-	public I_BLD_mtom_item_line getbld_mtom_item_line() throws RuntimeException;
+	public I_BLD_Mtom_Item_Line getbld_mtom_item_line() throws RuntimeException;
 
     /** Column name Created */
     public static final String COLUMNNAME_Created = "Created";
@@ -120,6 +120,9 @@ public interface I_BLD_mtom_bomderived
 	  * User who created this records
 	  */
 	public int getCreatedBy();
+	
+	 /** Column name M_AttributeSetInstance_ID */
+    public static final String COLUMNNAME_M_AttributeSetInstance_ID = "M_AttributeSetInstance_ID";
 
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";

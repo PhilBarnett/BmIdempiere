@@ -18,6 +18,7 @@ import au.blindmot.model.MBLDMtomProduction;
 import au.blindmot.model.MBLDProductNonSelect;
 import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.model.MBLDProductionLog;
+import au.blindmot.model.MBLDMtomItemDetail;
 
 public class BLDMtomModelFactory implements IModelFactory {
 
@@ -59,6 +60,11 @@ public class BLDMtomModelFactory implements IModelFactory {
 		
 		if(tableName.equalsIgnoreCase(MBLDMtmProductBomAdd.Table_Name))
 				return MBLDMtmProductBomAdd.class;
+		
+		if(tableName.equalsIgnoreCase(MBLDMtomItemDetail.Table_Name))
+			return MBLDMtomItemDetail.class;
+		
+		
 		
 		return null;
 	}

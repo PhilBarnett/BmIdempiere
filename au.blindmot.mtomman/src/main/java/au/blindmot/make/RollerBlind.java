@@ -413,7 +413,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	private void addBomDerivedLines(int partProduct_id, String description){
 		if(partProduct_id != 0)
 		{
-			addMBLDBomDerived(partProduct_id, getBomQty(partProduct_id), description);
+			addMBLDBomDerived(partProduct_id, getBomQty(partProduct_id), 0, description);
 		}
 		
 	}//addBomDerivedLines
@@ -689,11 +689,11 @@ public boolean performOperationAddition(MBLDProductNonSelect mBLDPNonSelect, MBL
 				log.warning("Roller tube cut = " + getRollerTubeCut(wide));
 				BigDecimal waste = new BigDecimal(getWaste(addID));
 				BigDecimal rollerTubeQty = getRollerTubeQty(addID);
-				addMBLDBomDerived(addID, rollerTubeQty, "Procesed with waste factor of: " + (rollerTubeQty.multiply(waste)));
+				addMBLDBomDerived(addID, rollerTubeQty, 0, "Procesed with waste factor of: " + (rollerTubeQty.multiply(waste)));
 			 }
 			 else if(addPartType.getName().equalsIgnoreCase("Bottom bar"))
 			 {
-				 addMBLDBomDerived(addID, getBottomBarCut(), trxName);
+				 addMBLDBomDerived(addID, getBottomBarCut(), 0, trxName);
 			 }
 			 else
 			 {
@@ -702,7 +702,7 @@ public boolean performOperationAddition(MBLDProductNonSelect mBLDPNonSelect, MBL
 				 {
 					 qty = BigDecimal.ONE;//Make Sure it gets added as zeros get skipped in addMBLDBomDerived(addID, qty, trxName);
 				 }
-				 addMBLDBomDerived(addID, qty, trxName);
+				 addMBLDBomDerived(addID, qty, 0, "Added by performOperationAddition() ");
 			 }
 			 	
 		 } return true;

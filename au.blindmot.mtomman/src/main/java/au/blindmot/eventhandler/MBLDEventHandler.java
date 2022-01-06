@@ -106,7 +106,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		System.out.println(Env.getCtx().toString());
 		bMorderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
 		orderLine = new MOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
-		log.warning("---------Line 83");
+		log.warning("---------Line 109");
 		log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
 		
 		if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW))

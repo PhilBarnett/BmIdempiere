@@ -25,7 +25,7 @@ import org.compiere.model.*;
 /** Generated Model for BLD_mtom_item_line
  *  @author iDempiere (generated) 
  *  @version Release 4.1 - $Id$ */
-public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_Persistent 
+public class X_BLD_Mtom_Item_Line extends PO implements I_BLD_Mtom_Item_Line, I_Persistent 
 {
 
 	/**
@@ -34,7 +34,7 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
 	private static final long serialVersionUID = 20180114L;
 
     /** Standard Constructor */
-    public X_BLD_mtom_item_line (Properties ctx, int BLD_mtom_item_line_ID, String trxName)
+    public X_BLD_Mtom_Item_Line (Properties ctx, int BLD_mtom_item_line_ID, String trxName)
     {
       super (ctx, BLD_mtom_item_line_ID, trxName);
       /** if (BLD_mtom_item_line_ID == 0)
@@ -51,7 +51,7 @@ public class X_BLD_mtom_item_line extends PO implements I_BLD_mtom_item_line, I_
     }
 
     /** Load Constructor */
-    public X_BLD_mtom_item_line (Properties ctx, ResultSet rs, String trxName)
+    public X_BLD_Mtom_Item_Line (Properties ctx, ResultSet rs, String trxName)
     {
       super (ctx, rs, trxName);
     }

@@ -1,24 +1,15 @@
 package au.blindmot.processes.bmleadconvert;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.net.URL;
 import java.sql.Timestamp;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.FillMandatoryException;
-import org.adempiere.webui.apps.AEnv;
-import org.adempiere.webui.util.ServerPushTemplate;
 import org.compiere.model.I_C_ContactActivity;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBPartnerLocation;
-import org.compiere.model.MCampaign;
 import org.compiere.model.MLocation;
 import org.compiere.model.MOpportunity;
 import org.compiere.model.MOrder;
@@ -34,24 +25,9 @@ import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Util;
-import org.osgi.framework.Bundle;
-import org.zkoss.zk.ui.Desktop;
-
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.auth.oauth2.TokenResponseException;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.util.DateTime;
-import com.google.api.client.util.store.FileDataStoreFactory;
-import com.google.api.services.calendar.Calendar;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.calendar.CalendarScopes;
-import com.google.api.services.calendar.model.Event;
-import com.google.api.services.calendar.model.EventDateTime;
-import com.google.api.services.calendar.model.EventReminder;
 
 
 
@@ -81,7 +57,7 @@ public class BMConvertLead extends SvrProcess{
 	private static long elapsedTime;
 	
 	private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
-    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     //private static final int WEB_PORT = 8180;//100 + CConnection.get().getWebPort();
 	
@@ -160,12 +136,18 @@ public class BMConvertLead extends SvrProcess{
 		if (p_AD_User_ID <= 0)
 			throw new FillMandatoryException("AD_User_ID");
 		
-		MUser lead = MUser.get(getCtx(), p_AD_User_ID);
-		lead.set_TrxName(get_TrxName());
+		MUser immutableLead = MUser.getCopy(Env.getCtx(), p_AD_User_ID, get_TrxName());//Gets mutable object MUser lead
+		MUser lead = new MUser(immutableLead);
+		if(!lead.is_Immutable())
+		{
+			lead.set_TrxName(get_TrxName());
+		}
+		
 		if (!lead.isSalesLead() && lead.getC_BPartner_ID() != 0)
 			throw new AdempiereUserError("Lead already converted");
 		
-		bp = MBPartner.getTemplate(getCtx(), Env.getAD_Client_ID(getCtx()));
+		//Get mutable copy of BP template PB 4/1/22
+		bp = new MBPartner(MBPartner.getTemplate(getCtx(), Env.getAD_Client_ID(getCtx())));
 		bp.set_TrxName(get_TrxName());
 		if ( !Util.isEmpty(lead.getBPName()) )
 			bp.setName(lead.getBPName());
@@ -266,18 +248,28 @@ public class BMConvertLead extends SvrProcess{
 		{
 			log.warning("-------- In BM LeadConvert creating SO");
 			cOrder = new MOrder(getCtx(),0,get_TrxName());
+			//PO.setCrossTenantSafe();
+			//log.warning("Setting crostennant safe.");
 			if(adOrgID < 1) adOrgID = Env.getAD_Org_ID(getCtx());
 			StringBuffer sql = new StringBuffer();
 			sql.append("SELECT C_DocType_ID ");
 			sql.append("FROM C_DocType ");
 			sql.append("WHERE name LIKE '%roposal' ");
-			sql.append("OR name LIKE 'Non binding offer'");
+			sql.append("OR name LIKE '%on binding offer' ");
+			sql.append("AND ad_client_id = ?");
+			Object[] params = new Object[1];
+			params[0] = getAD_Client_ID();
 			int docID = 0;
-			docID = DB.getSQLValue(get_TrxName(), sql.toString());
+			docID = DB.getSQLValue(get_TrxName(), sql.toString(),params);
 			cOrder.setAD_Org_ID(adOrgID);
+			int adClientID = getAD_Client_ID();
+			cOrder.setClientOrg(adClientID, adOrgID);
+			log.warning("Setting adClient to: " + adClientID);
 			if(docID > 0)
 			{
-				cOrder.setC_DocTypeTarget_ID(docID);
+				log.warning("Setting cOrder with DocID: " + docID);
+				cOrder.setC_DocTypeTarget_ID(1000029);
+				/*TODO: fix query to produce 1000029 - neeed to be onsite*/
 			}
 
 			
@@ -297,7 +289,8 @@ public class BMConvertLead extends SvrProcess{
 				}
 			cOrder.setAD_User_ID(p_AD_User_ID);
 			
-			cOrder.saveEx();
+			log.warning("Attempting to save cOrder.");
+			cOrder.saveEx(get_TrxName());
 			cOrderID = cOrder.getC_Order_ID();
 			
 			if(cOpportunityID > 0) 
@@ -308,6 +301,8 @@ public class BMConvertLead extends SvrProcess{
 				log.warning("--------BMConvertLead Setting Opportunity record with C_Order_ID: " + cOrderID);
 				op.saveEx();
 				cOrder.saveEx();
+				//log.warning("Clearing crostennant safe.");
+				//PO.clearCrossTenantSafe();
 			}
 			log.warning("-------- In BM LeadConvert saved SO with ID: " + cOrderID);
 			addBufferLog(cOrder.getC_Order_ID(), null, null, "@C_Order_ID@ @Created@", MOrder.Table_ID, cOrder.getC_Order_ID());

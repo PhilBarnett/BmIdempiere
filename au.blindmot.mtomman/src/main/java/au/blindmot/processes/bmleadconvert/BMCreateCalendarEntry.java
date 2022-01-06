@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -37,19 +38,25 @@ import org.compiere.model.MOrder;
 import org.compiere.model.MRequest;
 import org.compiere.model.MUser;
 import org.compiere.model.PO;
+import org.compiere.process.AddAuthorizationProcess;
+import org.compiere.process.ProcessInfo;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
+import org.compiere.util.DB;
+import org.compiere.util.Env;
 import org.zkoss.zk.ui.Desktop;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.auth.oauth2.TokenResponseException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.DateTime;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.calendar.Calendar;
@@ -78,7 +85,7 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
 	private String type;
 	
 	private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
-    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final CLogger 	slog = CLogger.getCLogger (BMCreateCalendarEntry.class);
     //private static final int WEB_PORT = 8180;//100 + CConnection.get().getWebPort();
@@ -90,6 +97,7 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
     private static final List<String> SCOPES = Collections.singletonList(CalendarScopes.CALENDAR);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
     private static final String CREDENTIALS_FILE_PATH_2 = "./credentials.json";
+
 	
 	/**
 	 * The prepare function is called first and is used to load parameters
@@ -193,7 +201,7 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
         //MUser salesRep = new MUser(getCtx(), p_SalesRep_ID, null);
         //String userId = salesRep.getEMailUser();
         
-        /*
+        /* 1/1/22
         Credential storedCredential = flow.loadCredential(userId);
         if(storedCredential == null)
         {
@@ -201,8 +209,13 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
         	// response = null;
         	//HttpServletResponse.sendRedirect(requestURL.getRedirectUri());
         }
- */
+ */ //1/1/22
         //TODO:Currently doing salesreps only, modify based on type var to cater for other users.
+        //TODO: Test for users that have their own BP (not 'clientUser' etc).
+        
+        
+        
+        
         String emailUser = calendarUser.getEMailUser();
         if(emailUser == null) throw new AdempiereUserError("The person you are trying to create the calendar entry doesn't have an email address.");
         
@@ -213,6 +226,9 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
                 .build();
         log.warning("-------- In BM LeadConvert creating Google Calendar entry. Created Calendar object: " +service.toString()); 
        
+        
+      
+        
         String meetingID = null;
         if(meeting != null)
         {
@@ -419,7 +435,7 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
         */
         addLog("Event created: " + event.getHtmlLink());
         }
-         catch (com.google.api.client.googleapis.json.GoogleJsonResponseException e)
+         catch (/*com.google.api.client.googleapis.json.*/GoogleJsonResponseException e)
         {
         	log.warning("BMCreateCalendarEntry failed with error: " + e.toString());
         	int statusCode = e.getStatusCode();
@@ -458,6 +474,41 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
  */
 private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT, String userId) throws IOException {
        // Load client secrets.
+	
+	//Try new 8.2 feature to handle OAuth
+	SvrProcess addAuthorizationProcess = new AddAuthorizationProcess();
+	ArrayList<ProcessInfoParameter> paras = new ArrayList<ProcessInfoParameter>();
+	//(String parameterName, Object parameter, Object parameter_To, String info, String info_To)
+	ProcessInfoParameter aD_AuthorizationScope = new ProcessInfoParameter("AD_AuthorizationScopes", "Calendar", "", "", "");
+	paras.add(aD_AuthorizationScope);
+	//Note hardcoded, TODO: get the credential ID
+	ProcessInfoParameter aD_AuthorizationCredential_ID = new ProcessInfoParameter("AD_AuthorizationCredential_ID", "1000001", "", "", "");
+	paras.add(aD_AuthorizationCredential_ID);
+	ProcessInfoParameter auth_OpenPopup = new ProcessInfoParameter("Auth_OpenPopup", "N", "", "", "");
+	paras.add(auth_OpenPopup);
+	ProcessInfoParameter aD_Language = new ProcessInfoParameter("AD_Language", "English", "", "", "");
+	paras.add(aD_Language);
+	
+	StringBuilder sql = new StringBuilder();
+	sql.append("SELECT ad_process_id ");
+	sql.append("FROM ad_process ");
+	sql.append("WHERE ad_process.value = 'AddAuthorizationProcess'");
+	int processID = DB.getSQLValue(null, sql.toString());
+	
+	ProcessInfo pI = new ProcessInfo("AddAuthorizationProcess", processID);
+	ProcessInfoParameter[] paraArray = new ProcessInfoParameter[paras.size()];
+	pI.setParameter(paras.toArray(paraArray));
+	//static String trxName = get_TrxName();
+	addAuthorizationProcess.startProcess(Env.getCtx(), pI, null);
+	
+	//ProcessInfo pI = addAuthorizationProcess.getProcessInfo();
+	
+	//String msg = (String) addAuthorizationProcess.doIt("org.compiere.process.AddAuthorizationProcess", "doIt", null);
+	//System.out.println(msg);
+	
+	
+	
+	
 		slog.warning("------------In BMCreateCalendarEntry getCredentials()");
        InputStream in = BMConvertLead.class.getClassLoader().getResourceAsStream(CREDENTIALS_FILE_PATH);
        if (in == null) 
@@ -474,10 +525,19 @@ private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT, 
        	in2.close();
            */
        }
-       GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+       
+       
+       
+       
+       
+       
+    GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+     //  GoogleClientSecrets clientSecrets = null;
 
        // Build flow and trigger user authorization request.
        //URL tokenPath = BMConvertLead.class.getClassLoader().get(TOKENS_DIRECTORY_PATH);
+       
+       
        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
@@ -489,7 +549,7 @@ private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT, 
        //MUser salesRep = new MUser(getCtx(), p_SalesRep_ID, null);
        //String userId = salesRep.getEMailUser();
        Credential storedCredential = flow.loadCredential(userId);
-       /*  if(storedCredential == null)//test for validity
+   /*   if(storedCredential == null)//test for validity
        	
        {
        	 try {

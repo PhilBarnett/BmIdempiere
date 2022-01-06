@@ -123,9 +123,9 @@ public class X_BLD_mtom_bomderived extends PO implements I_BLD_mtom_bomderived, 
 		return (String)get_Value(COLUMNNAME_bld_mtom_bomderived_UU);
 	}
 
-	public I_BLD_mtom_item_line getbld_mtom_item_line() throws RuntimeException
+	public I_BLD_Mtom_Item_Line getbld_mtom_item_line() throws RuntimeException
     {
-		return (I_BLD_mtom_item_line)MTable.get(getCtx(), I_BLD_mtom_item_line.Table_Name)
+		return (I_BLD_Mtom_Item_Line)MTable.get(getCtx(), I_BLD_Mtom_Item_Line.Table_Name)
 			.getPO(getbld_mtom_item_line_ID(), get_TrxName());	}
 
 	/** Set Made to measure items.
@@ -251,4 +251,34 @@ public int getMBOMProductID()
 		 return 0;
 	return ii.intValue();
 }
+
+public I_M_AttributeSetInstance getM_AttributeSetInstance() throws RuntimeException
+{
+	return (I_M_AttributeSetInstance)MTable.get(getCtx(), I_M_AttributeSetInstance.Table_Name)
+		.getPO(getM_AttributeSetInstance_ID(), get_TrxName());	}
+
+/** Set Attribute Set Instance.
+	@param M_AttributeSetInstance_ID 
+	Product Attribute Set Instance
+  */
+public void setM_AttributeSetInstance_ID (int M_AttributeSetInstance_ID)
+{
+	if (M_AttributeSetInstance_ID < 0) 
+		set_Value (COLUMNNAME_M_AttributeSetInstance_ID, null);
+	else 
+		set_Value (COLUMNNAME_M_AttributeSetInstance_ID, Integer.valueOf(M_AttributeSetInstance_ID));
+}
+
+/** Get Attribute Set Instance.
+	@return Product Attribute Set Instance
+  */
+public int getM_AttributeSetInstance_ID () 
+{
+	Integer ii = (Integer)get_Value(COLUMNNAME_M_AttributeSetInstance_ID);
+	if (ii == null)
+		 return 0;
+	return ii.intValue();
+}
+
+
 }

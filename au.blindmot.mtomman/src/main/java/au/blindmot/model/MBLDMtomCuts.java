@@ -6,13 +6,10 @@ import java.util.ArrayList;
 import java.util.Properties;
 
 import org.compiere.model.MProduct;
-import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
-
-import java.util.logging.Level;
 
 
 public class MBLDMtomCuts extends X_BLD_mtom_cuts {

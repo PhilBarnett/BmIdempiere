@@ -13,7 +13,7 @@ import org.zkoss.zk.ui.event.Events;
 
 
 import au.blindmot.model.I_BLD_mtom_cuts;
-import au.blindmot.model.I_BLD_mtom_item_line;
+import au.blindmot.model.I_BLD_Mtom_Item_Line;
 import au.blindmot.model.I_BLD_mtom_production;
 import au.blindmot.utils.MtmUtils;
 
@@ -53,7 +53,7 @@ public class BLDBarcodeLookup extends ADForm {
 		}
 		else if(prefix.equalsIgnoreCase(MtmUtils.MTM_PRODUCTION_ITEM_PREFIX))
 		{
-			windowFromBarcode(I_BLD_mtom_item_line.Table_ID, id);
+			windowFromBarcode(I_BLD_Mtom_Item_Line.Table_ID, id);
 		}
 		
 		else if(prefix.equalsIgnoreCase(MtmUtils.MTM_PRODUCTION_ASSEMBLEY_ITEM))

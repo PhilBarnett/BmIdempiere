@@ -8,8 +8,6 @@ import org.compiere.util.CLogger;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 
-import au.blindmot.BMGoogleOauth.GoogleOauthServer;
-
 public class JettyRunner implements Runnable{
 	
 private GoogleAuthorizationCodeFlow currentFlow = null;
@@ -45,11 +43,13 @@ protected static CLogger log = CLogger.get();
 		long startTime = System.currentTimeMillis();
 		long waitTime = 100000; //100 second timeout
 		long end_time = startTime + waitTime;
+		int serverPort = GoogleOauthServer.getRedirectPortHTTPS();
 
 		while (System.currentTimeMillis() < end_time || currentFlow.loadCredential(USER_ID) == null) 
 		{
 			try 
 			{
+				if(!BmServerPushCallback.isLocalPortInUse(serverPort))
 				authServer.startJetty();
 			} 
 			catch (Exception e) 

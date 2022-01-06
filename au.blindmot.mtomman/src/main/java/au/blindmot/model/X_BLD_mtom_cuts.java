@@ -108,9 +108,9 @@ public class X_BLD_mtom_cuts extends PO implements I_BLD_mtom_cuts, I_Persistent
 		return (String)get_Value(COLUMNNAME_BLD_mtom_cuts_UU);
 	}
 
-	public I_BLD_mtom_item_line getbld_mtom_item_line() throws RuntimeException
+	public I_BLD_Mtom_Item_Line getbld_mtom_item_line() throws RuntimeException
     {
-		return (I_BLD_mtom_item_line)MTable.get(getCtx(), I_BLD_mtom_item_line.Table_Name)
+		return (I_BLD_Mtom_Item_Line)MTable.get(getCtx(), I_BLD_Mtom_Item_Line.Table_Name)
 			.getPO(getbld_mtom_item_line_ID(), get_TrxName());	}
 
 	/** Set Made to measure items.

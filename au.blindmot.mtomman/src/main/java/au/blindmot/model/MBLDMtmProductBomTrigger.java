@@ -7,8 +7,6 @@ import java.sql.ResultSet;
 import java.util.List;
 import java.util.Properties;
 
-import org.compiere.model.I_C_OrderLine;
-import org.compiere.model.MOrderLine;
 import org.compiere.model.Query;
 import org.compiere.util.Util;
 

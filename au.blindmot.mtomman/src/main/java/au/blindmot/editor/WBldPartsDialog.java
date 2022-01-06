@@ -477,7 +477,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				values = modifyDualTypes(values, isDualRoller);
 			}
 			if(desc.equalsIgnoreCase(BRACKET) || mBLDpartType.getName().equalsIgnoreCase(BRACKET) || 
-					mBLDpartType.getName().equalsIgnoreCase(Curtain.PART_TYPE_CURTAIN_BRACKET))
+					mBLDpartType.getName().equalsIgnoreCase(Curtain.CurtainConfig.PART_TYPE_CURTAIN_BRACKET.toString()))
 			{
 				log.warning("--------In WBldPartsDialog.addAttributeLine() IS_LINK = true");
 				setIsDualFlag(mBLDpartType.get_ID());
@@ -1046,7 +1046,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				setListAttribute(partTypes1[q], ctrlBox);
 			}
 			*/
-			/*else*/ if(partTypes1[q].getName().equalsIgnoreCase(BRACKET) || partTypes1[q].getName().equalsIgnoreCase(Curtain.PART_TYPE_CURTAIN_BRACKET))
+			/*else*/ if(partTypes1[q].getName().equalsIgnoreCase(BRACKET) || partTypes1[q].getName().equalsIgnoreCase(Curtain.CurtainConfig.PART_TYPE_CURTAIN_BRACKET.toString()))
 			{
 				resetEditor(bracketBox, partTypes1[q].getBLD_M_PartType_ID());
 				setListAttribute(partTypes1[q], bracketBox);

@@ -26,7 +26,7 @@ import org.compiere.util.KeyNamePair;
  *  @version Release 4.1
  */
 @SuppressWarnings("all")
-public interface I_BLD_mtom_item_line 
+public interface I_BLD_Mtom_Item_Line 
 {
 
     /** TableName=BLD_mtom_item_line */

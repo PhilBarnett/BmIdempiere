@@ -4,7 +4,6 @@
 package au.blindmot.processes.bmleadconvert;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URL;
@@ -13,10 +12,7 @@ import org.adempiere.webui.util.IServerPushCallback;
 import org.adempiere.webui.window.FDialog;
 import org.compiere.util.CLogger;
 import org.zkoss.zk.ui.Executions;
-
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
-
-import au.blindmot.BMGoogleOauth.GoogleOauthServer;
 /**
  * @author phil
  *
@@ -41,8 +37,8 @@ private final CLogger 	log = CLogger.getCLogger (BmServerPushCallback.class);
 		log.warning("---------In BmServerPushCallback.updateUI()");
 		GoogleOauthServer oAuthServer = new GoogleOauthServer(flow, USER_ID);
 		REDIRECT_URL = oAuthServer.getSignInUri();
-		
-		if(isLocalPortInUse(oAuthServer.getPortFromURI()))
+		int portInUse = oAuthServer.getPortFromURI();
+		if(isLocalPortInUse(portInUse))
 		{
 			//Assume we have an oAuthServer already running in an existing thread, skip server setup
 			log.warning("---------In BmServerPushCallback.updateUI(): Local port is in use, server already running, trying a redirect");
@@ -88,7 +84,7 @@ private final CLogger 	log = CLogger.getCLogger (BmServerPushCallback.class);
 			}
 		}
 	}
-	private boolean isLocalPortInUse(int port) {
+	public static boolean isLocalPortInUse(int port) {
 	    try {
 	        // ServerSocket try to open a LOCAL port
 	        new ServerSocket(port).close();

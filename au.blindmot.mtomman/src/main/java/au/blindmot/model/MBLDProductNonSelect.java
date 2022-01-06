@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.Properties;
 
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductBOM;
 import org.compiere.model.Query;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.eevolution.model.MPPProductBOMLine;
 
 public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 
@@ -102,10 +102,10 @@ public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 	 */
 	public void setMProductBOM_ID(int nonSelectProductID) {
 	
-	MProductBOM[] bomProducts = getMProductBOM(nonSelectProductID);
+	MPPProductBOMLine[] bomProducts = getMProductBOM(nonSelectProductID);
 	if(bomProducts != null && bomProducts.length > 0)
 		{
-			int mProductBOMID = bomProducts[0].getM_Product_BOM_ID();
+			int mProductBOMID = bomProducts[0].getPP_Product_BOM_ID();
 			set_Value(COLUMNNAME_M_Product_BOM_ID , mProductBOMID);
 		}
 	}
@@ -115,8 +115,8 @@ public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 	 * @param mProductID
 	 * @return
 	 */
-	public MProductBOM[] getMProductBOM(int bomMProductID) {
-		List<MProductBOM> mps = null;
+	public MPPProductBOMLine[] getMProductBOM(int bomMProductID) {
+		List<MPPProductBOMLine> mps = null;
 		StringBuilder whereClause = new StringBuilder();
 		whereClause.append("m_productbom_id = ");
 		whereClause.append(bomMProductID);
@@ -124,9 +124,9 @@ public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 		log.warning("getM_Product_ID() =" + getM_Product_ID());
 		whereClause.append(getM_Product_ID());
 		
-		mps = new Query(Env.getCtx(), MProductBOM.Table_Name, whereClause.toString(), null).list();
+		mps = new Query(Env.getCtx(), MPPProductBOMLine.Table_Name, whereClause.toString(), null).list();
 	
-		MProductBOM[] mpsArray = new MProductBOM[mps.size()];
+		MPPProductBOMLine[] mpsArray = new MPPProductBOMLine[mps.size()];
 		return mps.toArray(mpsArray);
 	}
 	

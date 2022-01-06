@@ -700,7 +700,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			orderClause = MBLDMtomItemLine.COLUMNNAME_bld_mtom_item_line_ID;
 		//
 		System.out.print(get_ID());
-		List<MBLDMtomItemLine> list = new Query(getCtx(), I_BLD_mtom_item_line.Table_Name, whereClauseFinal.toString(), get_TrxName())
+		List<MBLDMtomItemLine> list = new Query(getCtx(), I_BLD_Mtom_Item_Line.Table_Name, whereClauseFinal.toString(), get_TrxName())
 										.setParameters(get_ID())
 										.setOrderBy(orderClause)
 										.list();

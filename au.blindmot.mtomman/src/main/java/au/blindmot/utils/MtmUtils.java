@@ -1,7 +1,7 @@
 package au.blindmot.utils;
 
 import java.math.BigDecimal;
-import java.sql.ResultSet;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -19,25 +19,19 @@ import org.compiere.model.MAcctSchema;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MCost;
 import org.compiere.model.MDiscountSchema;
-import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
 import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductBOM;
-import org.compiere.model.MTab;
 import org.compiere.model.Query;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
-import org.compiere.util.Util;
+import org.eevolution.model.MPPProductBOMLine;
 
-import au.blindmot.eventhandler.I_BM_OrderLine;
-import au.blindmot.model.I_BLD_MTM_Product_Bom_Add;
 import au.blindmot.model.I_BLD_MTM_Product_Bom_Trigger;
 import au.blindmot.model.MBLDLineProductInstance;
-import au.blindmot.model.MBLDMtmProductBomAdd;
 import au.blindmot.model.MBLDMtmProductBomTrigger;
 import au.blindmot.model.MBLDProductPartType;
 
@@ -62,6 +56,7 @@ public class MtmUtils {
 	public static final String MTM_FULLNESS_TARGET = "Fullness target";
 	public static final String MTM_FULLNESS_HIGH = "Fullness high";
 	public static final String MTM_CURTAIN_POSITION = "Curtain position";
+	public static final String MTM_CURTAIN_HEADING = "Heading type";
 	public static final String MTM_CURTAIN_Fit = "Fit";
 	public static final String MTM_CURTAIN_CARRIER_SWAVE = "Swave";
 	public static final String MTM_CURTAIN_CARRIER_SFOLD = "Sfold";
@@ -862,40 +857,58 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 	
 	}//getMTMPriceProductIDs
 
-	private static ArrayList <Integer> processIDs(Properties pCtx, ArrayList <Integer> productIDs, MBLDLineProductInstance[] instance, int mProduct_ID, boolean isSell) {
+	private static ArrayList <Integer> processIDs(Properties pCtx, ArrayList <Integer> productIDs, MBLDLineProductInstance[] instance, int parentMproduct_ID, boolean isSell) {
+		//Get the pp_product_bom_id from the parentMproduct_ID
+		StringBuilder sql1 = new StringBuilder("SELECT pp_product_bom_id FROM ");
+		sql1.append("pp_product_bom WHERE ");
+		sql1.append("m_product_id = ?");
+		Object[] params1 = new Object[1];
+		params1[0] = parentMproduct_ID;
+		int pp_product_bom_id = DB.getSQLValue(null, sql1.toString(), params1);
 		
 		for (int i = 0; i < instance.length; i++)
 		{
 			//Iterate through products to find ones that are to be added to line amt
 			if (instance != null && instance[i].getM_Product_ID() > 0)
 			{
-				StringBuilder sql = new StringBuilder("SELECT m_product_bom_id FROM ");
-				sql.append("m_product_bom WHERE ");
+				//Get the pp_product_bomline_id for the product we want to check for price or cost add to order line
+				//StringBuilder sql = new StringBuilder("SELECT m_product_bom_id FROM ");
+				StringBuilder sql = new StringBuilder("SELECT pp_product_bomline_id FROM ");
+				//sql.append("m_product_bom WHERE ");
+				sql.append("pp_product_bomline WHERE ");
 				sql.append("m_product_id = ? ");
-				sql.append("AND m_productbom_id = ?");
+				//sql.append("AND m_productbom_id = ?");
+				sql.append("AND pp_product_bom_id = ?");
 				Object[] params = new Object[2];
-				params[0] = mProduct_ID;
-				params[1] = instance[i].getM_Product_ID();
-				int m_product_bom_id = DB.getSQLValue(null, sql.toString(), params);
-				if(m_product_bom_id > 0)
+				params[0] = instance[i].getM_Product_ID();//Actual productID of the product being checked
+				params[1] = pp_product_bom_id;//The BOM ID from the multiple BOMs available fro the parent product
+				
+				
+				//params[0] = parentMproduct_ID;
+				//params[1] = instance[i].getM_Product_ID();
+				
+				int pp_product_bomline_id = DB.getSQLValue(null, sql.toString(), params);
+				if(pp_product_bomline_id > 0)
 				{
-					MProductBOM producToCheck = new MProductBOM (pCtx, m_product_bom_id, null);
-					producToCheck.saveEx();
+					MPPProductBOMLine productToCheck = new MPPProductBOMLine (pCtx, pp_product_bomline_id, null);
+					productToCheck.saveEx();
 					//TODO: handle isSell logic
 					if(isSell)
 					{
-							if(producToCheck.get_ValueAsBoolean(COLUMN_ADDPRICE))
+							if(productToCheck.get_ValueAsBoolean(COLUMN_ADDPRICE))
 						{
 							//productsToCheck.add(producToCheck);
-							productIDs.add(Integer.valueOf(producToCheck.getM_ProductBOM_ID()));
+							//productIDs.add(Integer.valueOf(producToCheck.getM_ProductBOM_ID()));
+							productIDs.add(Integer.valueOf(productToCheck.getM_Product_ID()));
 						}
 					}
 					else if(!isSell)
 					{
-						if(producToCheck.get_ValueAsBoolean(COLUMN_ADDCOST))
+						if(productToCheck.get_ValueAsBoolean(COLUMN_ADDCOST))
 						{
 							//productsToCheck.add(producToCheck);
-							productIDs.add(Integer.valueOf(producToCheck.getM_ProductBOM_ID()));
+							//productIDs.add(Integer.valueOf(producToCheck.getM_ProductBOM_ID()));
+							productIDs.add(Integer.valueOf(productToCheck.getM_Product_ID()));
 						}
 					}
 					
@@ -998,25 +1011,49 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 	 * @param numOfCurtains
 	 * @param headingWidth: Total heading width
 	 * @param trxName
-	 * @return
+	 * @return 
 	 */
-	public static BigDecimal getDropsPerCurtain(int fabricID, int curtainID, int numOfCurtains, int headingWidth, String trxName) {
+	public static BigDecimal getDropsPerCurtainStd(int fabricID, int curtainID, /*int numOfCurtains,*/ int headingWidthPerCurtain, String trxName) {
 		//Get the fullness range, start with a 1/2 drop then go in halves until the right drops is found.
-		BigDecimal fullnessTarget = (BigDecimal) getMattributeInstanceValue(curtainID, MTM_FULLNESS_TARGET, trxName);
-		BigDecimal rollWidth = (BigDecimal) getMattributeInstanceValue(curtainID, ROLL_WIDTH, trxName);
-		BigDecimal headWidth = new BigDecimal(headingWidth).divide(BigDecimal.valueOf(numOfCurtains));//Heading width PER curtain.
+		BigDecimal fullnessTarget = new BigDecimal((String)getMattributeInstanceValue(curtainID, MTM_FULLNESS_TARGET, trxName));
+		BigDecimal rollWidth = new BigDecimal((String)getMattributeInstanceValue(fabricID, ROLL_WIDTH, trxName));
+		BigDecimal headWidthPerCurtain = new BigDecimal(headingWidthPerCurtain)/*.divide(BigDecimal.valueOf(numOfCurtains))*/;//Heading width PER curtain.
 		BigDecimal fullness = Env.ZERO;
 		BigDecimal drops = Env.ZERO;
 		
 		while(fullness.compareTo(fullnessTarget) < 0)
 		{
-			drops.add(new BigDecimal(0.5));
-			fullness.equals(rollWidth.divide(headWidth));
+			drops = drops.add(new BigDecimal(0.5));
+			fullness = (drops.multiply(rollWidth)).divide(headWidthPerCurtain,2,RoundingMode.HALF_UP);//drops * roll width / width
+			
 		}
 		
 		return drops;
 		
 	}
+	
+	public static BigDecimal getDropsPerCurtainSWave(int fabricID, /*int curtainID,int numOfCurtains,*/ int headingWidthSwavePerCurtain, String trxName) {
+		//Start with a 1/2 drop then go in halves until the right drops is found.
+		//BigDecimal fullnessTarget = new BigDecimal((String)getMattributeInstanceValue(curtainID, MTM_FULLNESS_TARGET, trxName));
+		BigDecimal rollWidth = new BigDecimal((String)getMattributeInstanceValue(fabricID, ROLL_WIDTH, trxName));
+		BigDecimal headWidthPerCurtain = new BigDecimal(headingWidthSwavePerCurtain)/*.divide(BigDecimal.valueOf(numOfCurtains))*/;//Heading width PER curtain.
+		BigDecimal calculatedWidth = Env.ZERO;
+		BigDecimal drops = Env.ZERO;
+		
+		while(calculatedWidth.compareTo(headWidthPerCurtain) < 0)
+		{
+			drops = drops.add(new BigDecimal(0.5));
+			calculatedWidth = drops.multiply(rollWidth);//fabricwidth * number of drops
+					
+			//(drops.multiply(rollWidth)).divide(headWidthPerCurtain,2,RoundingMode.HALF_UP);//drops * roll width / width
+			
+		}
+		
+		return drops;
+		
+	}
+	
+	
 	
 	/**
 	 * Gets heading width standard (non Swave)curtains. Note this should be called FOR EACH curtain.
@@ -1061,7 +1098,7 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		//Runner count = EVEN((((Creepage%/100)*trackWidth)+trackWidth)/carrierPitch)
 		//Creepage = (10*EXP(trackWidth*-0.0035))/0.7
 		Double creepage = getCreepage(trackWidth/numOfCurtains);
-		Double runnerCountUnRounded = Double.valueOf((((creepage/100)*trackWidth)+trackWidth)/carrierPitch);
+		Double runnerCountUnRounded = Double.valueOf((((creepage/100)*trackWidth)+trackWidth)/carrierPitch)/numOfCurtains;
 		Double runnerCountRoundedUp = Math.ceil(runnerCountUnRounded);
 		if(runnerCountRoundedUp % 2 == 0)
 		{
