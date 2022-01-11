@@ -5,9 +5,9 @@ import java.util.List;
 
 import org.compiere.model.MBOMProduct;
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductBOM;
 import org.compiere.model.X_M_PartType;
 import org.compiere.util.Env;
+import org.eevolution.model.MPPProductBOMLine;
 
 import au.blindmot.utils.MtmUtils;
 
@@ -64,7 +64,7 @@ public class AwningBlind extends RollerBlind {
 	 */
 	@Override
 	public boolean addTriggeredBom(int parentBomID, int triggeredQty) {
-		MProductBOM mBomItem = new MProductBOM(Env.getCtx(), parentBomID, null);
+		MPPProductBOMLine mBomItem = new MPPProductBOMLine(Env.getCtx(), parentBomID, null);
 		int mProductID = mBomItem.getM_Product_ID();
 		MProduct bomProduct = MProduct.get(Env.getCtx(), mProductID);
 		X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
@@ -82,7 +82,7 @@ public class AwningBlind extends RollerBlind {
 		}
 		else //If it's something we don't specifically care about then add using generic Superclass method
 		{
-			qty = mBomItem.getBOMQty();
+			qty = mBomItem.getQty();
 			addMBLDBomDerived(mProductID, qty, "Added by BOM trigger");
 		}
 		

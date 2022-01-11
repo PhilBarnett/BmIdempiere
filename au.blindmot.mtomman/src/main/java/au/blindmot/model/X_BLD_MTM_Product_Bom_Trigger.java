@@ -94,6 +94,27 @@ public class X_BLD_MTM_Product_Bom_Trigger extends PO implements I_BLD_MTM_Produ
 			 return 0;
 		return ii.intValue();
 	}
+	
+
+	/** Get PP_Product_Bomline_ID.
+	@return PP_Product_Bomline_ID	  */
+public int getPP_Product_Bomline_ID () 
+{
+	Integer ii = (Integer)get_Value(COLUMNNAME_PP_Product_Bomline_ID);
+	if (ii == null)
+		 return 0;
+	return ii.intValue();
+}
+
+/** Set PP_Product_Bomline_ID.
+@param PP_Product_Bomline_ID PP_Product_Bomline_ID	  */
+public void setPP_Product_Bomline_ID (int PP_Product_Bomline_ID)
+{
+if (PP_Product_Bomline_ID < 1) 
+	set_ValueNoCheck (COLUMNNAME_PP_Product_Bomline_ID, null);
+else 
+	set_ValueNoCheck (COLUMNNAME_PP_Product_Bomline_ID, Integer.valueOf(PP_Product_Bomline_ID));
+}
 
 	/** Set BLD_MTM_Product_Bom_Trigger_UU.
 		@param BLD_MTM_Product_Bom_Trigger_UU BLD_MTM_Product_Bom_Trigger_UU	  */

@@ -48,7 +48,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	private MOrderLine orderLine = null;
 	private MBLDMtomItemLine mToMProductionParent = null;
 	private int prevOrderLineID = 0;
-	private boolean DocVoidReverse = false; 
+	private boolean DocVoidReverse = false;
+	private MOrder parentOrder = null;
 	String trxName = null;
 	
 	@Override
@@ -60,7 +61,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MProductionLine.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSECORRECT, MBLDMtomProduction.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MBLDMtomProduction.Table_Name);
-				registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);//
+				//registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);//
 				registerTableEvent(IEventTopics.PO_POST_CREATE, MOrderLine.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
 				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);
@@ -98,41 +99,47 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		DocVoidReverse = true;	
 	}
 	
-	if(po instanceof MOrderLine && po != null)
+	if(po instanceof MOrderLine && po != null)//We have an orderline
 	{
 		log.warning("---------MOrderLine event triggered");
 		log.warning("---------event: " + event);
 		trxName = po.get_TrxName();
+		//po.save();
 		System.out.println(Env.getCtx().toString());
+		
+		
 		bMorderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
 		orderLine = new MOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
-		log.warning("---------Line 109");
+		log.warning("---------Line 113");
 		log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
 		
-		if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW))
+		//Attempt to exit if it's Purchase Order
+		if(!parentIsSalesOrder())
+		{
+			return;
+		}
+		
+		if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW))//new record is saved.
 		{
 			//Check if there's a BLD Line ProductSetInstance; if none, create and set.
 			int mProductID = orderLine.getM_Product_ID();
-			int refID = orderLine.get_ValueAsInt("copypk");
-			prevOrderLineID = refID;
-			bMorderLine.setPrevMLineOrderLineID(refID);
+			int lineCopyID = orderLine.get_ValueAsInt("copypk");//
+			prevOrderLineID = lineCopyID;
+			bMorderLine.setPrevMLineOrderLineID(lineCopyID);
 			
 			MProduct currOrderLineProduct;
 			boolean isMadeToMeasure = false;
-			if (mProductID > 0) 
+			if (mProductID > 0) //Orderline has a product
 				{
 					currOrderLineProduct = new MProduct(Env.getCtx(), mProductID , trxName);
 					isMadeToMeasure = currOrderLineProduct .get_ValueAsBoolean("ismadetomeasure");
 				}
 			
 			log.warning("-------In MBLDEventHandler.dohandleevent -> orderLine.get_Value(bld_line_productsetinstance_id) = " + orderLine.get_Value("bld_line_productsetinstance_id"));
-			if(orderLine.get_Value("bld_line_productsetinstance_id") == null && isMadeToMeasure)//User didn't set bLDLineProductSetInstanceID 
-				
+			if(orderLine.get_Value("bld_line_productsetinstance_id") == null && isMadeToMeasure)
+				//User didn't set bLDLineProductSetInstanceID - make sure there is an orderline value for bld_line_productsetinstance_id
 				{
-					X_BLD_Line_ProductSetInstance xBLDProdSetIns = new X_BLD_Line_ProductSetInstance(Env.getCtx(), 0, trxName);
-					xBLDProdSetIns.saveEx(trxName);
-					orderLine.set_ValueNoCheck("bld_line_productsetinstance_id", xBLDProdSetIns.get_ID());
-					orderLine.save(trxName);
+					setBldLineProductSetInstanceID();
 				}
 			
 			//Set calculated costs
@@ -144,19 +151,22 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			
 			if(orderLine.get_Value("copypk") == null)//It's a new record.
 				{
-					orderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
-					log.warning("-------Setting column copypk with value: " + orderLine.get_ID());
-					orderLine.saveEx(trxName);
+					setCopyPK();
 				}
 			
 			int orderLineID = orderLine.get_ID();
-			if(orderLine.getM_AttributeSetInstance_ID() > 0 && refID == orderLineID) return;//Everything is OK.
+			if(orderLine.getM_AttributeSetInstance_ID() > 0 && lineCopyID == orderLineID)
+				{
+					//There's an MAttributeSet save and if lineCopyID == orderlineID then we're not copying a line.
+					return;//Everything is OK.
+				}
 			
-			log.warning("---------Line 152");
+			log.warning("---------Line 170");
 			MProduct mProduct = new MProduct(Env.getCtx(), orderLine.getM_Product_ID(), trxName);
 			if(mProduct.get_ValueAsBoolean("ismadetomeasure"))
 				{
-				copyFromOrderLine = copyAttributeInstance(orderLine, mProduct);
+				//
+				copyFromOrderLine = copyAttributeInstance(orderLine, mProduct);//returns as null if fails
 				BigDecimal price = Env.ZERO;
 				
 				Properties pCtx = Env.getCtx();
@@ -164,25 +174,28 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				MOrderLine line = (MOrderLine)po;
 				BigDecimal area = null;
 				int M_PriceList_ID = order.getM_PriceList_ID();
-				//line.saveEx(trxName);
 				boolean iSsalesTrx = order.isSOTrx();
-				ArrayList<Integer> sellProductIDsCheck;
-				ArrayList<Integer> costProductIDsCheck;
-				BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth(line.getM_AttributeSetInstance_ID());
+				
+				int m_AttributeSetInstance_ID = line.getM_AttributeSetInstance_ID();
+				BigDecimal[] l_by_w = null;
+				if(m_AttributeSetInstance_ID > 0)
+				{
+					l_by_w = MtmUtils.getLengthAndWidth(line.getM_AttributeSetInstance_ID());
+				}
+				
 				
 				if(copyFromOrderLine != null)//Then it's a copied record.
 					{
+					//Copy the Bldproduct set from old record to new.
 					copyBldProductInstance(copyFromOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),  orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), mProductID);
 					System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.setLineNetAmt(copyFromOrderLine.getLineNetAmt());
-					orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
 					orderLine.saveEx();
 					
-					if(mProduct.get_ValueAsBoolean("isgridprice"))
+					if(mProduct.get_ValueAsBoolean("isgridprice"))//We have a copied record that's a grid price
 						{
-						sellProductIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), copyFromOrderLine);
-						costProductIDsCheck = MtmUtils.getMTMSelectableCostProductIDs(Env.getCtx(), copyFromOrderLine);
-						//l_by_w = MtmUtils.hasLengthAndWidth(orderLine.getM_AttributeSetInstance_ID());
+						ArrayList<Integer> sellProductIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), copyFromOrderLine);
+						ArrayList<Integer> costProductIDsCheck = MtmUtils.getMTMSelectableCostProductIDs(Env.getCtx(), copyFromOrderLine);
 							
 						if(l_by_w != null)
 						{
@@ -198,14 +211,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 							{
 								price = price.add(MtmUtils.getListPrice(num, M_PriceList_ID, pCtx, line, 0, l_by_w, iSsalesTrx));
 							}
-							
-							/*
-							PriceActual = totalPriceToAdd;
-							PriceEntered = totalPriceToAdd;
-							PriceLimit = totalPriceToAdd.divide(Env.ONEHUNDRED);//Hard coded, fix at some point.
-							PriceList = totalPriceToAdd;
-							*/
-							
+						
 							BigDecimal discount = copyFromOrderLine.getDiscount();
 							BigDecimal priceActual = BigDecimal.valueOf((100.0 - discount.doubleValue()) / 100.0 * price.doubleValue());
 							line.setPriceActual(priceActual);
@@ -217,10 +223,9 @@ public class MBLDEventHandler extends AbstractEventHandler {
 							line.saveEx();
 						}
 					}
-					else if(mProduct.get_ValueAsBoolean("isgridprice") && copyFromOrderLine == null)
+					else if(mProduct.get_ValueAsBoolean("isgridprice") && copyFromOrderLine == null)//No copied record
 					{
-						sellProductIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), line);
-						//l_by_w = MtmUtils.hasLengthAndWidth(line.getM_AttributeSetInstance_ID());
+						ArrayList<Integer> sellProductIDsCheck = MtmUtils.getMTMPriceProductIDs(Env.getCtx(), line);
 						if(l_by_w != null)//
 						{
 							area = (l_by_w[0].multiply(l_by_w[1]).divide(new BigDecimal(1000000)));
@@ -251,17 +256,9 @@ public class MBLDEventHandler extends AbstractEventHandler {
 						if(mAttributeInstanceID > 0)
 							{
 							
-							
-							/*
-							 * 	BigDecimal area = new BigDecimal((rowValues[0] * rowValues[1])).setScale(2);
-							 * System.out.println(area);
-							 *BigDecimal divisor = new BigDecimal(1000000);
-								BigDecimal result = area.divide(divisor, BigDecimal.ROUND_CEILING);
-								return result;
-							 */
 							if(copyFromOrderLine != null)
 							{
-								l_by_w = MtmUtils.hasLengthAndWidth(copyFromOrderLine.getM_AttributeSetInstance_ID());
+								l_by_w = MtmUtils.getLengthAndWidth(copyFromOrderLine.getM_AttributeSetInstance_ID());
 							}
 							
 							if(!mProduct.get_ValueAsBoolean("isgridprice"))//Don't set the qtyentered for grid price items
@@ -285,6 +282,15 @@ public class MBLDEventHandler extends AbstractEventHandler {
 									}
 								}
 						}
+			
+			if(!parentOrder.isSOTrx())
+			{
+				log.warning("Parent Order is a purchase order; exiting MBLDEventHandler");
+				bMorderLine.save(trxName);
+				parentOrder.saveEx(trxName);
+				
+				return;//We don't want to mess with Purchase orders.
+			}
 				
 				//set MTM discount here
 				/*
@@ -297,10 +303,12 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				log.warning("-set_ValueOfColumn---line 218-----orderLine.get_ID: " + orderLine.get_ID());
 				
 		
-			bMorderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
-			bMorderLine.save(trxName);
-	}
+				bMorderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
+				bMorderLine.save(trxName);
+	}//if(event.....PO_AFTER_NEW)
 			
+			
+			//This code runs by default for all events...
 			if(copyFromOrderLine != null)//It's a copied line; ensures that on copied lines, any user set discount is retained.
 			{
 				setDiscount(copyFromOrderLine, bMorderLine);
@@ -312,7 +320,8 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				//BMorderLine.setLineNetAmt(BMorderLine.getQtyEntered().multiply(priceActual).setScale(2, BigDecimal.ROUND_HALF_UP));
 				bMorderLine.setLineNetAmt(copyFromOrderLine.getLineNetAmt());
 				bMorderLine.setPriceList(copyFromOrderLine.getPriceList());
-				bMorderLine.saveEx();
+				bMorderLine.save(trxName);
+				copyFromOrderLine.save(trxName);
 			}
 			
 			if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW) || event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_CHANGE))
@@ -324,7 +333,19 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				sql.append("WHERE c_orderline.c_order_id = ?");
 				int cOrderID = orderLine.getC_Order_ID();
 				MOrder parentOrder = new MOrder(Env.getCtx(), cOrderID, trxName);
+				
+				if(!parentOrder.isSOTrx())
+				{
+					log.warning("Parent Order is a purchase order; exiting MBLDEventHandler");
+					return;//We don't want to mess with Purchase orders.
+				}
+				
 				String cost = DB.getSQLValueString(trxName, sql.toString(), cOrderID);
+				if(cost == null)
+				{
+					log.warning("Cost can't be determined; exiting MBLDEventHandler");
+					return;
+				}
 				BigDecimal bigValue = new BigDecimal(parentOrder.get_Value(MOrder.COLUMNNAME_TotalLines).toString());
 				BigDecimal bigCost = new BigDecimal(cost);
 				BigDecimal grossMargin =  bigValue.subtract(bigCost).divide(bigValue, 2, RoundingMode.HALF_UP).multiply(Env.ONEHUNDRED);
@@ -338,6 +359,33 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	}
 
 	
+	private void setCopyPK() {
+		//Set the value of the 'copypk' column so we know where to copy from.
+		orderLine.set_ValueOfColumn("copypk", orderLine.get_ID());
+		log.warning("-------Setting column copypk with value: " + orderLine.get_ID());
+		orderLine.saveEx(trxName);
+	}
+
+	private void setBldLineProductSetInstanceID() {
+		X_BLD_Line_ProductSetInstance xBLDProdSetIns = new X_BLD_Line_ProductSetInstance(Env.getCtx(), 0, trxName);
+		xBLDProdSetIns.saveEx(trxName);
+		orderLine.set_ValueNoCheck("bld_line_productsetinstance_id", xBLDProdSetIns.get_ID());
+		orderLine.save(trxName);
+	}
+
+	private boolean parentIsSalesOrder() {
+		parentOrder = new MOrder(Env.getCtx(), orderLine.getC_Order_ID(), trxName);
+		log.warning("Parent Order is a purchase order check....");
+		if(parentOrder.isSOTrx())
+			{
+				log.warning("Parent Order is a sales order, continuing....");
+				return true;//We don't want to mess with Purchase orders.
+			}
+		log.warning("Parent Order is a purchase order; exiting MBLDEventHandler");
+		
+		return false;
+	}
+
 	/**
 	 * Listens for and overrides the MProductionLine.beforeSave() method which n
 	 * sets the MBLDMtomItemLine child productionlines to 0 for the end product.
@@ -448,7 +496,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		int fromOrderLineID = 0;
 		String trxName = toOrderLine.get_TrxName();
 		int toMproductID = mProduct.getM_Product_ID();
-		log.warning("---------Line 341 toMproductID = " + toMproductID);
+		log.warning("---------Line 489 toMproductID = " + toMproductID);
 		
 			fromOrderLineID = toOrderLine.get_ValueAsInt("copypk");
 			log.warning("---------Line 344 fromOrderLineID = " + fromOrderLineID);
@@ -459,11 +507,11 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					int fromMProductID = fromOrderLine.getM_Product_ID();
 					if(fromMProductID != toMproductID)
 					{
-						log.warning("--------- line 352...fromMProductID != toMproductID. fromMProductID:" + fromMProductID + "toMproductID: " + toMproductID);
+						log.warning("--------- line 500...fromMProductID != toMproductID. fromMProductID:" + fromMProductID + "toMproductID: " + toMproductID);
 						fromOrderLine = null;
 						return (MOrderLine)fromOrderLine;//Wrong product, don't copy MAI.
 					}
-					log.warning("--------- line 466");
+					log.warning("--------- line 504");
 						
 			MAttributeSetInstance fromMAttributeSetInstance = MAttributeSetInstance.get(Env.getCtx(), fromOrderLine.getM_AttributeSetInstance_ID(), mProduct.getM_Product_ID());
 			MAttributeSetInstance toMAttributeSetInstance = new MAttributeSetInstance(Env.getCtx(),0,toOrderLine.get_TrxName());
@@ -490,7 +538,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				    
 				    if(attributeType.equalsIgnoreCase("N"))
 				    {
-				    	log.warning("--------- line 265");
+				    	log.warning("--------- line 532");
 				    	//Constructor for numeric attributes
 				    	MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(), m_attribute_id, 
 				    	toAttributeSetInstanceId, new BigDecimal(value).setScale(1), toOrderLine.get_TrxName());
@@ -500,7 +548,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				    }
 				    else	
 				    {	
-				    	log.warning("--------- line 275");
+				    	log.warning("--------- line 542");
 				    	//Constructor for String attributes
 					    MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(),
 					    m_attribute_id, toAttributeSetInstanceId, value, toOrderLine.get_TrxName());
@@ -515,7 +563,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 					    
 					    File tempFile = new File("/tmp/ignoreNewMAttributeInstance");
 					    tempFile.delete();
-					    log.warning("--------- line 290");
+					    log.warning("--------- line 557");
 					    toOrderLine.setM_AttributeSetInstance_ID(toAttributeSetInstanceId);
 					    toOrderLine.saveEx();
 					    toMAttributeSetInstance.setDescription();

@@ -4,5 +4,5 @@
    <service>
       <provide interface="org.adempiere.base.IDisplayTypeFactory"/>
    </service>
-   <property name="service.ranking" type="Integer" value="100"/>
+   <property name="service.ranking" type="Integer" value="110"/>
 </scr:component>

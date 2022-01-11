@@ -10,7 +10,10 @@ import org.compiere.model.Query;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.eevolution.model.MPPProductBOM;
 import org.eevolution.model.MPPProductBOMLine;
+
+import au.blindmot.utils.MtmUtils;
 
 public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 
@@ -82,15 +85,15 @@ public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 		
 		if(additionalProductID != null && additionalProductID.compareTo(Env.ZERO) > 0)
 		{
-			setMProductBOM_ID(additionalProductID.intValue());
+			setMPProductBOMLine_ID(additionalProductID.intValue());
 		}
 		if(substituteProductID != null && substituteProductID.compareTo(Env.ZERO) > 0)
 		{
-			setMProductBOM_ID(substituteProductID.intValue());
+			setMPProductBOMLine_ID(substituteProductID.intValue());
 		}
 		if(xmProductID != null && xmProductID.compareTo(Env.ZERO) > 0)
 		{
-			setMProductBOM_ID(xmProductID.intValue());
+			setMPProductBOMLine_ID(xmProductID.intValue());
 		}
 		
 		return true;
@@ -100,13 +103,13 @@ public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 	 * 
 	 * @param nonSelectProductID
 	 */
-	public void setMProductBOM_ID(int nonSelectProductID) {
+	public void setMPProductBOMLine_ID(int nonSelectProductID) {
 	
-	MPPProductBOMLine[] bomProducts = getMProductBOM(nonSelectProductID);
+	MPPProductBOMLine[] bomProducts = getMPProductBOMLines(nonSelectProductID);
 	if(bomProducts != null && bomProducts.length > 0)
 		{
-			int mProductBOMID = bomProducts[0].getPP_Product_BOM_ID();
-			set_Value(COLUMNNAME_M_Product_BOM_ID , mProductBOMID);
+			int mPProductBOMLineID = bomProducts[0].getPP_Product_BOM_ID();
+			set_Value(COLUMNNAME_PP_Product_Bomline_ID , mPProductBOMLineID);
 		}
 	}
 	
@@ -115,14 +118,21 @@ public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 	 * @param mProductID
 	 * @return
 	 */
-	public MPPProductBOMLine[] getMProductBOM(int bomMProductID) {
+	public MPPProductBOMLine[] getMPProductBOMLines(int bomMProductID) {
+		
+		//MtmUtils.getActivePPProductBomID(bomMProductID)
+		//MPPProductBOM mPPProductBOM = MPPProductBOM.getDefault(MProduct.get(getM_Product_ID()), get_TrxName());
+		
 		List<MPPProductBOMLine> mps = null;
 		StringBuilder whereClause = new StringBuilder();
-		whereClause.append("m_productbom_id = ");
+		//whereClause.append("m_productbom_id = ");
+		whereClause.append("m_product_id = ");//Bom line product_id
 		whereClause.append(bomMProductID);
-		whereClause.append(" AND m_product_id = ");
+		whereClause.append(" AND m_product_id = ");//parent product_id
+	
 		log.warning("getM_Product_ID() =" + getM_Product_ID());
 		whereClause.append(getM_Product_ID());
+		
 		
 		mps = new Query(Env.getCtx(), MPPProductBOMLine.Table_Name, whereClause.toString(), null).list();
 	

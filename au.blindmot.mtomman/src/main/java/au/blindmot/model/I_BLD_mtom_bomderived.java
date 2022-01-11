@@ -69,6 +69,10 @@ public interface I_BLD_mtom_bomderived
 
     /** Column name attribute_name */
     public static final String COLUMNNAME_attribute_name = "attribute_name";
+    
+    /** Column name PP_Product_Bomline_ID */
+    public static final String COLUMNNAME_PP_Product_Bomline_ID = "PP_Product_Bomline_ID";
+
 
 	/** Set attribute_name	  */
 	public void setattribute_name (String attribute_name);

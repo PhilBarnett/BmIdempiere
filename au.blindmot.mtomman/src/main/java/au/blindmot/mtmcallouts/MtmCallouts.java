@@ -1,9 +1,6 @@
 package au.blindmot.mtmcallouts;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -19,28 +16,19 @@ import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
 import org.compiere.model.I_C_Invoice;
 import org.compiere.model.I_C_OrderLine;
-import org.compiere.model.MAcctSchema;
-import org.compiere.model.MBOMProduct;
-import org.compiere.model.MCost;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPriceList;
-import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductBOM;
 import org.compiere.model.MRole;
-import org.compiere.model.MTab;
 import org.compiere.model.MUOM;
 import org.compiere.model.MUOMConversion;
 import org.compiere.model.Query;
 import org.compiere.util.CLogger;
-import org.compiere.util.DB;
 import org.compiere.util.Env;
 
 import au.blindmot.eventhandler.I_BM_OrderLine;
-import au.blindmot.model.MBLDLineProductInstance;
-import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
 
@@ -73,8 +61,18 @@ public class MtmCallouts implements IColumnCallout {
 		gTab = mTab;
 		pCtx = ctx;
 		
-		log.warning("----------In MtmCallouts.start(): " + mField.getColumnName());
+		log.warning("----------In MtmCallouts.start(), column name: " + mField.getColumnName());
 		orderLine = GridTabWrapper.create(mTab, I_C_OrderLine.class);
+		MOrder parentOrder1 = new MOrder(ctx, orderLine.getC_Order_ID(), null);
+		boolean isSOtrx = parentOrder1.isSOTrx();
+		
+		if(!isSOtrx)
+		{
+			log.warning("Parent Order is a purchase order; exiting MtmCallouts");
+			return "";//We don't want to mess with Purchase orders.
+		}
+		
+		
 		oldVal = oldValue;
 		//Setup fields
 		BigDecimal listPrice, qty, enteredPrice, discount;
@@ -87,11 +85,15 @@ public class MtmCallouts implements IColumnCallout {
 		orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
 		mOrderLine = new MOrderLine(pCtx, orderLine.getC_OrderLine_ID(), null);
 		BigDecimal sqmMtr = new BigDecimal("1000000");
-		l_by_w = MtmUtils.hasLengthAndWidth(mAttributeSetInstance_ID);
+		l_by_w = MtmUtils.getLengthAndWidth(mAttributeSetInstance_ID);
 		if(l_by_w != null) area = l_by_w[0].multiply(l_by_w[1]).setScale(2).divide(sqmMtr);
 		iBMOrderLine = GridTabWrapper.create(mTab, I_BM_OrderLine.class);
-		int bldinsId = iBMOrderLine.getBLDLineProductSetInstance_ID();
-		setBreakValOrderLineProduct(orderLineProduct);
+		//int bldinsId = iBMOrderLine.getBLDLineProductSetInstance_ID();
+		if(orderLineProduct.getM_Product_ID() > 1 && mAttributeSetInstance_ID > 1)
+		{
+			setBreakValOrderLineProduct(orderLineProduct);
+		}
+		
 		
 		if(value == null && oldValue != null)
 			{
@@ -512,7 +514,10 @@ public class MtmCallouts implements IColumnCallout {
 				priceMessage = new ArrayList<String>();
 				//MProduct orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
 				totalPriceToAdd = getListPrices(sellProductIDsCheck.toArray(new Integer[sellProductIDsCheck.size()]),M_PriceList_ID);
-				FDialog.warn(WindowNo, "Actual price will contain prices for additional products: " + priceMessage.toString() + " less any discounts.");
+				if(priceMessage.size() > 0)
+				{
+					FDialog.warn(WindowNo, "Actual price will contain prices for additional products: " + priceMessage.toString() + " less any discounts.");
+				}
 				
 				PriceActual = totalPriceToAdd;
 				PriceEntered = totalPriceToAdd;
@@ -585,7 +590,11 @@ public class MtmCallouts implements IColumnCallout {
 				priceMessage = new ArrayList<String>();
 				//MProduct orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
 				totalPriceToAdd = getListPrices(sellProductIDsCheck.toArray(new Integer[sellProductIDsCheck.size()]),M_PriceList_ID);
-				FDialog.warn(WindowNo, "Actual price will contain prices for additional products: " + priceMessage.toString() + " ");
+				if(priceMessage.size() > 0)
+				{
+					FDialog.warn(WindowNo, "Actual price will contain prices for additional products: " + priceMessage.toString() + " ");
+				}
+				
 				
 				/* Set Calculated Cost
 				 * Calculated cost = price list cost of any mtmparent + product costs in productsToCheck
@@ -718,7 +727,7 @@ public class MtmCallouts implements IColumnCallout {
 	}	//	amt
 	
 	/**
-	 * Retrieves the list prices of products in the MProductBOM[] mbomProducts parameter.
+	 * Retrieves the list prices of products in the MPPProductBOMLines[] mbomProducts parameter.
 	 * @param productIDs
 	 * @param qty
 	 * @param M_PriceList_ID
@@ -807,7 +816,7 @@ public class MtmCallouts implements IColumnCallout {
 	
 	public boolean setBreakValOrderLineProduct(MProduct mProduct) {
 		
-		BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth(mAttributeSetInstance_ID);
+		BigDecimal[] l_by_w = MtmUtils.getLengthAndWidth(mAttributeSetInstance_ID);
 		if(l_by_w != null) log.warning("------MTM Callouts Length: " + l_by_w[0] + " Width: " + l_by_w[1]);
 		int M_PriceList_ID = Env.getContextAsInt(pCtx, windowNum, "M_PriceList_ID", true);
 		breakvalOderLineProduct = MtmUtils.getBreakValue(l_by_w, mProduct, M_PriceList_ID, gTab, pCtx);

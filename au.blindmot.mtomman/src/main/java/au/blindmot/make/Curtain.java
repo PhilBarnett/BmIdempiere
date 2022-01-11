@@ -15,7 +15,6 @@ import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 
-import au.blindmot.make.Curtain.CurtainConfig;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDMtomItemDetail;
 import au.blindmot.model.MBLDProductPartType;
@@ -36,7 +35,7 @@ public class Curtain extends RollerBlind {
 	protected boolean isSwave = false;
 	private int liningID = 0;
 	private String heading;
-	private BigDecimal floorClearance;
+	private BigDecimal floorClearance = null;
 	private String curtainOpening;
 	private String position;
 	private BigDecimal header;
@@ -116,7 +115,7 @@ public class Curtain extends RollerBlind {
 			{
 				curtainOpening = mInstanceValue;
 			}
-			else if(mInstance.equalsIgnoreCase(MtmUtils.MTM_CURTAIN_POSITION)) 
+			else if(mInstance.equalsIgnoreCase(CurtainConfig.ATRRIBUTE_CURTAIN_POSITION.toString())) 
 			{
 				position = mInstanceValue;
 			}
@@ -396,7 +395,7 @@ public class Curtain extends RollerBlind {
 	public BigDecimal getCurtainFabricQty(int fabricID) {
 		BigDecimal measuredDrop = new BigDecimal(high);
 		BigDecimal makeDrop = getMakeDrop(measuredDrop);
-		BigDecimal targetFullness = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FULLNESS_TARGET, trxName));
+		BigDecimal targetFullness = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(m_product_id, CurtainConfig.ATRRIBUTE_FULLNESS_TARGET.toString(), trxName));
 		int numOfCurtains = getNumberOfCurtains();
 		int carrierFoundID = 0;
 		if(carrierID > 0)
@@ -524,6 +523,22 @@ public class Curtain extends RollerBlind {
 		//String fit = (String) MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_CURTAIN_POSITION, trxName);
 		//TODO: Get the fit from a bracket attribute
 		BigDecimal hookClearance = null;
+		if(!MtmUtils.attributeExists(CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_FF.toString()))
+		{
+			throw new AdempiereUserError(CurtainConfig.ERROR_NO_HOOK_CLEARANCE_FF.toString());
+	
+		}
+		if(!MtmUtils.attributeExists(CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_TF.toString()))
+		{
+			throw new AdempiereUserError(CurtainConfig.ERROR_NO_HOOK_CLEARANCE_TF.toString());
+	
+		}
+		
+		
+		if(floorClearance == null)
+		{
+			throw new AdempiereUserError(CurtainConfig.ERROR_NO_FLOOR_CLEARANCE.toString());
+		}
 		//BigDecimal header = null;
 		BigDecimal makeDrop = Env.ZERO;
 		if(isSwave)
@@ -536,8 +551,10 @@ public class Curtain extends RollerBlind {
 
 		if(bracketProductIDs.length > 0) log.warning("-------------More than 1 bracket found in partset");
 		if(trackProductIDs.length > 0) log.warning("-------------More than 1 track found in partset");
+		if(bracketProductIDs.length < 1) throw new AdempiereUserError(CurtainConfig.ERROR_NO_BRACKETS.toString());
 		int bracketID = bracketProductIDs[0].intValue();
-		int trackID = trackProductIDs[0].intValue();
+		if(trackProductIDs.length < 1) throw new AdempiereUserError(CurtainConfig.ERROR_NO_TRACK.toString());
+		int trackID = trackProductIDs[0].intValue(); 
 		String facefitYorN = (String) MtmUtils.getMattributeInstanceValue(bracketID, CurtainConfig.ATTRIBUTE_IS_FACE_FIT.toString(), trxName);
 		
 		
@@ -545,13 +562,13 @@ public class Curtain extends RollerBlind {
 		{
 			if(isSwave)//it's FF Swave
 			{
-				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HOOK_CLEARANCE_FF, trxName));
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_FF.toString(), trxName));
 					
 			}
 			else//It's FF std
 			{
-				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HOOK_CLEARANCE_FF_SW, trxName));
-				header = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HEADER_FF, trxName));
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_FF_SW.toString(), trxName));
+				header = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HEADER_FF.toString(), trxName));
 			}
 			
 		
@@ -560,17 +577,19 @@ public class Curtain extends RollerBlind {
 		{
 			if(isSwave)//It's TF Swave
 			{
-				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HOOK_CLEARANCE_TF, trxName));
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_TF.toString(), trxName));
+				log.warning("---------Swave standard curtain detected, hook clearance:" + hookClearance.toString());
 				
 			}
 			else//It's TF Std
 			{
-				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HOOK_CLEARANCE_TF_SW, trxName));
-				header = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, MtmUtils.MTM_HEADER_TF, trxName));
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_TF_SW.toString(), trxName));
+				header = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HEADER_TF.toString(), trxName));
+				log.warning("---------Top fix standard curtain detected, hook clearance:" + hookClearance.toString() + " Header: " + header);
 			}
 			
 		}
-		if(hookClearance == null)throw new AdempiereUserError(CurtainConfig.ERROR_NO_HOOK_CLEARANCE.toString());
+		//if(hookClearance == null)throw new AdempiereUserError(CurtainConfig.ERROR_NO_HOOK_CLEARANCE.toString());
 		if(header == null)throw new AdempiereUserError(CurtainConfig.ERROR_NO_HEADER.toString());
 		makeDrop = measuredDrop.subtract(floorClearance).subtract(hookClearance).add(header);
 		log.warning("-------- Measured Drop: " + measuredDrop.toString() + ", Floor clearance: " + floorClearance.toString() + ", Hook clearance: " + hookClearance.toString() + ", Header: " + header.toString());
@@ -639,21 +658,56 @@ public class Curtain extends RollerBlind {
 	public enum CurtainConfig {
 	   
 	
+		ERROR_NO_HOOK_CLEARANCE_FF ("Face fit hook clearance cannot be determined. Check that the Attributes are correctly setup for the track selected"),
+		ERROR_NO_HOOK_CLEARANCE_TF ("Top fit hook clearance cannot be determined. Check that the Attributes are correctly setup for the track selected"),
 		ERROR_NO_HOOK_CLEARANCE ("Hook clearance cannot be determined. Check that the Attributes are correctly setup for the track selected"),
 		ERROR_NO_HEADER("Header cannot be determined. Check that the Attributes are correctly setup for the track selected"),
 		ERROR_NO_CARRIER("Carrier part not in Product options or not setup to be added to BOM. Check the Product Options (BLD Productset Instance) for this product."),
 		ERROR_NO_SWAVE_DEPTH("No Swave depth detected for curtain tape. Check the curtain tape on the BOM derived for attribute "),
-		ERROR_NO_BRACKETS("No brackets found. Ensure any brackets on the parent product's BOM have the 'Brackets per metre' attribute set to something meaningful"),
+		ERROR_NO_BRACKETS("No curtain brackets found. Ensure any brackets on the parent product's BOM have the 'Brackets per metre' attribute set to something meaningful"),
 		ERROR_NO_CARRIER_PITCH("No carrier pitch determined. This is an attribute called 'Carrier pitch' in the product with partType 'Carrier type'."),
 		ERROR_NO_SWAVE_TAPE("No Swave tape found. Check product setup"),
+		ERROR_NO_TRACK("No track found. Check product setup - tracks must present on the product BOM and availabale as 'User Select"),
 		ERROR_NO_CURTAINS("No curtains found. Did someone change the 'Curtain opening' attributes? Could also be a programming bug."),
+		ERROR_NO_FLOOR_CLEARANCE("No floor clearance found. Check the attribute setup for the parent product and make sure there is an instance attribute: Floor Clearance (mm)"),
 		CURTAIN_POSITION_FRONT("Front"),
 		CURTAIN_OPENING_CENTRE("Centre, 2 curtains"),
 		CURTAIN_OPENING_LEFT("Stack Left, 1 curtain"),
 		CURTAIN_OPENING_RIGHT("Stack Right, 1 curtain"),
 		CURTAIN_OPENING_1_FREE("1 curtain freeflowing"),
 		CURTAIN_OPENING_2_FREE("2 curtains free flowing"),
+		
+		ATRRIBUTE_HOOK_CLEARANCE_FF ("Hook clearance face fix"),
+		ATRRIBUTE_HOOK_CLEARANCE_FF_SW ("Hook clearance face fix Swave"),
+		ATRRIBUTE_HOOK_CLEARANCE_TF_SW ("Hook clearance top fix Swave"),
+		ATRRIBUTE_HOOK_CLEARANCE_TF ("Hook clearance top fix"),
+		ATRRIBUTE_FLOOR_CLEARANCE ("Floor Clearance (mm)"),
+		ATRRIBUTE_FULLNESS_LOW ("Fullness low"),
+		ATRRIBUTE_FULLNESS_TARGET ("Fullness target"),
+		ATRRIBUTE_FULLNESS_HIGH ("Fullness high"),
+		ATRRIBUTE_CURTAIN_POSITION ("Curtain position"),
+		ATRRIBUTE_CURTAIN_HEADING ("Heading type"),
+		ATRRIBUTE_CURTAIN_Fit ("Fit"),
+		ATRRIBUTE_CURTAIN_CARRIER_SWAVE ("Swave"),
+		ATRRIBUTE_CURTAIN_CARRIER_SFOLD ("Sfold"),
+		ATRRIBUTE_CURTAIN_CARRIER_STANDARD ("Standard"),
+		ATTRIBUTE_ROLL_WIDTH ("Roll width"),
+		ATRRIBUTE_HEADER_FF ("Header face fix"),
+		ATRRIBUTE_HEADER_TF ("Header top fix"),
 
+		ATTRIBUTE_SET_CURTAINS("Name: Curtains, for parent curtain product."),
+		ATTRIBUTE_SET_CURTAINS_ATTRIBUTES("Location,Width,Drop,Heading,Floor Clearance (mm),Curtain position,Hem,Curtain opening,Bend,Fullness low,Fullness target,Fullness high,Fabric length addition"),
+		ATTRIBUTE_SET_XX_TRACK("Name: x track, each PartType 'track' requires its own attribute set."),
+		ATTRIBUTE_SET_XX_TRACK_ATTRIBUTES("Hook clearance face fix,Hook clearance top fix,Header face fix,Header top fix,Hook clearance face fix Swave,Hook clearance top fix Swave"),
+		ATTRIBUTE_SET_CURTAIN_CARRIERS("Name: Curtain carriers, only one set needed in system, applies to all 'Curtain carrier' parttypes"),
+		ATTRIBUTE_SET_CURTAIN_CARRIERS_ATTRIBUTES("Carrier pitch,Carrier type"),
+		ATTRIBUTE_SET_CURTAIN_BRACKETS("Name: Curtain brackets, only one set needed in system, applies to all 'Curtain bracket' parttypes"),
+		ATTRIBUTE_SET_CURTAIN_BRACKETS_ATTRIBUTES("Is face fit?,Is dual,Brackets per metre"),
+		ATTRIBUTE_SET_BLIND_FABRIC("Name: Blind fabric, only one set needed in system, applies to all 'Lining' parttypes"),
+		ATTRIBUTE_SET_CURTAIN_TAPE("Name: Curtain tape, only one set needed in system, applies to all 'Curtain tape' parttypes"),
+		ATTRIBUTE_SET_CURTAIN_TAPE_ATTRIBUTES("Swave depth"),
+		
+		//TODO: Handle errors thrown in MtmUtils when a curtain config needed is missing
 		
 		INSTANCE_ATTRIBUTE_CURTAIN_HEADING_VALUE_SWAVE("SWave"),
 		INSTANCE_ATTRIBUTE_CURTAIN_HEADING_VALUE_SFOLD("SFold"),
@@ -669,7 +723,7 @@ public class Curtain extends RollerBlind {
 
 		PART_TYPE_CURTAIN_CARRIER("Curtain carrier"),
 		PART_TYPE_CURTAIN_TRACK("Curtain track"),
-		PART_TYPE_CURTAIN_LINING("Lining"),
+		PART_TYPE_CURTAIN_LINING("Curtain lining"),
 		PART_TYPE_CURTAIN_TAPE("Curtain tape"),
 		PART_TYPE_CURTAIN_BRACKET("Curtain bracket"), 
 		PART_TYPE_FABRIC("Fabric");

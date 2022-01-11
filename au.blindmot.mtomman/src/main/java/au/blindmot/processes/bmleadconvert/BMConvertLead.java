@@ -254,8 +254,8 @@ public class BMConvertLead extends SvrProcess{
 			StringBuffer sql = new StringBuffer();
 			sql.append("SELECT C_DocType_ID ");
 			sql.append("FROM C_DocType ");
-			sql.append("WHERE name LIKE '%roposal' ");
-			sql.append("OR name LIKE '%on binding offer' ");
+			//sql.append("WHERE name LIKE '%roposal' ");
+			sql.append("WHERE name LIKE 'Non binding offer' ");
 			sql.append("AND ad_client_id = ?");
 			Object[] params = new Object[1];
 			params[0] = getAD_Client_ID();
@@ -268,7 +268,7 @@ public class BMConvertLead extends SvrProcess{
 			if(docID > 0)
 			{
 				log.warning("Setting cOrder with DocID: " + docID);
-				cOrder.setC_DocTypeTarget_ID(1000029);
+				cOrder.setC_DocTypeTarget_ID(docID);
 				/*TODO: fix query to produce 1000029 - neeed to be onsite*/
 			}
 

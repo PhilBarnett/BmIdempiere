@@ -475,6 +475,8 @@ public class  BMCreateCalendarEntry  extends SvrProcess {
 private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT, String userId) throws IOException {
        // Load client secrets.
 	
+	/*
+	
 	//Try new 8.2 feature to handle OAuth
 	SvrProcess addAuthorizationProcess = new AddAuthorizationProcess();
 	ArrayList<ProcessInfoParameter> paras = new ArrayList<ProcessInfoParameter>();
@@ -500,6 +502,9 @@ private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT, 
 	pI.setParameter(paras.toArray(paraArray));
 	//static String trxName = get_TrxName();
 	addAuthorizationProcess.startProcess(Env.getCtx(), pI, null);
+	*/
+	
+	//Try new 8.2 feature to handle OAuth
 	
 	//ProcessInfo pI = addAuthorizationProcess.getProcessInfo();
 	

@@ -20,12 +20,12 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductBOM;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.eevolution.model.MPPProductBOMLine;
 
 import au.blindmot.model.MBLDProductNonSelect;
 import au.blindmot.model.MBLDProductPartType;
@@ -104,7 +104,7 @@ public class CopyNonSelect extends SvrProcess {
 		MBLDProductPartType bdlPartTypeFrom = new MBLDProductPartType(getCtx(), recordId, get_TrxName());
 		MProduct mProductFrom = new MProduct(getCtx(), bdlPartTypeFrom.getM_Product_ID(), get_TrxName());
 		MProduct mProductTo = new MProduct(getCtx(), toProductID, get_TrxName());
-		MProductBOM[] fromBomLines = MProductBOM.getBOMLines(mProductFrom);
+		MPPProductBOMLine[] fromBomLines = MPPProductBOMLine.getBOMLines(mProductFrom);
 		log.warning("mProductTo.getM_Product_Category_ID() = " + mProductTo.getM_Product_Category_ID());
 		log.warning("mProductFrom.getM_Product_Category_ID() = " +mProductFrom.getM_Product_Category_ID());
 		log.warning("mProductTo.getClassification() = " + mProductTo.getClassification());
@@ -201,12 +201,12 @@ public class CopyNonSelect extends SvrProcess {
 	 * @param subProductToCheck
 	 * @return
 	 */
-	private BigDecimal getBOMQty(MProductBOM[] fromBomLines, BigDecimal subProductToCheck) {
+	private BigDecimal getBOMQty(MPPProductBOMLine[] fromBomLines, BigDecimal subProductToCheck) {
 		for(int z = 0; z < fromBomLines.length; z++)
 		{
-			if(fromBomLines[z].getM_ProductBOM_ID() == subProductToCheck.intValue())
+			if(fromBomLines[z].getM_Product_ID() == subProductToCheck.intValue())
 			{
-				return fromBomLines[z].getBOMQty();
+				return fromBomLines[z].getQty();
 			}
 		}
 		return null;
@@ -218,10 +218,10 @@ public class CopyNonSelect extends SvrProcess {
 	 * @return
 	 */
 	private boolean isOnDestinationBOM(int destBOMProductID) {
-		MProductBOM[] destBomProducts = MProductBOM.getBOMLines(Env.getCtx(), toProductID, get_TrxName());
+		MPPProductBOMLine[] destBomProducts = MPPProductBOMLine.getBOMLines(MProduct.get(toProductID));
 		for(int i = 0; i < destBomProducts.length; i++)
 		{
-			if(destBomProducts[i].getM_ProductBOM_ID() == destBOMProductID) return true;
+			if(destBomProducts[i].getM_Product_ID() == destBOMProductID) return true;
 		}
 		return false;
 	}
@@ -232,23 +232,23 @@ public class CopyNonSelect extends SvrProcess {
 	 */
 	private void addToDestinationBOM(int destBOMProductID, BigDecimal ProductBOMQty) {
 		String trxName = get_TrxName();
-		MProductBOM toBomLine = new MProductBOM(getCtx(), 0, trxName);
-		toBomLine.setM_ProductBOM_ID(destBOMProductID);
+		MPPProductBOMLine toBomLine = new MPPProductBOMLine(getCtx(), 0, trxName);
+		toBomLine.setM_Product_ID(destBOMProductID);
 		toBomLine.setM_Product_ID(toProductID);
-		toBomLine.setBOMQty(ProductBOMQty);
+		toBomLine.setQtyBOM(ProductBOMQty);
 		String sql = "SELECT NVL(MAX(Line),0)+10 FROM M_Product_BOM WHERE M_Product_BOM_ID=?";
-		int ii = DB.getSQLValue (get_TrxName(), sql, toBomLine.getM_Product_BOM_ID());
+		int ii = DB.getSQLValue (get_TrxName(), sql, toBomLine.getPP_Product_BOMLine_ID());
 		toBomLine.setLine (ii);	
 		toBomLine.saveEx(trxName);
 	}
 	
 	private int getToMProductBOMID(Object object) {
-		MProductBOM[] destBomProducts = MProductBOM.getBOMLines(Env.getCtx(), toProductID, get_TrxName());
+		MPPProductBOMLine[] destBomProducts = MPPProductBOMLine.getBOMLines(MProduct.get(toProductID));
 		BigDecimal bigObject = (BigDecimal)object;
 		int iD = bigObject.intValue();
 		for(int i = 0; i < destBomProducts.length; i++)
 		{
-			if(destBomProducts[i].getM_ProductBOM_ID() == iD)
+			if(destBomProducts[i].getM_Product_ID() == iD)
 			{
 				return destBomProducts[i].get_ID();
 			}

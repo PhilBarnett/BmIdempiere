@@ -32,12 +32,12 @@ private final CLogger 	log = CLogger.getCLogger (BmServerPushCallback.class);
 	}
 	
 
-	@SuppressWarnings("restriction")
 	public void updateUI() {
 		log.warning("---------In BmServerPushCallback.updateUI()");
 		GoogleOauthServer oAuthServer = new GoogleOauthServer(flow, USER_ID);
 		REDIRECT_URL = oAuthServer.getSignInUri();
-		int portInUse = oAuthServer.getPortFromURI();
+		final int portInUse = GoogleOauthServer.getRedirectPortHTTPS();
+		log.warning("Checking if port is in use: " + portInUse);
 		if(isLocalPortInUse(portInUse))
 		{
 			//Assume we have an oAuthServer already running in an existing thread, skip server setup

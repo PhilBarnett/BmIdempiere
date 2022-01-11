@@ -8,11 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductBOM;
 import org.compiere.model.X_M_PartType;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.eevolution.model.MPPProductBOMLine;
 
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDMtomCuts;
@@ -28,7 +28,9 @@ public class SideRetainedBlind extends RollerBlind  {
 	public static String MTM_SIDE_CHANNEL_PARTTYPE_AWNING_CHANNEL_COVER = "Awning channel cover";
 	public static String MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX_BACK = "Head Box back";
 	public static String MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX = "Head Box";
+	public static String MTM_SIDE_CHANNEL_PARTTYPE_ROLLER_TUBE = "Roller tube";
 	public static String SIDE_RETAINED_BLIND = "Side Retained Blind";
+	public static String MTM_SIDE_CHANNEL_PARTTYPE_BOTTOM_BAR = "Bottom bar";
 	
 	
 	/**
@@ -181,10 +183,11 @@ public class SideRetainedBlind extends RollerBlind  {
 	 */
 	@Override
 	public boolean addTriggeredBom(int parentBomID, int triggeredQty) {
-		MProductBOM mBomItem = new MProductBOM(Env.getCtx(), parentBomID, null);
-		int mProductID = mBomItem.getM_ProductBOM_ID();
+		MPPProductBOMLine mBomItem = new MPPProductBOMLine(Env.getCtx(), parentBomID, null);
+		int mProductID = mBomItem.getM_Product_ID();
 		//MProduct bomProduct = MProduct.get(Env.getCtx(),mBomItem .getM_ProductBOM_ID());
-		X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), mBomItem.getM_PartType_ID(), null);
+		int mPartTypeID = MProduct.get(mProductID).getM_PartType_ID();
+		X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), mPartTypeID, null);
 		String partType = mPartType.getName();
 		BigDecimal bigTriggeredQty = new BigDecimal(triggeredQty);
 		
@@ -210,7 +213,7 @@ public class SideRetainedBlind extends RollerBlind  {
 		}
 		else //If it's something we don't specifically care about then add using generic Superclass method
 		{
-			bomDerivedQty = mBomItem.getBOMQty();
+			bomDerivedQty = mBomItem.getQty();
 			addTriggeredLine(mProductID, uom, bigTriggeredQty, bomDerivedQty);
 		}
 		
@@ -240,11 +243,12 @@ public class SideRetainedBlind extends RollerBlind  {
 		MBLDBomDerived[] bomDerivedLines = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mtom_item_line_id);
 		for (MBLDBomDerived lines : bomDerivedLines)
 		{
-			int parentBomID = lines.getMBOMProductID();
+			int parentBomID = lines.getPP_Product_Bomline_ID();
 			
-			MProductBOM mBomItem = new MProductBOM(Env.getCtx(), parentBomID, null);
-			int mProductID = mBomItem.getM_ProductBOM_ID();
-			X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), mBomItem.getM_PartType_ID(), null);
+			MPPProductBOMLine mBomItem = new MPPProductBOMLine(Env.getCtx(), parentBomID, null);
+			int mProductID = mBomItem.getM_Product_ID();
+			int partTypeID = MProduct.get(mProductID).getM_PartType_ID();
+			X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), partTypeID, null);
 			String partType = mPartType.getName();
 	
 			log.warning("partType: " + partType.toString());
@@ -281,20 +285,30 @@ public class SideRetainedBlind extends RollerBlind  {
 			BigDecimal waste = Env.ZERO;
 			MProduct parentProduct = MProduct.get(Env.getCtx(), m_product_id);
 			int parentBomID = getParentBOMLineID(bomItemProductID);
-			MProductBOM mBomItem = new MProductBOM(Env.getCtx(), parentBomID, null);
-			MProduct bomProduct = MProduct.get(Env.getCtx(),mBomItem.getM_ProductBOM_ID());
-			X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), mBomItem.getM_PartType_ID(), null);
+			MPPProductBOMLine mBomItem = new MPPProductBOMLine(Env.getCtx(), parentBomID, null);
+			MProduct bomProduct = MProduct.get(Env.getCtx(),mBomItem.getM_Product_ID());
+			
+			X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
 			String partType = mPartType.getName();
 			
 			MtmUtils.attributePreCheck("Waste");
 			MtmUtils.attributePreCheck(MtmUtils.MTM_OVERALL_DEDUCTION);
 			MtmUtils.attributePreCheck(MtmUtils.MTM_DROP_DEDUCTION);
 			Object wasteObject = MtmUtils.getMattributeInstanceValue(bomItemProductID, "Waste", null);
-			if(wasteObject == null) throw new AdempiereUserError("No waste attribute or value for: " + bomProduct.getName());
 			
-			int dropDeductionObject = MtmUtils.getDeduction(m_product_id, MtmUtils.MTM_DROP_DEDUCTION);//Parent Drop
-			//Make sure there's a parent drop
-			if(dropDeductionObject < 0) throw new AdempiereUserError("No waste dropDeduction or value for: " + parentProduct.getName());
+			if(partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_CHANNEL) 
+					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_CHANNEL_COVER)
+					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_ROLLER_TUBE)
+					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX)
+					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX_BACK)
+					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_BOTTOM_BAR))
+			{
+				if(wasteObject == null) throw new AdempiereUserError("No waste attribute or value for: " + bomProduct.getName());
+			}
+			
+			int dropDeductionObject = MtmUtils.getDeduction(m_product_id, MtmUtils.MTM_DROP_DEDUCTION);//Parent Drop deduction
+			//Make sure there's a parent drop deduction
+			if(dropDeductionObject < 0) throw new AdempiereUserError("No dropDeduction or value for: " + parentProduct.getName());
 			
 			if(partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_CHANNEL) 
 					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_CHANNEL_COVER))
@@ -303,7 +317,7 @@ public class SideRetainedBlind extends RollerBlind  {
 				if(partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_CHANNEL_COVER))
 					{
 						Object dropDeductionAdjustObject = MtmUtils.getMattributeInstanceValue(bomItemProductID, MtmUtils.MTM_DROP_DEDUCTION_ADJUST, null);
-						if(dropDeductionAdjustObject == null) throw new AdempiereUserError("No waste dropDeductionAdjust or value for: " + bomProduct.getName());
+						if(dropDeductionAdjustObject == null) throw new AdempiereUserError("No dropDeductionAdjust or value for: " + bomProduct.getName());
 					}
 				//Drop adjust is -ve
 				int dropAdjust = MtmUtils.getDeduction(bomItemProductID, MtmUtils.MTM_DROP_DEDUCTION_ADJUST);

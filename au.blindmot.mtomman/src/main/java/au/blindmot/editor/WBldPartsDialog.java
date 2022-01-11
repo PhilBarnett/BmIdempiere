@@ -1279,7 +1279,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		if (as.get_ID() < 1)
 			{
 				log.severe ("No Model for M_AttributeSetInstance_ID=" + m_MbldLineProductsetInstanceID + ", M_Product_ID=" + m_M_Product_ID);	
-				return true;
+				//return true;
 			}
 		//
 		m_changed = false;

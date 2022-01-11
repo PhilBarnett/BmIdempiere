@@ -4,11 +4,11 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductBOM;
 import org.compiere.model.X_M_PartType;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.eevolution.model.MPPProductBOMLine;
 
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDLineProductInstance;
@@ -212,8 +212,8 @@ public class Pelmet extends MadeToMeasureProduct {
 	        sql.append(mProductBomid);
 	        
 	        int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
-			MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, trxName);
-			BigDecimal bigQty = mProductBom.getBOMQty();
+	        MPPProductBOMLine mProductBom = new MPPProductBOMLine(Env.getCtx(), m_product_bom_id, trxName);
+			BigDecimal bigQty = mProductBom.getQty();
 		
 		return bigQty;
 		

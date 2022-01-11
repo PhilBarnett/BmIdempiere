@@ -12,13 +12,15 @@ import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MAttributeValue;
 import org.compiere.model.MProduct;
-import org.compiere.model.MProductBOM;
 import org.compiere.model.MProductionLine;
 import org.compiere.model.Query;
 import org.compiere.model.X_M_PartType;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.eevolution.model.MPPProductBOM;
+import org.eevolution.model.MPPProductBOMLine;
+
 import au.blindmot.model.I_BLD_MTM_Product_Bom_Trigger;
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDLineProductInstance;
@@ -31,7 +33,7 @@ import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
 /**
- * @author phil
+ * @author Phil Barnett
  *
  */
 public abstract class MadeToMeasureProduct implements MtmInfo {
@@ -119,11 +121,12 @@ public static String EACH_1 = "Ea ";//Each with space
 		 *Override this method to add MTM product BOM derived lines that require deductions etc.
 		 */
 		
-		MProductBOM mBomItem = new MProductBOM(Env.getCtx(), parentBomID, null);
-		int mProductID = mBomItem.getM_ProductBOM_ID();
+		MPPProductBOMLine mBomItem = new MPPProductBOMLine(Env.getCtx(), parentBomID, null);//New MPPProductBOMLine object, no
+	//	MPPProductBOMLine mBomItem = new MPPProductBOMLine(Env.getCtx(), parentBomID, null);
+		int mProductID = mBomItem.getM_Product_ID();//Get the product_id of the bom product
 		MProduct bomProduct = MProduct.get(Env.getCtx(), mProductID);
 		//X_M_PartType mPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
-		BigDecimal qty = mBomItem.getBOMQty();//getBOMQty() returns the qty from the parent product's BOM
+		BigDecimal qty = mBomItem.getQty();//getBOMQty() returns the qty from the parent product's BOM, excluding scrap
 		BigDecimal bigTriggeredQty = new BigDecimal(triggeredQty);
 		String uom = bomProduct.getUOMSymbol();
 		
@@ -568,12 +571,12 @@ public static String EACH_1 = "Ea ";//Each with space
         sql.append(mProductBomID);
         
         int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
-		MProductBOM mProductBom = new MProductBOM(Env.getCtx(), m_product_bom_id, trxName);
+        MPPProductBOMLine mProductBom = new MPPProductBOMLine(Env.getCtx(), m_product_bom_id, trxName);
 		//if(mProductBom.get_ValueAsBoolean(columnName))
 		
 		
 		
-		BigDecimal bigQty = mProductBom.getBOMQty();
+		BigDecimal bigQty = mProductBom.getQty();
 	
 	return bigQty;
 	
@@ -605,13 +608,13 @@ public static String EACH_1 = "Ea ";//Each with space
 			for(int q= 0; q < triggers.length; q++)
 			{
 				boolean isTriggerDelete = triggers[q].isTriggerDelete();
-				if(bomDerivedLines[g].getMBOMProductID() == triggers[q].getM_Product_BOM_ID())
+				if(bomDerivedLines[g].getPP_Product_Bomline_ID() == triggers[q].getPP_Product_Bomline_ID())
 				{
 					//If the trigger matches the BOMderived line then add the trigger products
 					MBLDMtmProductBomAdd[] bomsToChange = triggers[q].getLines(null, null);
 					for(int yy = 0; yy < bomsToChange.length; yy++)
 					{
-						int parentBomID = bomsToChange[yy].getM_Product_BOM_ID();
+						int parentBomID = bomsToChange[yy].getPP_Product_Bomline_ID();
 						if(isTriggerDelete)
 						{
 							deleteBOMLine(parentBomID, itemLine);
@@ -669,7 +672,7 @@ public static String EACH_1 = "Ea ";//Each with space
 		MBLDBomDerived[] bomLines = itemLine.getBomDerivedLines(Env.getCtx(), itemLine.get_ID());
 		for(int l = 0; l < bomLines.length; l++)
 		{
-			if(bomLines[l].getMBOMProductID() == mParentBOMLineID)
+			if(bomLines[l].getPP_Product_Bomline_ID() == mParentBOMLineID)
 			{
 				bomLines[l].delete(true, itemLine.get_TrxName());
 			}
@@ -767,7 +770,7 @@ public static String EACH_1 = "Ea ";//Each with space
 		 for(int x = 0; x < bomDerived.length; x++ )
 		 {
 			 //Loop through Bom derived, call getBomQty(productID) for each line
-			 int mProductBomID = bomDerived[x].getMBOMProductID();
+			 int mProductBomID = bomDerived[x].getPP_Product_Bomline_ID();
 			 int mProductID = bomDerived[x].getM_Product_ID();
 			 MProduct productToUpdate = MProduct.get(mProductID);
 			 log.warning("-----Product checking qty for is: " + productToUpdate.getName());

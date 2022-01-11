@@ -45,6 +45,10 @@ public interface I_BLD_MTM_Product_Bom_Trigger
 
     /** Column name AD_Client_ID */
     public static final String COLUMNNAME_AD_Client_ID = "AD_Client_ID";
+    
+    /** Column name PP_Product_Bomline_ID */
+    public static final String COLUMNNAME_PP_Product_Bomline_ID = "PP_Product_Bomline_ID";
+   
 
 	/** Get Client.
 	  * Client/Tenant for this installation.
