@@ -262,7 +262,7 @@ public static BigDecimal[] getLengthAndWidth(int masi_id) {
 	sql.append("JOIN m_attributesetinstance masi ON masi.m_attributesetinstance_id = mai.m_attributesetinstance_id ");
 	sql.append("WHERE masi.m_attributesetinstance_id = ");
 	sql.append(masi_id);
-	sql.append(" AND (ma.name LIKE 'Drop' OR ma.name LIKE 'Width');");
+	sql.append(" AND (ma.name LIKE 'Width' OR ma.name LIKE 'Drop') ORDER BY ma.name DESC;");
 	
 	RowSet rowset = DB.getRowSet(sql.toString());
 	int rowCount = 0;
@@ -1027,6 +1027,8 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 				{
 					pp.setInitialValues(m_productbom_id, orderLine.getC_BPartner_ID(), breakvalue, isSalesTrx, null);
 					price = pp.getPriceList().multiply(breakvalue);
+					//TODO: Above code gets the list price 8 break value; grid price items need the grid price x break value.
+					
 					//price = pp.getPriceList();
 					//.multiply(breakvalue);
 				}
@@ -1183,7 +1185,7 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		sql1.append("AND bomtype = ?");
 		Object[] params1 = new Object[2];
 		params1[0] = parentMproduct_ID;
-		params1[1] = 'A';
+		params1[1] = "A";
 		return DB.getSQLValue(null, sql1.toString(), params1);
 	}
 	

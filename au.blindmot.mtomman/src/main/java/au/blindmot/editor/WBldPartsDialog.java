@@ -102,7 +102,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	 */
 	private static final long serialVersionUID = -7810825026970615029L;
 	private static String ATTRIBUTE_PREFIX = "attPrefix";
-	private static String CATEGORY_ROLLER_BLIND = "Roller blind";
+	private static String CATEGORY_ROLLER_BLIND = "Roller";
 	private static String CATEGORY_CURTAIN = "Curtain";
 	private Object ma_value;
 	private Component theComponent;
@@ -339,7 +339,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			if(mProductCategory.getName() != null || mProduct.getClassification() != null)
 			{
-				if(/*mProduct.getClassification().equalsIgnoreCase("roller")||*/mProductCategory.getName().equalsIgnoreCase(CATEGORY_ROLLER_BLIND)||
+				if(/*mProduct.getClassification().equalsIgnoreCase("roller")
+				||*/mProductCategory.getName().equalsIgnoreCase(CATEGORY_ROLLER_BLIND)||
 						mProductCategory.getName().equalsIgnoreCase(CATEGORY_CURTAIN))
 				{//Add dual roller option if it's a roller blind.
 					Row row1 = new Row();
@@ -616,7 +617,15 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			ZKUpdateUtil.setHflex(listBox, "1");
 			setListAttribute(mBLDpartType, listBox);
 			row.appendChild(listBox);
-			MProduct selectedProduct = (MProduct) listBox.getValue();
+			MProduct selectedProduct = null;
+				if(listBox.getItemCount() > 0)
+				{
+					selectedProduct = (MProduct) listBox.getValue();
+				}
+				else 
+				{
+					log.warning("---------In WBldPartsDialog, no selectable products found for Listbox: " + listboxID);
+				}
 			
 			
 			log.warning("---------In WBldPartsDialog, selected product has instance attributes --- adding attribute editor");
@@ -639,7 +648,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			row3.appendChild(attributeEdit);
 			row3.appendChild(txtEditor);
 			
-			if(hasInstanceAttributes(selectedProduct))
+			if(listBox.getItemCount() > 0 && hasInstanceAttributes(selectedProduct))
 			{
 				//Separator separator = new Separator();
 				//separator.setHeight("20px");

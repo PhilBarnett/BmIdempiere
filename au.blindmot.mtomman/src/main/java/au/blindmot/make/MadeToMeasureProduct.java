@@ -434,8 +434,8 @@ public static String EACH_1 = "Ea ";//Each with space
 			qty.setScale(2, RoundingMode.HALF_EVEN);
 			mBomDerived.setQty(qty);
 			mBomDerived.setM_AttributeSetInstance_ID(mAttributeSetInstanceId);
-			int mProductBomID = getParentBOMLineID(mProductId);
-			mBomDerived.setMProductBomID(mProductBomID);
+			int ppProductBomLineID = getParentBOMLineID(mProductId);
+			mBomDerived.setPP_Product_Bomline_ID(ppProductBomLineID);
 			if(description != null)mBomDerived.setDescription(description);
 			mBomDerived.saveEx();
 		}
@@ -658,13 +658,14 @@ public static String EACH_1 = "Ea ";//Each with space
 	 * @return
 	 */
 	public int getParentBOMLineID(int bomProductID) {
+		int activePPProductBomID = MtmUtils.getActivePPProductBomID(m_product_id);
 		StringBuilder sql = new StringBuilder();
-		sql.append("SELECT m_product_bom_id ");
-		sql.append("FROM m_product_bom mpb ");
-		sql.append("WHERE mpb.m_product_id = ? ");
-		sql.append("AND mpb.m_productbom_id = ? ");
+		sql.append("SELECT pp_product_bomline_id ");
+		sql.append("FROM pp_product_bomline mpb ");
+		sql.append("WHERE mpb.pp_product_bom_id = ? ");
+		sql.append("AND mpb.m_product_id = ? ");
 		sql.append("FETCH FIRST 1 ROWS ONLY");
-		return DB.getSQLValue(null, sql.toString(), m_product_id, bomProductID/*needs to be m_product_id*/);
+		return DB.getSQLValue(null, sql.toString(), activePPProductBomID, bomProductID/*needs to be m_product_id*/);
 		
 	}
 	

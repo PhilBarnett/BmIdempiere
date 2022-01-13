@@ -121,13 +121,6 @@ public class MtmCallouts implements IColumnCallout {
 			int mProduct_ID = (Integer) mTab.getValue(MOrderLine.COLUMNNAME_M_Product_ID);
 			log.warning("----------MProductID: " + mProduct_ID);
 			MProduct mProduct = new MProduct(ctx, mProduct_ID, null);
-			int MAttribSetIns_ID = orderLine.getM_AttributeSetInstance_ID();
-			//BigDecimal[] l_by_w = MtmUtils.hasLengthAndWidth(MAttribSetIns_ID);
-			
-			/*if(l_by_w != null)
-			{
-				setBreakVal(mProduct);
-			}*/
 			
 			isGridPrice = mProduct.get_ValueAsBoolean("isgridprice");
 			boolean isMadeToMeasure = isMadeToMeasure (mTab,ctx);
@@ -239,7 +232,7 @@ public class MtmCallouts implements IColumnCallout {
 						 * int M_PriceList_ID = Env.getContextAsInt(ctx, WindowNo, mTab.getTabNo(), "M_PriceList_ID");
 						 */
 					}
-					if(l_by_w != null && (l_by_w[1].equals(Env.ZERO) || l_by_w[1].equals(Env.ZERO)))//Check if it has length only
+					if(l_by_w != null && (l_by_w[0].equals(Env.ZERO) || l_by_w[1].equals(Env.ZERO)))//Check if it has length only
 						//TODO: check for UOM and if it is a length UOM then continue with this block, otherwise skip.
 					{
 						BigDecimal length = MtmUtils.hasLength((Integer)value).setScale(2, BigDecimal.ROUND_HALF_EVEN);
@@ -582,8 +575,6 @@ public class MtmCallouts implements IColumnCallout {
 			PriceActual = Env.ZERO;
 			//BigDecimal qty = Env.ONE;
 			//MOrderLine line = new MOrderLine(ctx, orderLine.getC_OrderLine_ID(), null);
-			
-			
 		
 			if(sellProductIDsCheck.size()>0)
 			{
@@ -825,140 +816,6 @@ public class MtmCallouts implements IColumnCallout {
 	}
 	
 	
-	/*
-	public BigDecimal getBreakValue(Object params, MProduct mProduct, int M_PriceList_ID) {
-		//isGridPrice = true;
-		//setQtyReadOnly(mTab);//We set the qty to read only so user can't adjust grid price.
-		//int mPriceListVersionID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_Version_ID", true);
-		//int M_PriceList_ID = Env.getContextAsInt(pCtx, windowNum, "M_PriceList_ID", true);
-		MPriceList pl = MPriceList.get(pCtx, M_PriceList_ID, null);
-		int mPriceListVersionID = 0;
-		Timestamp date = null;
-		if (gTab.getAD_Table_ID() == I_C_OrderLine.Table_ID)
-			date = Env.getContextAsDate(pCtx, "DateOrdered");
-		MPriceListVersion plv = pl.getPriceListVersion(date);
-		if (plv != null && plv.getM_PriceList_Version_ID() > 0) 
-			{
-			 	mPriceListVersionID = plv.getM_PriceList_Version_ID();
-			}
-		
-		log.warning("------MTM Callouts M_PriceList_Version_ID: " + mPriceListVersionID);
-		int mMproductID = mProduct.get_ID();
-		log.warning("------MTM Callouts mMproductID: " + mMproductID);
-		StringBuilder sql = new StringBuilder("SELECT breakvalue FROM m_productpricevendorbreak mb ");
-		sql.append("WHERE mb.value_one >= ? AND mb.value_two >= ?");
-		sql.append(" AND mb.m_product_id = ");
-		sql.append(mMproductID);
-		sql.append(" AND mb.m_pricelist_version_id = ");
-		sql.append(mPriceListVersionID);
-		sql.append(" ORDER BY mb.value_two ASC, mb.value_one ASC");
-		sql.append(" FETCH FIRST 1 ROWS ONLY");
-		
-		breakval = null;
-		String stringBreakVal = DB.getSQLValueString(null, sql.toString(), (Object [])params);
-		if(stringBreakVal != null)
-		{
-			breakval = new BigDecimal(stringBreakVal);
-		}
-		
-		if(breakval == null)//No price found, use highest price available
-		{
-			StringBuilder sql1 = new StringBuilder("SELECT breakvalue FROM m_productpricevendorbreak mb ");
-			sql1.append("WHERE mb.value_one = (SELECT MAX(value_one) from m_productpricevendorbreak) ");
-			sql1.append("AND value_two = (SELECT MAX(value_two) from m_productpricevendorbreak) ");
-			sql1.append("AND mb.m_product_id = ");
-			sql1.append(mMproductID);
-			sql1.append(" AND mb.m_pricelist_version_id = ?");
-			//sql1.append(mPriceListVersionID);
-			sql1.append(" FETCH FIRST 1 ROWS ONLY");
-			
-			String result = DB.getSQLValueString(null, sql1.toString(), mPriceListVersionID);
-			if(result!=null)
-			{
-				breakval = new BigDecimal(result);
-				log.warning("---------No price found, use highest price available");
-			}
-			else
-			{
-				breakval = Env.ONE;
-			}
-		
-		}
-		return breakval;
-	}//getBreakValue */
-	
-	/**
-	 * 
-	 */
-	/* public BigDecimal getCalculatedCosts(MProduct product, BigDecimal qty) {
-		
-		BigDecimal foundCost = Env.ZERO;
-		if(product.get_ValueAsBoolean("isgridprice"))
-		{
-			return getGridPriceProductCost(product);
-		}
-		else
-		{
-			MAcctSchema[] mAcctSchema = MAcctSchema.getClientAcctSchema(pCtx, Env.getAD_Client_ID(pCtx));
-			int acctSchemaID = mAcctSchema[0].get_ID();
-			MAcctSchema mSchema = MAcctSchema.get(pCtx, acctSchemaID);
-			String costingMethod = mSchema.getCostingMethod();
-			log.warning(mAcctSchema.toString());
-			int AD_Org_ID = Env.getAD_Org_ID(pCtx);
-			BigDecimal retCost = MCost.getCurrentCost(product, 0, mSchema, AD_Org_ID, costingMethod, qty, orderLine.getC_OrderLine_ID(), true, null);
-			if(retCost != null && retCost.compareTo(Env.ZERO) > 0)
-			{
-				foundCost = retCost.multiply(qty);
-			}
-			else
-			{
-				BigDecimal lastResort = MCost.getSeedCosts(product, 0, mSchema, AD_Org_ID, costingMethod, orderLine.getC_OrderLine_ID());
-				if(lastResort != null && lastResort.compareTo(Env.ZERO) > 0)
-				{
-					return lastResort.multiply(qty);
-				}
-			}
-		return foundCost;
-		}
-		
-	}//getCalculatedCosts */
-	/**
-	 * Gets a cost for an mtm product.
-	 * Looks up the grid price if it's a grid priced item
-	 * The default purchase price is used and must have a grid loaded with costs as appropriate.
-	 * @param mtmProduct
-	 * @return
-	 */
-	/*
-	public BigDecimal getGridPriceProductCost(MProduct mtmProduct) {
-		//get default purchase price list
-		MPriceList defaultPurchasePriceList =  MPriceList.getDefault(pCtx, false);
-		
-		//get break value
-		BigDecimal[] lbw = MtmUtils.hasLengthAndWidth(mAttributeSetInstance_ID);
-		BigDecimal breakvalue = MtmUtils.getBreakValue(lbw, mtmProduct, defaultPurchasePriceList.getM_PriceList_ID(), gTab, pCtx);
-		//multiply price list at qty by break val: price = pp.getPriceList().multiply(breakvalue);
-		
-		
-		IProductPricing pp = Core.getProductPricing();
-		pp.setM_PriceList_ID(defaultPurchasePriceList.getM_PriceList_ID());
-		int M_PriceList_Version_ID = defaultPurchasePriceList.getPriceListVersion(null).getM_PriceList_Version_ID();
-		pp.setM_PriceList_Version_ID(M_PriceList_Version_ID);
-		
-		BigDecimal price = Env.ZERO;
-		//BigDecimal qty = getQty(mtmProduct, area);
-		pp.setInitialValues(mtmProduct.getM_Product_ID(), orderLine.getC_BPartner_ID(), breakvalue, isSalesTrx, null);
-		
-		if(breakval != null)
-		{
-			price = pp.getPriceList();
-			price = pp.getPriceList().multiply(breakvalue);
-		}
-		
-		return price;
-		
-	}//getGridPriceProductCost */
-	
 	/**
 	 * Gets the quantity for various UOM.
 	 * Assumes width will be in mm
@@ -993,97 +850,4 @@ public class MtmCallouts implements IColumnCallout {
 		return qty;//TODO: UOM 'Each' is not tested. Ensure orderlines with 'Each' aren't affected.
 	} 
 	
-	/**
-	 * 
-	 * @return
-	 */
-/*	private ArrayList <Integer> getMTMPriceProductIDs() {
-		
-		//BigDecimal qty = Env.ONE;
-		MOrderLine line = new MOrderLine(pCtx, orderLine.getC_OrderLine_ID(), null);
-		int bldInsID = line.get_ValueAsInt("bld_line_productsetinstance_id");
-		
-		int mProduct_ID = line.getM_Product_ID();
-		
-		ArrayList <Integer> productIDsCheck = new ArrayList<Integer >();
-		//Add the orderline product to the list so the orderline price gets added.
-		productIDsCheck.add(Integer.valueOf(orderLine.getM_Product_ID()));
-		//Get the products for this Order line
-		MBLDLineProductInstance[] instance = MBLDProductPartType.getmBLDLineProductInstance(line.get_ValueAsInt("bld_line_productsetinstance_id"),null);
-		for (int i = 0; i < instance.length; i++)
-		{
-			//Iterate through products to find ones that are to be added to line amt
-			if (instance != null && instance[i].getM_Product_ID() > 0)
-			{
-				StringBuilder sql = new StringBuilder("SELECT m_product_bom_id FROM ");
-				sql.append("m_product_bom WHERE ");
-				sql.append("m_product_id = ? ");
-				sql.append("AND m_productbom_id = ?");
-				Object[] params = new Object[2];
-				params[0] = mProduct_ID;
-				params[1] = instance[i].getM_Product_ID();
-				int m_product_bom_id = DB.getSQLValue(null, sql.toString(), params);
-				if(m_product_bom_id > 0)
-				{
-					MProductBOM producToCheck = new MProductBOM (pCtx, m_product_bom_id, null);
-					producToCheck.saveEx();
-					if(producToCheck.get_ValueAsBoolean("addprice"))
-					{
-						//productsToCheck.add(producToCheck);
-						productIDsCheck.add(Integer.valueOf(producToCheck.getM_ProductBOM_ID()));
-					}
-				}
-			}
-		}
-		return productIDsCheck;
-	}//getMTMPriceProductIDs */
-	
-
-	 /** @param productIDsCheck
-	 * @return
-	 *
-	 * Set Calculated Cost
-	 * Calculated cost = price list cost of any mtmparent + product costs in productsToCheck
-	 * In the case of something like a remote control, its just the latest cost.
-	 * In the context of here (we have a mtm product with bld_line_productsetinstance products to add to the calculated cost
- 	 * we get the cost of the orderline item and add the product costs in productsToCheck
-	 *
-	 * @return
-	 */
-	/*private BigDecimal getCalculatedLineCosts(ArrayList<Integer> productIDsCheck) {
-		BigDecimal calculatedCost = Env.ZERO;
-		if(productIDsCheck.size() > 0)
-		{
-			ArrayList<String> costsMessage = new ArrayList<String>();
-			//BigDecimal orderLineProductQty = orderLine.getQtyEntered();
-			
-			//Get cost for each item in productsToCheck array
-			//Move this to end of amt() so it ges called every time.
-			Integer[] productIDsArray = productIDsCheck.toArray(new Integer[productIDsCheck.size()]);
-			for(int p = 0; p < productIDsArray.length; p++)
-			{
-				MProduct productPriceToGet = new MProduct(pCtx, productIDsArray[p].intValue(), null);
-				MOrderLine mOrderLine = new MOrderLine(pCtx, orderLine.getC_OrderLine_ID(), null);
-				BigDecimal costProductQty = MtmUtils.getQty(productPriceToGet, area, mOrderLine);
-				BigDecimal returnedPrice = getCalculatedCosts(productPriceToGet, costProductQty);
-				if(returnedPrice.compareTo(Env.ZERO)< 0)
-				{
-					costsMessage.add("No Cost pricing available for: " + productPriceToGet.getName());
-					log.warning("Calculating line cost, no Cost pricing available for: " + productPriceToGet.getName());
-				}
-				else
-				{
-					calculatedCost = calculatedCost.add(returnedPrice);
-					log.warning("Calculating line cost, adding product: " + productPriceToGet.getName() + ", price $" + returnedPrice.toString());
-				}	
-			}
-			//mTab.setValue("calculated_cost", calculatedCost);
-			if(costsMessage.size() > 0)
-			{
-				log.warning("Costing for" + orderLineProduct.getName() + " is not accurate. The following costs are missing: " + costsMessage);
-				FDialog.warn(windowNum, "Costing for " + orderLineProduct.getName() + " is not accurate. The following costs are missing: " + costsMessage);
-			}
-		}
-		return calculatedCost;
-	}//getCalculatedLineCosts */
 }

@@ -154,6 +154,7 @@ public class BMConvertLead extends SvrProcess{
 		else
 			bp.setName(lead.getName());
 		log.warning("-------- In BM LeadConvert about to save c_bpartner: " + lead.getName());
+		bp.setIsActive(true);
 		bp.saveEx();
 		addBufferLog(bp.getC_BPartner_ID(), null, null, "@C_BPartner_ID@ @Created@", MBPartner.Table_ID, bp.getC_BPartner_ID());
 		

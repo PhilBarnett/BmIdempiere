@@ -538,17 +538,22 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				    
 				    if(attributeType.equalsIgnoreCase("N"))
 				    {
-				    	log.warning("--------- line 532");
+				    	log.warning("--------- line 542");
 				    	//Constructor for numeric attributes
+				    	BigDecimal bigValue = Env.ZERO;
+				    	if(value!=null) 
+				    	{
+				    		bigValue = new BigDecimal(value);
+				    	}
 				    	MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(), m_attribute_id, 
-				    	toAttributeSetInstanceId, new BigDecimal(value).setScale(1), toOrderLine.get_TrxName());
+				    	toAttributeSetInstanceId, bigValue.setScale(1), toOrderLine.get_TrxName());
 				    	toMAttributeInstance.setM_AttributeValue_ID(mAttributeValueID);
 				    	//toMAttributeInstance.setValueNumber(new BigDecimal(value));
 				    	toMAttributeInstance.saveEx();
 				    }
 				    else	
 				    {	
-				    	log.warning("--------- line 542");
+				    	log.warning("--------- line 551");
 				    	//Constructor for String attributes
 					    MAttributeInstance toMAttributeInstance = new MAttributeInstance(Env.getCtx(),
 					    m_attribute_id, toAttributeSetInstanceId, value, toOrderLine.get_TrxName());
