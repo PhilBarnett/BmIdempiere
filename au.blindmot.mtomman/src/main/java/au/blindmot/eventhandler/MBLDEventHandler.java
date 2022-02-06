@@ -152,12 +152,13 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			if(orderLine.get_Value("copypk") == null)//It's a new record.
 				{
 					setCopyPK();
+					return;//Added by PB 18/1/22
 				}
 			
 			int orderLineID = orderLine.get_ID();
 			if(orderLine.getM_AttributeSetInstance_ID() > 0 && lineCopyID == orderLineID)
 				{
-					//There's an MAttributeSet save and if lineCopyID == orderlineID then we're not copying a line.
+					//There's an MAttributeSet saved and if lineCopyID == orderlineID then we're not copying a line.
 					return;//Everything is OK.
 				}
 			

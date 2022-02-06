@@ -28,6 +28,7 @@ import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.eevolution.model.MPPProductBOM;
 import org.eevolution.model.MPPProductBOMLine;
 
 import au.blindmot.make.Curtain.CurtainConfig;
@@ -744,8 +745,10 @@ public static BigDecimal getCalculatedCosts(MProduct product, BigDecimal qty, Pr
 		//BigDecimal qty = getQty(mtmProduct, area);
 		pp.setInitialValues(product.getM_Product_ID(), mOrderLine.getC_BPartner_ID(), qty, isSalesTrx, null);
 		
-		price = pp.getPriceList();
-		price = pp.getPriceList().multiply(qty);
+		//price = pp.getPriceList();
+		price = pp.getPriceStd();
+		//price = pp.getPriceList().multiply(qty);
+		price = pp.getPriceStd().multiply(qty);
 	
 		if(!(price == Env.ZERO))
 		{
@@ -834,8 +837,10 @@ public static BigDecimal getGridPriceProductCost(MProduct mtmProduct, Properties
 		
 		if(breakvalue != null)
 		{
-			price = pp.getPriceList();
-			price = pp.getPriceList().multiply(breakvalue);
+			//price = pp.getPriceList();
+			price = pp.getPriceStd();
+			//price = pp.getPriceList().multiply(breakvalue);
+			price = pp.getPriceStd().multiply(breakvalue);
 		}
 		
 		return price;
@@ -858,7 +863,8 @@ public static ArrayList <Integer> getMTMPriceProductIDs(Properties pCtx, MOrderL
 	//Add the orderline product to the list so the orderline price gets added.
 	productIDsCheck.add(Integer.valueOf(mOrderLine.getM_Product_ID()));
 	MBLDLineProductInstance[] instance = MBLDProductPartType.getmBLDLineProductInstance(mOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),null);
-	return processIDs(pCtx, productIDsCheck, instance, mProduct_ID, true);
+	//Breakpoint addes below to check this still works from EventHandler
+	return processIDs(pCtx, /*productIDsCheck,*/ instance, mProduct_ID, true);
 }
 
 public static ArrayList <Integer> getMTMSelectableSellProductIDs(Properties pCtx, I_C_OrderLine orderLine) {
@@ -891,30 +897,116 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		{
 			return productIDsCheck;
 		}
+		
+		//Get All the products in the part selection dialogue into an array
+		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(line.get_ValueAsInt("bld_line_productsetinstance_id"),null);
+				
 		//Add the orderline product to the list so the orderline price gets added.
-		//If it's not grid price, send back with just the orderline product. - no extra calculations to be done.
+		
 		productIDsCheck.add(Integer.valueOf(orderLine.getM_Product_ID()));
-		MProduct ordeLlineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
+		MProduct orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
 		//Only process for grid price products
-		if(!ordeLlineProduct.get_ValueAsBoolean("isgridprice"))
+		//If it's not grid price, send back with just the orderline product. - no extra calculations to be done.
+		if(!orderLineProduct.get_ValueAsBoolean("isgridprice"))
 		{
 			return productIDsCheck;
 		}
-		//Get All the products in the part selection dialogue into an array
-		MBLDLineProductInstance[] instance = MBLDProductPartType.getmBLDLineProductInstance(line.get_ValueAsInt("bld_line_productsetinstance_id"),null);
 		
-		return processIDs(pCtx, productIDsCheck, instance, mProduct_ID, isSell);
+		//Loop through all the products in the part selection dialogue, add any that are 'Select other parttype'.
+		//Get all selectable parttypes with a Otherbom_M_Parttype_ID
+		MBLDProductPartType[] mBLDProductPartTypes = MBLDProductPartType.getMBLDProductPartTypes(Env.getCtx(), mProduct_ID, null);
+		ArrayList<Integer> otherbomMpartTypeIDs = getSelectOtherMpartTypeIDs(mBLDProductPartTypes);
+		
+		for(int x = 0; x < mBLDLineProductInstance.length; x++)
+		{
+			
+			MBLDProductPartType instanceMBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mBLDLineProductInstance[x].getBLD_Product_PartType_ID(), null);
+			Integer mPartTypeID = instanceMBLDProductPartType.getOtherbomMParttypeID();
+			
+			//If the instance BLDpartType has one of the otherBomMPartTypeIDs, then add its product to productIDsCheck
+			if(otherbomMpartTypeIDs.contains(mPartTypeID))
+			{
+				//Add the mProductID of the otherBomMPartType
+				
+				int instanceProductID = mBLDLineProductInstance[x].getM_Product_ID();//EG bracket on track BOM
+				int parentProductIDtoAdd = getParentMproductIDFromOtherInstance(mPartTypeID, mBLDLineProductInstance, instanceProductID);
+				if(parentProductIDtoAdd > 0)
+				{
+					productIDsCheck.add(parentProductIDtoAdd);
+				}
+			}
+		}
+		
+		//Loop through productIDsCheck and create a list
+		ArrayList<Integer> returnIDs = new ArrayList<Integer>();
+		for(Integer productID : productIDsCheck)
+		{
+			returnIDs.addAll(processIDs(pCtx, mBLDLineProductInstance, productID, isSell));
+		}
+		
+		return returnIDs;
 	
 	}//getMTMPriceProductIDs
 
-	private static ArrayList <Integer> processIDs(Properties pCtx, ArrayList <Integer> productIDs, MBLDLineProductInstance[] instance, int parentMproduct_ID, boolean isSell) {
+/**
+ * 
+ * @param otherbomMpartTypeID
+ * @param mBLDLineProductInstance
+ * @param otherProductID
+ * @return
+ */
+private static int getParentMproductIDFromOtherInstance(int otherbomMpartTypeID, MBLDLineProductInstance[] mBLDLineProductInstance, int otherProductID) {
+	int found = 0;
+	int parentProductID = 0;
+	MBLDProductPartType instanceMBLDProductPartType = null;
+	for(int u = 0; u < mBLDLineProductInstance.length; u++)
+	{
+		instanceMBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mBLDLineProductInstance[u].getBLD_Product_PartType_ID(), null);
+		int instanceMpartTypeID = instanceMBLDProductPartType.getM_PartTypeID();
+		if(instanceMpartTypeID == otherbomMpartTypeID)
+			{
+				found = instanceMpartTypeID;
+				parentProductID = mBLDLineProductInstance[u].getM_Product_ID();
+				
+				break;
+			}
+	}
+	
+	//Check that the product on the found instance has the other product on its BOM
+	//Get the parent productID
+	//int parentProductID = instanceMBLDProductPartType.getM_Product_ID();
+	MPPProductBOM defaultBOM = MPPProductBOM.getDefault(MProduct.get(parentProductID), null);
+	MPPProductBOMLine[] mPPProductBOMLines = defaultBOM.getLines();
+	for(int line = 0; line < mPPProductBOMLines.length; line++)
+	{
+		int bomProductID = mPPProductBOMLines[line].getM_Product_ID();
+		if(bomProductID == otherProductID) return parentProductID;
+	}
+	
+	
+	return 0;
+}
+
+/**
+ * 	
+ * @param pCtx
+ * @param instance
+ * @param parentMproduct_ID
+ * @param isSell
+ * @return
+ */
+private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductInstance[] instance, int parentMproduct_ID, boolean isSell) {
 		//Get the pp_product_bom_id from the parentMproduct_ID
+		ArrayList <Integer> productIDs = new ArrayList<Integer>();
+		/*
 		StringBuilder sql1 = new StringBuilder("SELECT pp_product_bom_id FROM ");
 		sql1.append("pp_product_bom WHERE ");
 		sql1.append("m_product_id = ?");
 		Object[] params1 = new Object[1];
 		params1[0] = parentMproduct_ID;
 		int pp_product_bom_id = DB.getSQLValue(null, sql1.toString(), params1);
+		*/
+		int pp_product_bom_id = MPPProductBOM.getDefault(MProduct.get(parentMproduct_ID), null).getPP_Product_BOM_ID();
 		
 		for (int i = 0; i < instance.length; i++)
 		{
@@ -931,7 +1023,7 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 				sql.append("AND pp_product_bom_id = ?");
 				Object[] params = new Object[2];
 				params[0] = instance[i].getM_Product_ID();//Actual productID of the product being checked
-				params[1] = pp_product_bom_id;//The BOM ID from the multiple BOMs available fro the parent product
+				params[1] = pp_product_bom_id;//The BOM ID from the multiple BOMs available for the parent product
 				
 				
 				//params[0] = parentMproduct_ID;
@@ -969,6 +1061,26 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		
 	}
 	
+	/**
+	 * @param defaultMPPProductBOMLines
+	 * @param parentProductID 
+	 * @param mBLDProductPartTypes 
+	 * @return
+	 */
+	private static ArrayList<Integer> getSelectOtherMpartTypeIDs (MBLDProductPartType[] mBLDProductPartTypes) {
+		ArrayList<Integer> otherPartTypeIntegers = new ArrayList<Integer>();
+		for(int i = 0; i< mBLDProductPartTypes.length; i++)
+		{
+			int otherMpartTypeID = mBLDProductPartTypes[i].getOtherbomMParttypeID();
+			if(otherMpartTypeID > 0)
+			{
+				otherPartTypeIntegers.add(otherMpartTypeID);
+			}
+			
+		}
+		return otherPartTypeIntegers;
+		
+	}
 	
 	
 	/**
@@ -1017,7 +1129,8 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 				MProduct sellPriceGridCopy = new MProduct(pCtx, bld_Sellprice_Copy_ID , null);
 				breakvalue = MtmUtils.getBreakValue(l_by_w, sellPriceGridCopy, pp.getM_PriceList_ID(), null /*gTab*/, pCtx);
 				pp.setInitialValues(sellPriceGridCopy.get_ID(), orderLine.getC_BPartner_ID(), breakvalue, isSalesTrx, null);
-				price = pp.getPriceList().multiply(breakvalue);
+				//price = pp.getPriceList().multiply(breakvalue);
+				price = pp.getPriceStd().multiply(breakvalue);
 			}
 			else
 			{
@@ -1026,7 +1139,8 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 				if(breakvalue != null)
 				{
 					pp.setInitialValues(m_productbom_id, orderLine.getC_BPartner_ID(), breakvalue, isSalesTrx, null);
-					price = pp.getPriceList().multiply(breakvalue);
+					//price = pp.getPriceList().multiply(breakvalue);
+					price = pp.getPriceStd().multiply(breakvalue);
 					//TODO: Above code gets the list price 8 break value; grid price items need the grid price x break value.
 					
 					//price = pp.getPriceList();
@@ -1050,7 +1164,9 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		else
 		{
 			pp.setInitialValues(m_productbom_id, orderLine.getC_BPartner_ID(), qty, isSalesTrx, null);
-			price = pp.getPriceList().multiply(qty);
+			//price = pp.getPriceList().multiply(qty);
+			price = pp.getPriceStd().multiply(qty);
+			
 			return price;
 		}
 		

@@ -250,8 +250,17 @@ public static String EACH_1 = "Ea ";//Each with space
 		{
 			int mProductId = mBLDLineProductInstance[i].getM_Product_ID();
 			BigDecimal qty = getBomQty(mProductId);
+			
 			int mAttributeSetInstanceId = mBLDLineProductInstance[i].getM_AttributeSetInstance_ID();
-			if(qty.compareTo(Env.ZERO)<1) qty = getMProductBomQty(mProductId);//Get a default from parent BOM
+			
+			if(qty.compareTo(Env.ZERO)<1)
+			{
+				if(isProductPartTypeSelectable(mProductId, m_product_id))//If it's a selectable parttype, then qty = 1
+					{
+						qty = Env.ONE;//Ensure that anything user selectable makes it to BOM.
+					}
+					else qty = getMProductBomQty(mProductId);//Get a default from parent BOM
+			}
 			addMBLDBomDerived(mProductId, qty, mAttributeSetInstanceId, "Added by addMtmInstancePartsToBomDerived()");
 		}
 		return true;
@@ -563,15 +572,18 @@ public static String EACH_1 = "Ea ";//Each with space
 	 */
 	public BigDecimal getMProductBomQty(int mProductBomID) {
 		
-		StringBuilder sql = new StringBuilder("SELECT m_product_bom_id ");
-        sql.append("FROM m_product_bom ");
+		int parentBomID = MtmUtils.getActivePPProductBomID(m_product_id);
+		
+		StringBuilder sql = new StringBuilder("SELECT pp_product_bomline_id ");
+        sql.append("FROM pp_product_bomline ");
         sql.append("WHERE m_product_id = ");
-        sql.append(m_product_id);
-        sql.append(" AND m_productbom_id = ");
         sql.append(mProductBomID);
+        sql.append(" AND pp_product_bom_id = ");
+        sql.append(parentBomID);
         
-        int m_product_bom_id = DB.getSQLValue(trxName, sql.toString());
-        MPPProductBOMLine mProductBom = new MPPProductBOMLine(Env.getCtx(), m_product_bom_id, trxName);
+        int pp_product_bomline_id = DB.getSQLValue(trxName, sql.toString());
+        
+        MPPProductBOMLine mProductBom = new MPPProductBOMLine(Env.getCtx(), pp_product_bomline_id, trxName);
 		//if(mProductBom.get_ValueAsBoolean(columnName))
 		
 		
@@ -600,8 +612,8 @@ public static String EACH_1 = "Ea ";//Each with space
 	}//performOperationConditionSet
 	
 	public boolean processTriggers(MBLDMtomItemLine itemLine) {
-		MBLDMtmProductBomTrigger[] triggers = getTriggers(itemLine);
-		MBLDBomDerived[] bomDerivedLines = itemLine.getBomDerivedLines(Env.getCtx(), itemLine.get_ID());
+		MBLDMtmProductBomTrigger[] triggers = getTriggers(itemLine.getM_Product_ID());
+		MBLDBomDerived[] bomDerivedLines = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), itemLine.get_ID());
 		//Loop through bomDerivedLines, check if trigger is in bomDerivedLines
 		for(int g = 0; g < bomDerivedLines.length; g++)
 		{
@@ -636,9 +648,9 @@ public static String EACH_1 = "Ea ";//Each with space
 	/**
 	 * @return
 	 */
-	private MBLDMtmProductBomTrigger[] getTriggers(MBLDMtomItemLine itemLine) {
+	private MBLDMtmProductBomTrigger[] getTriggers(int mProductID) {
 		
-		int mProductID = itemLine.getM_Product_ID();
+		//int mProductID = itemLine.getM_Product_ID();
 		StringBuilder whereClauseFinal = new StringBuilder(MBLDMtmProductBomTrigger.COLUMNNAME_M_Product_ID+"=? ");
 	
 		List<MBLDMtmProductBomTrigger> list = new Query(Env.getCtx(), I_BLD_MTM_Product_Bom_Trigger.Table_Name, whereClauseFinal.toString(), null)
@@ -670,7 +682,7 @@ public static String EACH_1 = "Ea ";//Each with space
 	}
 	
 	public boolean deleteBOMLine(int mParentBOMLineID, MBLDMtomItemLine itemLine) {
-		MBLDBomDerived[] bomLines = itemLine.getBomDerivedLines(Env.getCtx(), itemLine.get_ID());
+		MBLDBomDerived[] bomLines = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), itemLine.get_ID());
 		for(int l = 0; l < bomLines.length; l++)
 		{
 			if(bomLines[l].getPP_Product_Bomline_ID() == mParentBOMLineID)
@@ -787,6 +799,29 @@ public static String EACH_1 = "Ea ";//Each with space
 	 
 	 public boolean addMtomItemDetail() {
 		 return true;
+	 }
+	 
+	 /**
+	  * 
+	  * @param bomProductID
+	  * @param m_product_id
+	  * @param mPartTypeID
+	  * @return
+	  */
+	 public static boolean isProductPartTypeSelectable(int bomProductID, int m_product_id) {
+		 
+		 MBLDProductPartType[] mBLDProductPartTypes = MBLDProductPartType.getMBLDProductPartTypes(Env.getCtx(), m_product_id, null);
+		 int partTypeID = MProduct.get(bomProductID).getM_PartType_ID();
+		 boolean found = false;
+		 for(int q = 0; q < mBLDProductPartTypes.length; q++)
+		 {
+			 if(mBLDProductPartTypes[q].getM_PartTypeID() == partTypeID)//It's a selectable parttype
+			 {
+				 found = true;
+				 break;
+			 }
+		 }
+		return found;
 	 }
 	
 }//MadeToMeasureProduct

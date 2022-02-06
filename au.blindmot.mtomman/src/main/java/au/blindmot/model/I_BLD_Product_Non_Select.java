@@ -46,6 +46,12 @@ public interface I_BLD_Product_Non_Select
     /** Column name AD_Client_ID */
     public static final String COLUMNNAME_AD_Client_ID = "AD_Client_ID";
     
+    /** Column name M_Attribute_ID */
+    public static final String COLUMNNAME_M_Attribute_ID = "M_Attribute_ID";
+    
+    /** Column name M_Attributevalue_ID*/
+    public static final String COLUMNNAME_M_Attributevalue_ID = "M_Attributevalue_ID";
+    
     /** Column name PP_Product_Bomline_ID */
     public static final String COLUMNNAME_PP_Product_Bomline_ID = "PP_Product_BOMLine_ID";
 

@@ -63,6 +63,7 @@ import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
 import org.zkoss.lang.SystemException;
 import org.zkoss.zk.ui.Component;
@@ -107,6 +108,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private Object ma_value;
 	private Component theComponent;
 	private Button attrbButton;
+	//private ArrayList<KeyNamePair> otherMpartChangeMpart = new ArrayList<KeyNamePair>();
 	
 	/**	No Instance Key					*/
 	private static Integer		NO_INSTANCE = Integer.valueOf(0);
@@ -226,6 +228,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private static String LINK_BRACKET = "Roller link bracket";
 	private static String IS_LINK = "Is link";
 	private ArrayList<Listbox> chainArray = new ArrayList<Listbox>();
+	private boolean editorsLoaded = false;
 
 	/**
 	 *	Layout
@@ -342,7 +345,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				if(/*mProduct.getClassification().equalsIgnoreCase("roller")
 				||*/mProductCategory.getName().equalsIgnoreCase(CATEGORY_ROLLER_BLIND)||
 						mProductCategory.getName().equalsIgnoreCase(CATEGORY_CURTAIN))
-				{//Add dual roller option if it's a roller blind.
+				{//Add dual option.
 					Row row1 = new Row();
 					row1.appendChild(cbDualRoller);
 					cbDualRoller.setLabel("Dual");
@@ -362,8 +365,30 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			log.warning("mBLDLineProductSetInstance == :" + mBLDLineProductSetInstance.toString());
 			MBLDProductPartType[] partTypes1 =  mBLDLineProductSetInstance.getProductPartSet(m_M_Product_ID , null, true);
 			log.warning ("Part Types= " + partTypes1.length);
+			
+			//If the 'Select from other parttype' is loaded before other Listboxes, then it doesn't get populated
+			//So we store them in an ArrayList then add them at the end.
+			ArrayList<MBLDProductPartType> selectFromOther = new ArrayList<MBLDProductPartType>();
 			for (int i = 0; i < partTypes1.length; i++)
-				addAttributeLine (rows, partTypes1[i], false, false);
+			{
+				boolean selectOtherParttypeBom = partTypes1[i].isSelectOtherBLDParttype();
+				if(selectOtherParttypeBom)
+				{
+					selectFromOther.add(partTypes1[i]);//Add 'Select from other parttype' to list
+				}
+				else 
+				{
+					addAttributeLine (rows, partTypes1[i], false, false);//Add as lines if not 'Select from other parttype'
+				}
+				
+			}
+			
+			//Add the 'Select from other parttype' after others loaded
+			for(MBLDProductPartType mBLDProductPartType : selectFromOther)
+			{
+				addAttributeLine (rows, mBLDProductPartType, false, false);
+			}
+				
 			
 			/*/Delete once bug checked
 			MAttribute[] attributes = as.getMAttributes (true);
@@ -436,7 +461,44 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		if (log.isLoggable(Level.FINE)) log.fine(mBLDpartType + ", Product=" + product + ", R/O=" + readOnly);
 		
 		m_row++;
-		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, mBLDpartType.getBLD_M_PartType_ID(), null);	//	optional = null
+		
+		/*
+		 * TODO: For Parttypes that have other bom selection, substitute m_M_Product_ID for the productID of the other
+		 * product set for the other parttype. 
+		 */
+		
+		boolean selectOtherParttypeBom = mBLDpartType.isSelectOtherBLDParttype();
+		int otherProductID = 0;
+		/*
+		 * /TODO: When selectOtherParttypeBom == true and editorsLoaded == false, code below gets by passed
+		 * and the list box for the parttype to select from another product never gets populated.
+		 * to fix? maybe populate the other product listbox only when editors loaded == true?
+		 */
+		if(selectOtherParttypeBom && editorsLoaded)
+		{
+			//Get the selected product for this parttype
+			int otherParttypeID = mBLDpartType.getOtherbomMParttypeID();
+			if(otherParttypeID > 0)
+			{
+				/*Find the productID of the selected item for the otherParttypeID
+				 *Once found, this is the product whose BOM will be used to search for the parttype.
+				 */
+				otherProductID = getOtherSelectedMpartProductID(otherParttypeID);
+			}
+		}
+		
+		int productID = 0;
+		if(otherProductID > 0)
+		{
+			productID  = otherProductID;
+		}
+		else
+		{
+			productID = m_M_Product_ID;
+		}
+		
+		
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(productID, mBLDpartType.getBLD_M_PartType_ID(), null);	//	optional = null
 		Label label = new Label (mBLDpartType.getName());
 		if (product)
 			label.setStyle("font-weight: bold");
@@ -516,7 +578,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				}
 				listBox.setId("controlBox");
 				//listBox.addEventListener(Events.ON_SELECT, this); 
-				log.warning("---------line 509 editor");
 				ctrlBox = listBox;
 				tubularBlindControl = false;
 				
@@ -594,6 +655,19 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			listboxID = listboxID.concat(String.valueOf(mBLDpartType.get_ID()));
 			listBox.setId(listboxID);
 			
+			//Create record in memory of the ListBoxes and their 'other Parttypes to use
+		/*	if(mBLDpartType.isSelectOtherBLDParttype())
+			{
+				KeyNamePair otherMpartTypeID_ListBoxID = new KeyNamePair(mBLDpartType.getOtherbomMParttypeID(), listboxID);
+				otherMpartChangeMpart.add(otherMpartTypeID_ListBoxID);
+				//Adds the correct otherMpart, but wrong listbox
+			} */
+			
+			//Create a blank item so user can set list to nothing if desired.
+			MProduct blankProduct = new MProduct(Env.getCtx(),0,null);
+			ListItem itemblank = new ListItem("",blankProduct);
+			listBox.appendChild(itemblank);
+			
 			for (MProduct value : values) 
 			{
 				ListItem item = new ListItem(value != null ? value.getName() : "", value);
@@ -609,7 +683,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			}
 			else
-				m_editors.add (listBox);
+				m_editors.add(listBox);
 				listBox.addEventListener(Events.ON_SELECT, this);
 				//m_editors.add (txtEditor);
 			
@@ -658,6 +732,8 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 				//Give the text box something to display
 				setTextEditor(txtEditor, listBox);
 			}
+			
+			editorsLoaded = true;
 			
 	}	//	addAttributeLine
 	
@@ -783,7 +859,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			editor.setValue(Env.ZERO);		
 	}	*/
 
-	/*
+	/**
 	 * BLD will always be list.
 	 * Get the parttype.
 	 * Get the instance of the partype based on m_MbldLineProductsetInstanceID -> bld_line_productinstanceproductID
@@ -793,8 +869,35 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	private void setListAttribute(MBLDProductPartType mBLDpartType, Listbox editor) {
 		boolean found = false;
 		int index = m_editors.indexOf(editor);
+		int otherProductID = 0;
+		int productID = 0;
 		
-		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, mBLDpartType.getBLD_M_PartType_ID(), null);	//	optional = null
+		//Is this parttype 'Select Other Parttype'?
+		boolean selectOtherParttypeBom = mBLDpartType.isSelectOtherBLDParttype();
+		
+		if(selectOtherParttypeBom && editorsLoaded)
+		{
+			//Get the selected product for this parttype
+			int otherParttypeID = mBLDpartType.getOtherbomMParttypeID();
+			if(otherParttypeID > 0)
+			{
+				/*Find the productID of the selected item for the otherParttypeID
+				 *Once found, this is the product whose BOM will be used to search for the parttype.
+				 */
+				otherProductID = getOtherSelectedMpartProductID(otherParttypeID);
+			}
+		}
+		
+		if(otherProductID > 0)
+		{
+			productID = otherProductID;
+		}
+		else
+		{
+			productID = m_M_Product_ID;
+		}
+		System.out.println(mBLDpartType.getName());
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(productID, mBLDpartType.getBLD_M_PartType_ID(), null);	//	optional = null
 			
 		if(mBLDpartType.getName().equalsIgnoreCase(TUBULAR_BLIND_CONTROL) || mBLDpartType.getName().equalsIgnoreCase(TUBULAR_NON_CONTROL))
 			{
@@ -835,7 +938,6 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			MProduct mProduct = null;
 			if (instance != null)
 			{
-				
 				log.warning("--------In setListAttribute, MBLDLineProductInstance instance: " + instance.toString());
 				int prodID = instance.getM_Product_ID();
 				for (int i = 0; i < values.length; i++)
@@ -857,7 +959,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 							}					
 						}
 						
-						if(editor != null)
+						if(editor != null && mProduct != null)
 						{
 							if(editor.getItemCount() > 0)
 							{
@@ -900,6 +1002,95 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			if (log.isLoggable(Level.FINE)) log.fine("Attribute=" + mBLDpartType.getName() + " #" + values.length + " no instance");
 	}
 }
+
+	/**
+	 * 
+	 * @param otherParttypeID
+	 * @return
+	 */
+	private String getOtherSelectedMpartIDs(int otherParttypeID) {
+		//Find the otherParttypeID in otherMpartChangeMpart
+		for(int j = 0; j < m_editors.size(); j++)
+		{
+			Listbox editor = null;	
+			if(m_editors.get(j).getClass().getName().contains("Listbox"))
+			{
+					editor = (Listbox)m_editors.get(j);
+					String boxID = editor.getId();
+					int mBLDpartTypeID = getMBLDPartTypeIDFromBoxID(boxID);
+					MBLDProductPartType mBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mBLDpartTypeID, null);
+					int selectedMpartTypeID = mBLDProductPartType.getM_PartTypeID();
+					if(selectedMpartTypeID == otherParttypeID)
+					{
+						return boxID;
+					}
+			}
+		}
+		return "";
+	}
+	
+	/**
+	 * 
+	 * @param otherParttypeID
+	 * @return
+	 */
+	private String getOtherSelectedMpartListBoxID (int otherParttypeID) {
+		return getOtherSelectedMpartIDs(otherParttypeID);
+	}
+	
+	/**
+	 * 
+	 * @param otherParttypeID
+	 * @return
+	 */
+	private int getOtherSelectedMpartProductID(int otherParttypeID) {
+		String foundListBox = getOtherSelectedMpartIDs(otherParttypeID);
+		return getSelectedProductIDFromListBoxID(foundListBox);
+		
+	}
+	
+
+	/**
+	 * 
+	 * @param boxID
+	 * @return
+	 */
+	private int getMBLDPartTypeIDFromBoxID(String boxID) {
+		int mBLDPartTypeID = Integer.parseUnsignedInt(boxID.substring(boxID.length()-7));
+		if(mBLDPartTypeID > 0) return mBLDPartTypeID;
+		return 0;
+	}
+	
+	private Listbox getReferencedEditorID(String sourceBoxID) {
+		/*Loop through editors
+		 *Is the source editor referenced as 'Use Bom from this parttype?
+		 *If it is, then return it.
+		 * 
+		 */
+		//Get the source object
+		int sourceMBLDpartTypeID = getMBLDPartTypeIDFromBoxID(sourceBoxID);
+		MBLDProductPartType sourceMBLDProductPartType = new MBLDProductPartType(Env.getCtx(), sourceMBLDpartTypeID, null);
+		int sourceMpartTypeID = sourceMBLDProductPartType.getM_PartTypeID();
+		
+		
+		for(int j = 0; j < m_editors.size(); j++)
+		{
+			Listbox editor = null;	
+			if(m_editors.get(j).getClass().getName().contains("Listbox"))
+			{
+					editor = (Listbox)m_editors.get(j);
+					String boxID = editor.getId();
+					int mBLDpartTypeID = getMBLDPartTypeIDFromBoxID(boxID);
+					MBLDProductPartType mBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mBLDpartTypeID, null);
+					int otherMpartTypeID = mBLDProductPartType.getOtherbomMParttypeID();
+					if(sourceMpartTypeID == otherMpartTypeID)
+					{
+						return editor;
+					}
+			}
+		}
+		return null;
+	}
 
 	/**
 	 *	dispose
@@ -1001,8 +1192,23 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		MProduct mProduct = (MProduct)listBox.getValue();
 		int index = getEditorIndex(target);
 		
+		String boxID = target.getId();
 		button = (Button) m_editors.get(index + 1);
 		txtEditor = (Textbox) m_editors.get(index + 2);
+		int mBLDPartTypeID = getMBLDPartTypeIDFromBoxID(boxID);
+		MBLDProductPartType mBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mBLDPartTypeID, null);
+		int mPartTypeID = mBLDProductPartType.getM_PartTypeID();
+		
+		int other = getOtherSelectedMpartProductID(mPartTypeID);
+		String otherBoxID = getOtherSelectedMpartListBoxID(mPartTypeID);
+		
+		Listbox referencedEditor = getReferencedEditorID(boxID);
+		
+		if(referencedEditor != null)
+			{
+				resetEditor(referencedEditor, listBox);
+			}
+		
 		
 		//Check if target has instance attributes
 		if(hasInstanceAttributes(mProduct))
@@ -1017,6 +1223,15 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			txtEditor.setVisible(false);//Set display of text box accordingly
 			button.setVisible(false);
 		}
+	}
+
+	private boolean isSelectOtherBom(int mParttypeID) {
+		MBLDProductPartType mBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mParttypeID, null);
+		if(mBLDProductPartType.isSelectOtherBLDParttype())
+		{
+			return true;
+		}
+		return false;
 	}
 
 	private int getEditorIndex(Component target) {
@@ -1626,13 +1841,39 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 	
 	
 	/**
-	 * Deprecate/delete
 	 * @param editor
-	 * @param partTypeID
+	 * @param mPartTypeID
 	 */
-	private void resetEditor(Listbox editor, int partTypeID) {
+	private void resetEditor(Listbox editor, int mPartTypeID) {
 		
-		MProduct[] values = MBLDProductPartType.getPartSetProducts(m_M_Product_ID, partTypeID, null);
+		//Is this parttype 'Select Other Parttype'?
+		int mBLDProductPartTypeID = getMBLDPartTypeIDFromBoxID(editor.getId());
+		MBLDProductPartType mBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mBLDProductPartTypeID, null);
+		
+				boolean selectOtherParttypeBom = mBLDProductPartType.isSelectOtherBLDParttype();
+				
+				int otherProductID = 0;
+				if(selectOtherParttypeBom)
+				{
+					//Get the selected product for this parttype
+					int otherParttypeID = mBLDProductPartType.getOtherbomMParttypeID();
+					if(otherParttypeID > 0)
+					{
+						otherProductID = getOtherSelectedMpartProductID(otherParttypeID);
+					}
+				}
+				
+				int productID = 0;
+				if(otherProductID > 0)
+				{
+					productID  = otherProductID;
+				}
+				else
+				{
+					productID = m_M_Product_ID;
+				}
+		
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(productID, mPartTypeID, null);
 		values = modifyDualTypes(values, isDualRoller);
 		editor.removeAllItems();
 		for (MProduct value : values) 
@@ -1640,9 +1881,44 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			ListItem item = new ListItem(value != null ? value.getName() : "", value);
 			editor.appendChild(item);
 		}
-		
 	}
-	 private void setIsDualFlag(int mbldpartTypeID) {
+	
+	/**
+	 * 
+	 * @param referencedEditor
+	 * @param parentEditor
+	 */
+	private void resetEditor(Listbox referencedEditor, Listbox parentEditor) {
+		/*Referenced editor is the editor to change values in
+		 * parentEditor is the editor whose BOM will be used to source the components.
+		 *
+		 */
+		
+		int mBLDProductPartTypeID = getMBLDPartTypeIDFromBoxID(referencedEditor.getId());
+		//MBLDProductPartType mBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mBLDProductPartTypeID, null);
+		MProduct parentProduct = new MProduct(((MProduct) ((Listbox) parentEditor).getValue()));
+		int mProductID = parentProduct.getM_Product_ID();
+		
+		MProduct referencedProduct = new MProduct(((MProduct) ((Listbox) referencedEditor).getValue()));
+		int referencedMPartTypeID = referencedProduct.getM_PartType_ID();
+		
+		
+		//Get values for referenced editor.		
+		MProduct[] values = MBLDProductPartType.getPartSetProducts(mProductID, referencedMPartTypeID, null);
+		values = modifyDualTypes(values, isDualRoller);
+		referencedEditor.removeAllItems();
+		for (MProduct value : values) 
+		{
+			ListItem item = new ListItem(value != null ? value.getName() : "", value);
+			referencedEditor.appendChild(item);
+		}
+	}
+	 
+	/**
+	 * 
+	 * @param mbldpartTypeID
+	 */
+	private void setIsDualFlag(int mbldpartTypeID) {
 		 MBLDProductPartType controlPart = new MBLDProductPartType(Env.getCtx(), mbldpartTypeID, null);
 		 MBLDLineProductInstance controlInstance = controlPart.getMBldLineProductInstance(m_MbldLineProductsetInstanceID);
 		 if(controlInstance != null)//will default to false if null
@@ -1826,6 +2102,27 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			
 			box.setText(display);
 		}
+		
+		private int getSelectedProductIDFromListBoxID(String listBoxID) {
+			for(int j = 0; j < m_editors.size(); j++)
+			{
+				Listbox editor = null;	
+				if(m_editors.get(j).getClass().getName().contains("Listbox"))
+				{
+						editor = (Listbox)m_editors.get(j);
+						//Get the selected m_productID of the found ListBox
+						if(editor.getId().equals(listBoxID))
+						{
+							ListItem item = editor.getSelectedItem();
+							MProduct value = item != null ? (MProduct)item.getValue() : null;
+							return value.getM_Product_ID();
+						}
+					
+				}	
+			}
+			return 0;
+			
+		}
 
 		
 		private String getDisplay(Object value) {
@@ -1838,6 +2135,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 			if(description !=null) return description;
 			return null;
 		}
+		
 
 		public Object getValue()
 		{

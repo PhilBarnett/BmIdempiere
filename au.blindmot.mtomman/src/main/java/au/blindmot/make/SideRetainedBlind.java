@@ -16,6 +16,7 @@ import org.eevolution.model.MPPProductBOMLine;
 
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDMtomCuts;
+import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.utils.MtmUtils;
 
 /**

@@ -133,8 +133,6 @@ public class GridPrice extends SvrProcess {
 		   After this the process code is written and on any error an Exception must be thrown
 		   Use the addLog method to register important information about the running of your process
 		   This information is preserved in a log and shown to the user at the end.
-		   
-		   TODO:
 		*/
 		if(deleteExisting)
 		{

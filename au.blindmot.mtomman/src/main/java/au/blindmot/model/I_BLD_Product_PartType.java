@@ -69,9 +69,27 @@ public interface I_BLD_Product_PartType
     
     /** Column name BLD_Product_PartType_ID */
     public static final String COLUMNNAME_M_Product__ID = "M_Product_ID";
+    
+    /** Column name Is_Select_Other_BLD_Parttype; */
+    public static final String COLUMNNAME_Is_Select_Other_BLD_Parttype="Is_Select_Other_BLD_Parttype";
+    
+    /** Set Is Select Other BLDParttype	  */
+	public void setIs_Select_Other_BLD_Parttype (boolean Is_Select_Other_BLD_Parttype);
+	
+	 /** Get Is Select Other BLDParttype	  */
+	public boolean isSelectOtherBLDParttype ();
+	
+    /** Column name Is_Select_Other_BLD_Parttype; */
+    public static final String COLUMNNAME_Otherbom_M_Parttpe_ID = "Otherbom_M_Parttype_ID";
+    
+	/** Set Otherbom_M_Product_ID	  */
+	public void setOtherbomMParttypeID (int Otherbom_M_PartType_ID);
+
+	/** Get Otherbom_M_Parttype_ID	  */
+	public int getOtherbomMParttypeID();
 
 	/** Set BLD Product PartType	  */
-	public void setBLD_Product_PartType_ID (int BLD_Product_PartType_ID);
+	public void setBLDProductPartTypeID (int BLD_Product_PartType_ID);
 
 	/** Get BLD Product PartType	  */
 	public int getBLD_Product_PartType_ID();
@@ -206,14 +224,14 @@ public interface I_BLD_Product_PartType
 	 * Set MPrtType ID
 	 * 
 	 */
-	public void setM_PartTypeId(int mPartTypeID);
+	public void setMPartTypeID(int mPartTypeID);
 	
 	/** Column name is_user_select */
     public static final String COLUMNNAME_is_user_select = "is_user_select";
 
 	/** Set is_user_select	  */
-	public void setis_user_select (boolean is_user_select);
+	public void setIsUserSelect (boolean is_user_select);
 
 	/** Get is_user_select	  */
-	public boolean is_user_select();
+	public boolean isUserSelect();
 }

@@ -10,6 +10,7 @@ import org.compiere.util.Env;
 
 import au.blindmot.make.AwningBlind;
 import au.blindmot.make.Curtain;
+import au.blindmot.make.CurtainTrack;
 import au.blindmot.make.FoldingArmAwning;
 import au.blindmot.make.MadeToMeasureProduct;
 import au.blindmot.make.PanelGlide;
@@ -23,6 +24,7 @@ import au.blindmot.make.SideRetainedBlind;
  */
 public class BLDMtomMakeFactory {
 
+	
 	/**For this to work as designed, made to measure products must be given classifications that
 	 * match those below; 'roller', 'awning', 'panel' etc.
 	 * As a new product is added:
@@ -39,6 +41,7 @@ public class BLDMtomMakeFactory {
 	public static String PELMET = "Pelmet";
 	public static String FOLDING_ARM_AWNING = "FA Awning";
 	public static String CURTAIN = "Curtain";
+	private static final String CURTAIN_TRACK = "Curtain Track";
 	
 	
 	
@@ -81,6 +84,8 @@ public class BLDMtomMakeFactory {
 			return new FoldingArmAwning(mProduct_ID, mtom_item_line_id, trxnName);
 		else if ( classification.equals("curtain") || productCategory.equals(CURTAIN))
 			return new Curtain(mProduct_ID, mtom_item_line_id, trxnName);
+		else if ( classification.equals("curtaintrack") || productCategory.equals(CURTAIN_TRACK))
+			return new CurtainTrack(mProduct_ID, mtom_item_line_id, trxnName);
 	    
 
 	    return null;

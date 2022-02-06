@@ -379,4 +379,32 @@ else
 		// TODO Auto-generated method stub
 		return null;
 	}
+	
+	public int getM_Attribute_ID () {
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_Attribute_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+	
+	public int getM_AttributeValue_ID () {
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_Attributevalue_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+	
+	public void setM_Attribute_ID (int m_Attribute_ID) {
+		if (m_Attribute_ID < 1) 
+			set_ValueNoCheck (COLUMNNAME_M_Attribute_ID, null);
+		else 
+			set_ValueNoCheck (COLUMNNAME_M_Attribute_ID, Integer.valueOf(m_Attribute_ID));
+	}
+	
+	public void setM_AttributeValue_ID (int m_AttributeValue_ID) {
+		if (m_AttributeValue_ID < 1) 
+			set_ValueNoCheck (COLUMNNAME_M_Attributevalue_ID, null);
+		else 
+			set_ValueNoCheck (COLUMNNAME_M_Attributevalue_ID, Integer.valueOf(m_AttributeValue_ID));
+	}
 }

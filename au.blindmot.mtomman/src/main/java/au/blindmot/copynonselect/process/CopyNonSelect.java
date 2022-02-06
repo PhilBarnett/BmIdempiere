@@ -40,6 +40,7 @@ public class CopyNonSelect extends SvrProcess {
 	//int toMProductID = 0;
 	private BigDecimal bigDecParam;
 	private int recordId = 0;
+	private boolean ignoreClassification = false;
 	
 	/**
 	 * The prepare function is called first and is used to load parameters
@@ -53,8 +54,8 @@ public class CopyNonSelect extends SvrProcess {
 		// Each Report & Process parameter name is set by the field DB Column Name
 		for ( ProcessInfoParameter para : getParameter())
 		{
-			if ( para.getParameterName().equals("isBooleanParam") )
-				"Y".equals((String) para.getParameter());
+			if ( para.getParameterName().equals("IgnoreClassification") )
+				ignoreClassification = "Y".equals((String) para.getParameter());
 			else if ( para.getParameterName().equals("dateParam") )
 				dateParam = (Date) para.getParameter();
 			// parameters may also specify the start and end value of a range
@@ -112,7 +113,11 @@ public class CopyNonSelect extends SvrProcess {
 		
 		if((mProductTo.getM_Product_Category_ID() != mProductFrom.getM_Product_Category_ID()))
 		{
-			throw new AdempiereUserError("Destination product is a different Product Category or classification than parent product.");
+			if(!ignoreClassification)
+			{
+				throw new AdempiereUserError("Destination product is a different Product Category or classification than parent product.");
+			}
+			
 		}
 		if(mProductTo.getM_Product_ID() == mProductFrom.getM_Product_ID())
 		{
@@ -150,8 +155,8 @@ public class CopyNonSelect extends SvrProcess {
 		toMBLDProductPartType.setM_Product_ID(toProductID);
 		toMBLDProductPartType.setDescription(bdlPartTypeFrom.getDescription());
 		toMBLDProductPartType.setIsMandatory(bdlPartTypeFrom.isMandatory());
-		toMBLDProductPartType.setM_PartTypeId(bdlPartTypeFrom.getM_PartTypeID());
-		toMBLDProductPartType.setis_user_select(bdlPartTypeFrom.is_user_select());//Should always be 'N'
+		toMBLDProductPartType.setMPartTypeID(bdlPartTypeFrom.getM_PartTypeID());
+		toMBLDProductPartType.setIsUserSelect(bdlPartTypeFrom.isUserSelect());//Should always be 'N'
 		String sql = "SELECT NVL(MAX(Line),0)+10 FROM BLD_Product_PartType WHERE M_Product_ID=?";
 		int ii = DB.getSQLValue (get_TrxName(), sql, toMBLDProductPartType.getM_Product_ID());
 		toMBLDProductPartType.setLine(ii);
@@ -175,6 +180,9 @@ public class CopyNonSelect extends SvrProcess {
 			toMBLDProductNonSelect.setoperation_type(fromNonSelectLines[s].getoperation_type());
 			toMBLDProductNonSelect.setsubstituteproduct(fromNonSelectLines[s].getsubstituteproduct());
 			toMBLDProductNonSelect.setaddtionalproduct(fromNonSelectLines[s].getaddtionalproduct());
+			toMBLDProductNonSelect.setM_Attribute_ID(fromNonSelectLines[s].getM_Attribute_ID());
+			toMBLDProductNonSelect.setM_AttributeValue_ID(fromNonSelectLines[s].getM_AttributeValue_ID());
+			toMBLDProductNonSelect.setPP_Product_Bomline_ID(fromNonSelectLines[s].getPP_Product_Bomline_ID());
 			if(destMProductBomID1 > 0)
 			{
 				toMBLDProductNonSelect.setM_Product_Bom_ID(destMProductBomID1);

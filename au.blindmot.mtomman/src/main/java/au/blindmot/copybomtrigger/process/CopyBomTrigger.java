@@ -32,6 +32,7 @@ public class CopyBomTrigger extends SvrProcess {
 		//int toMProductID = 0;
 		private BigDecimal bigDecParam;
 		private int recordId = 0;
+		private boolean ignoreClassification = false;
 		
 		/**
 		 * The prepare function is called first and is used to load parameters
@@ -45,8 +46,8 @@ public class CopyBomTrigger extends SvrProcess {
 			// Each Report & Process parameter name is set by the field DB Column Name
 			for ( ProcessInfoParameter para : getParameter())
 			{
-				if ( para.getParameterName().equals("isBooleanParam") )
-					"Y".equals((String) para.getParameter());
+				if ( para.getParameterName().equals("IgnoreClassification") )
+					ignoreClassification = "Y".equals((String) para.getParameter());
 				else if ( para.getParameterName().equals("dateParam") )
 					dateParam = (Date) para.getParameter();
 				// parameters may also specify the start and end value of a range
@@ -106,7 +107,11 @@ public class CopyBomTrigger extends SvrProcess {
 			MPPProductBOMLine[] fromBomLines = MPPProductBOMLine.getBOMLines(mProductFrom);
 			if((mProductTo.getM_Product_Category_ID() != mProductFrom.getM_Product_Category_ID())/*|| !mProductTo.getClassification().equalsIgnoreCase(mProductFrom.getClassification())*/)
 			{
-				throw new AdempiereUserError("Destination product is a different Product Category or classification than parent product.");
+				if(!ignoreClassification)
+				{
+					throw new AdempiereUserError("Destination product is a different Product Category or classification than parent product.");
+				}
+				
 			}
 			if(mProductTo.getM_Product_ID() == mProductFrom.getM_Product_ID())
 			{

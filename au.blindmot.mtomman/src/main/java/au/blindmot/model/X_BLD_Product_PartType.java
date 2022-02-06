@@ -74,7 +74,7 @@ public class X_BLD_Product_PartType extends PO implements I_BLD_Product_PartType
 
 	/** Set BLD Product PartType.
 		@param BLD_Product_PartType_ID BLD Product PartType	  */
-	public void setBLD_Product_PartType_ID (int BLD_Product_PartType_ID)
+	public void setBLDProductPartTypeID (int BLD_Product_PartType_ID)
 	{
 		if (BLD_Product_PartType_ID < 1) 
 			set_ValueNoCheck (COLUMNNAME_BLD_Product_PartType_ID, null);
@@ -197,7 +197,7 @@ public class X_BLD_Product_PartType extends PO implements I_BLD_Product_PartType
 		return ii.intValue();
 	}
 
-	public void setM_PartTypeId(int mPartTypeID) {
+	public void setMPartTypeID(int mPartTypeID) {
 		if (mPartTypeID < 1) 
 			set_Value (COLUMNNAME_MPartTypeID, null);
 		else 
@@ -219,14 +219,14 @@ public class X_BLD_Product_PartType extends PO implements I_BLD_Product_PartType
 	
 	/** Set is_user_select.
 	@param is_user_select is_user_select	  */
-public void setis_user_select (boolean is_user_select)
+public void setIsUserSelect (boolean is_user_select)
 {
 	set_Value (COLUMNNAME_is_user_select, Boolean.valueOf(is_user_select));
 }
 
 /** Get is_user_select.
 	@return is_user_select	  */
-public boolean is_user_select () 
+public boolean isUserSelect () 
 {
 	Object oo = get_Value(COLUMNNAME_is_user_select);
 	if (oo != null) 
@@ -237,4 +237,41 @@ public boolean is_user_select ()
 	}
 	return false;
 }
+
+@Override
+public void setIs_Select_Other_BLD_Parttype(boolean Is_Select_Other_BLD_Parttype) {
+	set_Value (COLUMNNAME_Is_Select_Other_BLD_Parttype, Boolean.valueOf(Is_Select_Other_BLD_Parttype));
+}
+
+@Override
+public boolean isSelectOtherBLDParttype() {
+	Object oo = get_Value(COLUMNNAME_Is_Select_Other_BLD_Parttype);
+	if (oo != null) 
+	{
+		 if (oo instanceof Boolean) 
+			 return ((Boolean)oo).booleanValue(); 
+		return "Y".equals(oo);
+	}
+	return false;
+}
+
+@Override
+public void setOtherbomMParttypeID(int Otherbom_M_PartType_ID) {
+	if (Otherbom_M_PartType_ID < 1)
+		set_Value (COLUMNNAME_Otherbom_M_Parttpe_ID, null);
+	else
+		set_Value (COLUMNNAME_Otherbom_M_Parttpe_ID, Integer.valueOf(Otherbom_M_PartType_ID));
+	
+}
+
+@Override
+public int getOtherbomMParttypeID() {
+		Integer ii = (Integer)get_Value(COLUMNNAME_Otherbom_M_Parttpe_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+
+
 }

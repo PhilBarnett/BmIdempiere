@@ -3,6 +3,8 @@ package au.blindmot.model;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -23,6 +25,8 @@ import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Util;
+import org.eevolution.model.MPPProductBOM;
+import org.eevolution.model.MPPProductBOMLine;
 
 import au.blindmot.factories.BLDMtomMakeFactory;
 import au.blindmot.make.MadeToMeasureProduct;
@@ -45,6 +49,7 @@ public class MBLDMtomItemLine extends X_BLD_Mtom_Item_Line {
 		public static final String MTM_PRODUCTION_PREFIX = "01";
 		public static final String MTM_PRODUCTION_ITEM_PREFIX = "02";
 		public static final String MTM_PRODUCTION_ASSEMBLEY_ITEM = "03";
+		public static final String COLUMN_NAME_ADD_AS_MTM_PRODUCTION_LINE = "addasmtmproductionline";
 		
 		
 	public MBLDMtomItemLine(Properties ctx, MOrderLine orderLine, int mTM_prod_ID, String trxName) {
@@ -91,11 +96,27 @@ public class MBLDMtomItemLine extends X_BLD_Mtom_Item_Line {
 		
 	}
 	
+	/**
+	 * Create a production line from an orderline, with the specified product from
+	 * mProductID.
+	 * @param orderLine
+	 * @param mProductID
+	 */
 	public void setFromOrderLine(MOrderLine orderLine) {
 		int m_Prod_ID = orderLine.getM_Product_ID();
+		setFromOrderLine(orderLine, m_Prod_ID);
+	
+	}
+	
+	/**
+	 * 
+	 * @param orderLine
+	 * @param mProductID
+	 */
+	public void setFromOrderLine(MOrderLine orderLine,  int mProductID) {
 		setDescription(orderLine.getDescription());
-		setM_Product_ID(m_Prod_ID);
-		mProductId = m_Prod_ID;
+		setM_Product_ID(mProductID);
+		mProductId = mProductID;
 		setAD_Org_ID(orderLine.getAD_Org_ID());
 		setName(orderLine.getName());
 		setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
@@ -223,6 +244,25 @@ return false;
 	 * @param mtmLineItemId
 	 * @return
 	 */
+	/*
+	public static MBLDBomDerived[] getBomDerivedLines (Properties ctx, int mtmLineItemId, String trxnName)
+	{
+		 {
+			 	final String whereClause = MBLDBomDerived.COLUMNNAME_bld_mtom_item_line_ID+"=?"; 
+			 	List<MBLDBomDerived> list = new Query(ctx, MBLDBomDerived.Table_Name, whereClause, trxnName)
+			 		.setParameters(new Object[]{mtmLineItemId})
+			 		.setOrderBy(MBLDBomDerived.COLUMNNAME_bld_mtom_bomderived_ID)
+			 		.list();
+			 	return list.toArray(new MBLDBomDerived[list.size()]);
+			 }
+	}
+	*/
+	/**
+	 * 
+	 * @param ctx
+	 * @param mtmLineItemId
+	 * @return
+	 */
 	
 	public MBLDBomDerived[] getBomDerivedLines (Properties ctx, int mtmLineItemId)
 	{
@@ -235,6 +275,7 @@ return false;
 			 	return list.toArray(new MBLDBomDerived[list.size()]);
 			 }
 	}
+	
 
 	/*
 	 * createLines(boolean mustBeStocked)  and createLines(boolean mustBeStocked, MProduct finishedProduct, BigDecimal requiredQty)
@@ -320,16 +361,18 @@ return false;
 		
 		MBLDBomDerived[] bomDerived = getBomDerivedLines(getCtx(), getbld_mtom_item_line_ID());
 		log.warning("bomDerived [].toString() = " + bomDerived.toString() );
+		MBLDBomDerived[] bomDerivedCleaned = cleanMBLDBomDerived(bomDerived);
+		
 		try {
 			int BOMProduct_ID = 0;
 			BigDecimal BOMMovementQty;
 			BigDecimal BOMQty;
 		
-		for(int i = 0; i< bomDerived.length; i++)
+		for(int i = 0; i< bomDerivedCleaned.length; i++)
 		{
 			lineno = lineno + 10;
-			BOMProduct_ID = bomDerived[i].getM_Product_ID();
-			BOMQty = bomDerived[i].getQty();
+			BOMProduct_ID = bomDerivedCleaned[i].getM_Product_ID();
+			BOMQty = bomDerivedCleaned[i].getQty();
 			BOMMovementQty = BOMQty;
 			MProduct bomProd = new MProduct(p_ctx, BOMProduct_ID, get_TrxName());
 			log.warning("In for loop. i = " + i + "bomProduct: " + bomProd.getName());
@@ -515,6 +558,35 @@ return false;
 		return count;
 	}
 	
+	private MBLDBomDerived[] cleanMBLDBomDerived(MBLDBomDerived[] bomDerived) {
+		List<MBLDBomDerived> mBLDBomDerivedList = Arrays.asList(bomDerived);
+		List<MBLDBomDerived> mBLDBomDerivedListClean = new ArrayList<MBLDBomDerived>();
+		
+		//Get List of Bomlines for parent
+		
+		MPPProductBOMLine[]mPPProductBOMLines = MPPProductBOMLine.getBOMLines(MProduct.get(getM_Product_ID()));
+		List<MPPProductBOMLine> mPPProductBOMLinesList = Arrays.asList(mPPProductBOMLines);
+		for(MBLDBomDerived mBLDBomDerived : mBLDBomDerivedList)
+		{
+			//Remove if marked 'Add as MTM Production Line' in PP_Product_BOMLine, it has its own MTMItemLine
+			MPPProductBOMLine mPPProductBOMLine = new MPPProductBOMLine(p_ctx, mBLDBomDerived.getPP_Product_Bomline_ID(), get_TrxName());
+			MProduct mPPPBomLineProduct = MProduct.get(mPPProductBOMLine.getM_Product_ID());
+			if(mPPPBomLineProduct != null)System.out.println(mPPPBomLineProduct.toString());
+			
+			boolean isAddAsMTMLine = mPPProductBOMLine.get_ValueAsBoolean(COLUMN_NAME_ADD_AS_MTM_PRODUCTION_LINE);
+			boolean isOnParentBOM = mPPProductBOMLinesList.contains(mPPProductBOMLine);
+			if(!isAddAsMTMLine && isOnParentBOM)
+			{
+				mBLDBomDerivedListClean.add(mBLDBomDerived);
+			}
+			//Remove if not on Active parent BOM
+			
+		}
+		return mBLDBomDerivedListClean.toArray(new MBLDBomDerived[mBLDBomDerivedListClean.size()]);
+	}
+	
+	//private boolean isOnPPProductBOM(MPPProductBOMLine)
+
 	private Object processLines(MProductionLine[] lines) {
 		StringBuilder errors = new StringBuilder();
 		for ( int i = 0; i<lines.length; i++) {

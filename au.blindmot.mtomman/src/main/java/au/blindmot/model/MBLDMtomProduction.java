@@ -32,6 +32,8 @@ import org.compiere.util.Env;
 //import org.compiere.util.Trx;
 //import org.compiere.util.TrxRunnable;
 import org.compiere.util.Util;
+import org.eevolution.model.MPPProductBOM;
+import org.eevolution.model.MPPProductBOMLine;
 
 public class MBLDMtomProduction extends X_BLD_mtom_production implements DocAction, DocOptions {
 
@@ -39,6 +41,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	 * 
 	 */
 	private static final long serialVersionUID = 2339407400844279640L;
+	private static final String ADD_AS_MTMPRODUCTION_LINE ="addasmtmproductionline";
 	private int mOrder_id = 0;
 	private MOrder mOrder = null;
 	private MBLDMtomItemLine[] m_lines = null;
@@ -633,7 +636,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		if ( mtom_production_ID == 0)//The record hasn't been saved yet
 		{
 			log.severe("Can't add prodcution lines to null record. mtom_production_ID == " + mtom_production_ID);
-			throw new AdempiereUserError("Can't add prodcution lines to null record. mtom_production_ID == " + mtom_production_ID, "Have you saved the header record?");
+			throw new AdempiereUserError("Can't add production lines to null record. mtom_production_ID == " + mtom_production_ID, "Have you saved the header record?");
 			
 		}
 		/*Currently able to be added twice.
@@ -662,10 +665,23 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 				final String trxn = get_TrxName();
 				System.out.println("trxn: " + trxn + " get_TrxName(): " + get_TrxName());
 				
+				//Get any BOM line items from the orderLine product that are to added to the production
+				Integer additionalMProductIDs[] = getadditionalMProductIDs(mProduct);
+				if(additionalMProductIDs.length > 0)
+				{
+					for(int j = 0; j < additionalMProductIDs.length; j++)
+					{
+						MBLDMtomItemLine extraLine = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
+						extraLine.setFromOrderLine(theOrderLine, additionalMProductIDs[j].intValue());
+						extraLine.saveEx();
+						extraLine.set_Barcode();
+						extraLine.saveEx();
+					}
+				}
+				
 				MBLDMtomItemLine Line = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
 				Line.setFromOrderLine(theOrderLine);
 				Line.saveEx();
-				
 				Line.set_Barcode();
 				Line.saveEx();
 	
@@ -673,6 +689,33 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			}
 	}
 	
+	/**
+	 * Gets the additional products to add to a production from the MProduct mProduct.
+	 * @param mProduct
+	 * @return
+	 */
+	private Integer[] getadditionalMProductIDs(MProduct mProduct) {
+		MPPProductBOMLine[] mPPPRoductBOMLines = MPPProductBOM.getDefault(mProduct, get_TrxName()).getLines();
+		ArrayList<Integer> additionalProducts = new ArrayList<Integer>();
+		for(int i = 0; i < mPPPRoductBOMLines.length; i++)
+		{
+			boolean isAddToProduction = mPPPRoductBOMLines[i].get_ValueAsBoolean(ADD_AS_MTMPRODUCTION_LINE);
+			if(isAddToProduction)
+			{
+				additionalProducts.add(mPPPRoductBOMLines[i].getM_Product_ID());
+			}
+		}
+		
+		return additionalProducts.toArray(new Integer[additionalProducts.size()]);
+	}
+
+
+	/**
+	 * 
+	 * @param requery
+	 * @param orderBy
+	 * @return
+	 */
 	public MBLDMtomItemLine[] getLines (boolean requery, String orderBy)
 	{
 		if (m_lines != null && !requery) {
