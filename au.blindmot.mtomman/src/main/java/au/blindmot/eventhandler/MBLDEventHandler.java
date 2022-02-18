@@ -64,7 +64,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				//registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);//
 				registerTableEvent(IEventTopics.PO_POST_CREATE, MOrderLine.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
-				//registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);//Cause issues with copy at moment
+				//registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);//Cause issues with copy at moment?
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
 				}
 	
