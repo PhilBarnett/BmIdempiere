@@ -64,7 +64,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				//registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);//
 				registerTableEvent(IEventTopics.PO_POST_CREATE, MOrderLine.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
-				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);
+				//registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);//Cause issues with copy at moment
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
 				}
 	
@@ -106,12 +106,19 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		trxName = po.get_TrxName();
 		//po.save();
 		System.out.println(Env.getCtx().toString());
+		if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_CHANGE) && po.get_Value("copypk") == null)
+				{
+					return;
+				}
 		
+		if(!event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_CHANGE))
+		{
+			bMorderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
+			orderLine = new MOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
+			log.warning("---------Line 113");
+			log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
+		}
 		
-		bMorderLine = new BLDMOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
-		orderLine = new MOrderLine(Env.getCtx(), po.get_ID(), trxName);//The new OrderLine to copy the attribute instances to.
-		log.warning("---------Line 113");
-		log.warning("---------orderLine.getM_AttributeSetInstance_ID(): " + orderLine.getM_AttributeSetInstance_ID());
 		
 		//Attempt to exit if it's Purchase Order
 		if(!parentIsSalesOrder())
@@ -121,6 +128,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		
 		if(event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW))//new record is saved.
 		{
+			
 			//Check if there's a BLD Line ProductSetInstance; if none, create and set.
 			int mProductID = orderLine.getM_Product_ID();
 			int lineCopyID = orderLine.get_ValueAsInt("copypk");//
@@ -185,7 +193,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				}
 				
 				
-				if(copyFromOrderLine != null)//Then it's a copied record.
+				if(copyFromOrderLine != null || event.getTopic().equalsIgnoreCase(IEventTopics.PO_AFTER_NEW))//Then it's a copied record.
 					{
 					//Copy the Bldproduct set from old record to new.
 					copyBldProductInstance(copyFromOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),  orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), mProductID);
