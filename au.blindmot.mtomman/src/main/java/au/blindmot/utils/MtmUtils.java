@@ -944,6 +944,7 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 			returnIDs.addAll(processIDs(pCtx, mBLDLineProductInstance, productID, isSell));
 		}
 		
+		returnIDs.add(mProduct_ID);//Add parents
 		return returnIDs;
 	
 	}//getMTMPriceProductIDs
@@ -954,6 +955,7 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
  * @param mBLDLineProductInstance
  * @param otherProductID
  * @return
+ * Example: otherbomMpartTypeID is 
  */
 private static int getParentMproductIDFromOtherInstance(int otherbomMpartTypeID, MBLDLineProductInstance[] mBLDLineProductInstance, int otherProductID) {
 	int found = 0;
@@ -986,6 +988,7 @@ private static int getParentMproductIDFromOtherInstance(int otherbomMpartTypeID,
 	
 	return 0;
 }
+
 
 /**
  * 	
@@ -1067,7 +1070,7 @@ private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductIn
 	 * @param mBLDProductPartTypes 
 	 * @return
 	 */
-	private static ArrayList<Integer> getSelectOtherMpartTypeIDs (MBLDProductPartType[] mBLDProductPartTypes) {
+	public static ArrayList<Integer> getSelectOtherMpartTypeIDs (MBLDProductPartType[] mBLDProductPartTypes) {
 		ArrayList<Integer> otherPartTypeIntegers = new ArrayList<Integer>();
 		for(int i = 0; i< mBLDProductPartTypes.length; i++)
 		{
@@ -1303,6 +1306,19 @@ private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductIn
 		params1[0] = parentMproduct_ID;
 		params1[1] = "A";
 		return DB.getSQLValue(null, sql1.toString(), params1);
+	}
+
+	public static ArrayList<Integer> getOtherParentProductsFromBom(int mProductID, int otherMPartTypeID) {
+		MPPProductBOM mPPProductBOM = MPPProductBOM.getDefault(MProduct.get(mProductID), null);
+		MPPProductBOMLine[] mPPProductBOMLines = mPPProductBOM.getLines();
+		ArrayList<Integer> matchedProductIDs = new ArrayList<Integer>();
+		for(int t = 0; t < mPPProductBOMLines.length; t++)
+		{
+			MProduct lineProduct = MProduct.get(mPPProductBOMLines[t].getM_Product_ID());
+			int lineMpartTypeID = lineProduct.getM_PartType_ID();
+			if(lineMpartTypeID == otherMPartTypeID) matchedProductIDs.add(lineProduct.getM_Product_ID());
+		}
+		return matchedProductIDs;
 	}
 	
 }

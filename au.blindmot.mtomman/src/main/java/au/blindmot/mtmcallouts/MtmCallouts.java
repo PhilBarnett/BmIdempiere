@@ -208,7 +208,7 @@ public class MtmCallouts implements IColumnCallout {
 							 * TODO: change to set the price based on the break valXprice calc, set qty to user entered or 1.
 							 */
 							
-							log.warning("-------MtmCallouts setting field " + MOrderLine.COLUMNNAME_QtyEntered +  " with: " + breakvalOderLineProduct);
+							//log.warning("-------MtmCallouts setting field " + MOrderLine.COLUMNNAME_QtyEntered +  " with: " + breakvalOderLineProduct);
 							//setField(breakval, mTab, MOrderLine.COLUMNNAME_QtyEntered);
 							amt(Env.getCtx(), windowNum, tab, gridField, value, breakvalOderLineProduct);
 							setLocked(true, mTab);

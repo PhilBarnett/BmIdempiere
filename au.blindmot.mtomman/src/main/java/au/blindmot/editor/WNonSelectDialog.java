@@ -281,7 +281,7 @@ public class WNonSelectDialog extends Window implements EventListener<Event>
 		editor.setMold("select");
 		int bLDProductNonSelectID = Env.getContextAsInt(Env.getCtx(), m_WindowNoParent, "BLD_Product_Non_Select_ID");
 		int mProductID = Env.getContextAsInt(Env.getCtx(), m_WindowNoParent, "M_Product_ID");
-		if(bLDProductNonSelectID >= 0 && mProductID >= 0)
+		if(bLDProductNonSelectID > 0 && mProductID >= 0)
 		{
 			MBLDProductNonSelect mBLDProductNonSelect = new MBLDProductNonSelect(Env.getCtx(), bLDProductNonSelectID, null);
 			MProduct[] mProducts = mBLDProductNonSelect.getNonSelectableProducts();

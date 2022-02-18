@@ -2,6 +2,7 @@ package au.blindmot.model;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
@@ -140,28 +141,50 @@ public class MBLDProductNonSelect extends X_BLD_Product_Non_Select {
 		return mps.toArray(mpsArray);
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
 	public MProduct[] getNonSelectableProducts() {
-		List<MProduct> mps = null;
+		ArrayList<MProduct> mps = new ArrayList<MProduct>();
 		String trxName  = get_TrxName();
+		
+		
 		MBLDProductPartType mBLDProductPartType = new MBLDProductPartType(Env.getCtx(), getBLD_Product_PartType_ID(), trxName);
 		//int bLDProductPTID = Env.getContextAsInt(Env.getCtx(), m_WindowNoParent, "BLD_Product_PartType_ID");
 		int mProductID = mBLDProductPartType.getM_Product_ID();
-		if(mBLDProductPartType != null)
+		int mPartTypeID = mBLDProductPartType.getM_PartTypeID();
+		
+		ArrayList<Integer> parentProducts = null;
+		int otherMPartTypeID = mBLDProductPartType.getOtherbomMParttypeID();
+		if(otherMPartTypeID > 0)//Get the other parents to get BOM lines from
 		{
-			//MBLDProductPartType mPPT = new MBLDProductPartType(Env.getCtx(), bLDProductPTID, null);
-			int mPartTypeID = mBLDProductPartType.getM_PartTypeID();
-			StringBuilder whereClause = new StringBuilder();
-			whereClause.append("m_product.m_parttype_id = ");
-			whereClause.append(mPartTypeID);
-			whereClause.append(" AND m_product_bom.m_product_id = ");
-			whereClause.append(mProductID);
+			parentProducts = MtmUtils.getOtherParentProductsFromBom(mProductID, otherMPartTypeID);
+		}
+		else//Just add the parent product.
+		{
+			parentProducts = new ArrayList<Integer>();
+			parentProducts.add(mProductID);
+		}
+		
+//Loop through parent products, get bomline products.
+		//ArrayList<Integer> matchedProductIDs = new ArrayList<Integer>();
+		for(Integer mpProductID : parentProducts)
+		{
+			//Get Bom
+			MPPProductBOM mPPProductBOM = MPPProductBOM.getDefault(MProduct.get(mpProductID), null);
+			MPPProductBOMLine[] mPPProductBOMLines = mPPProductBOM.getLines();
 			
-			StringBuilder joinClause = new StringBuilder("JOIN m_product_bom ON m_product_bom.m_productbom_id ");
-			joinClause.append("= m_product.m_product_id");
-			
-			//box.appendItem(" ","0");
-			mps = new Query(Env.getCtx(), MProduct.Table_Name, whereClause.toString(), null).addJoinClause(joinClause.toString()).list();
-	}
+			for(int y = 0; y < mPPProductBOMLines.length; y++)
+			{
+				MProduct lineProduct = MProduct.get(mPPProductBOMLines[y].getM_Product_ID());
+				int linePartTypeID = lineProduct.getM_PartType_ID();
+				if(linePartTypeID == mPartTypeID)
+				{
+					mps.add(lineProduct);
+				}
+			}
+		}
 		MProduct[] mpsArray = new MProduct[mps.size()];
 		return mps.toArray(mpsArray);
 	
