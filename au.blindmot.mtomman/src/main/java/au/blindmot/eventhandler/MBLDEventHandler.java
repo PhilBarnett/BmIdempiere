@@ -64,7 +64,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				//registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);//
 				registerTableEvent(IEventTopics.PO_POST_CREATE, MOrderLine.Table_Name);
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
-				//registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);//Cause issues with copy at moment?
+				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);//Cause issues with copy at moment?
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
 				}
 	
@@ -337,6 +337,10 @@ public class MBLDEventHandler extends AbstractEventHandler {
 			{
 				//Update gross margin
 				//Calculate Gross margin... totallines - total cost / totallines
+				if(orderLine == null)
+				{
+					orderLine = new MOrderLine(Env.getCtx(), po.get_ID(), trxName);
+				}
 				StringBuilder sql = new StringBuilder("SELECT SUM(c_orderline.calculated_cost) ");
 				sql.append("FROM c_orderline ");
 				sql.append("WHERE c_orderline.c_order_id = ?");
@@ -383,6 +387,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	}
 
 	private boolean parentIsSalesOrder() {
+		if(orderLine == null) return true;
 		parentOrder = new MOrder(Env.getCtx(), orderLine.getC_Order_ID(), trxName);
 		log.warning("Parent Order is a purchase order check....");
 		if(parentOrder.isSOTrx())

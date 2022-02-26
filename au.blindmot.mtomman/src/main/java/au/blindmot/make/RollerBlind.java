@@ -13,6 +13,7 @@ import org.compiere.model.X_M_PartType;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
+import org.eevolution.model.MPPProductBOM;
 
 import au.blindmot.model.MBLDBomDerived;
 import au.blindmot.model.MBLDLineProductInstance;
@@ -53,6 +54,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	protected int rollerTubeID = 0;
 	protected int fabricID = 0;
 	protected int bottomBarID = 0;
+	protected int liftSpringID = 0;
 	String patternString = null;
     Pattern pattern = null;
     BigDecimal oneHundred = new BigDecimal("100");
@@ -232,11 +234,15 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 * @param m_product_id
 	 */
 	protected void populatePartTypes(int m_product_id) {
+		MPPProductBOM mPPProductBOM = MPPProductBOM.getDefault(MProduct.get(m_product_id), trxName);
+		int pPproductBomID = mPPProductBOM.getPP_Product_BOM_ID();
+		
 		StringBuilder sql = new StringBuilder("SELECT mp.m_parttype_id, mp.m_product_id, mp.name ");
-		sql.append("FROM m_product mp INNER JOIN m_product_bom mpb ");
-		sql.append("ON mp.m_product_id = mpb.m_productbom_id ");
-		sql.append("AND mpb.m_product_id = ");
-		sql.append(m_product_id);
+		sql.append("FROM m_product mp ");
+		sql.append("JOIN pp_product_bomline ppb ");
+		sql.append("ON mp.m_product_id = ppb.m_product_id ");
+		sql.append("AND ppb.pp_product_bom_id = ");
+		sql.append(pPproductBomID);
 		sql.append(" ORDER BY mp.m_parttype_id");
 		
 		List<String> mpName = new ArrayList<String>();
@@ -337,6 +343,10 @@ public class RollerBlind extends MadeToMeasureProduct{
 				{
 					return qty;
 				}
+			} else if(mProductBomid == liftSpringID)
+			{
+				qty = Env.ONE;
+				return qty;
 			}
 		return qty;//Default
 		//return super.getBomQty(mProductBomid);
@@ -612,7 +622,8 @@ public class RollerBlind extends MadeToMeasureProduct{
 			    	 {
 				    	 if(springRotation.equalsIgnoreCase(rotation))
 					    	 {
-					    		return springID; 
+				    		 liftSpringID = springID;
+				    		 return springID; 
 					    	 }
 				     }
 			     }

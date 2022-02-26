@@ -1009,7 +1009,10 @@ private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductIn
 		params1[0] = parentMproduct_ID;
 		int pp_product_bom_id = DB.getSQLValue(null, sql1.toString(), params1);
 		*/
-		int pp_product_bom_id = MPPProductBOM.getDefault(MProduct.get(parentMproduct_ID), null).getPP_Product_BOM_ID();
+		MPPProductBOM defaultBom = MPPProductBOM.getDefault(MProduct.get(parentMproduct_ID), null);
+		if (defaultBom != null)
+		{
+		int pp_product_bom_id = defaultBom.getPP_Product_BOM_ID();
 		
 		for (int i = 0; i < instance.length; i++)
 		{
@@ -1060,6 +1063,7 @@ private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductIn
 				}
 			}
 		}
+	}
 		return productIDs;
 		
 	}
