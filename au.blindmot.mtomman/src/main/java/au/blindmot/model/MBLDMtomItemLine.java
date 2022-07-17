@@ -123,6 +123,8 @@ public class MBLDMtomItemLine extends X_BLD_Mtom_Item_Line {
 		setattributesetinstance_id(orderLine.getM_AttributeSetInstance_ID());
 		setLine(orderLine.getLine());
 		setBld_Line_ProductSetInstance_ID(orderLine.get_ValueAsInt("bld_line_productsetinstance_id"));
+		
+		/*
 		if(orderLine.get_Value("mtm_attribute")!=null)
 		{
 			setinstance_string(orderLine.get_Value("mtm_attribute").toString());
@@ -130,7 +132,7 @@ public class MBLDMtomItemLine extends X_BLD_Mtom_Item_Line {
 		else
 		{
 			setinstance_string("0_0_0");
-		}
+		} */
 	}
 
 	/**
@@ -558,6 +560,12 @@ return false;
 		return count;
 	}
 	
+	/**
+	 * Removes products from production lines that are not on parent BOM
+	 * or if marked 'Add as MTM Production Line' in PP_Product_BOMLine, it has its own MTMItemLine
+	 * @param bomDerived
+	 * @return
+	 */
 	private MBLDBomDerived[] cleanMBLDBomDerived(MBLDBomDerived[] bomDerived) {
 		List<MBLDBomDerived> mBLDBomDerivedList = Arrays.asList(bomDerived);
 		List<MBLDBomDerived> mBLDBomDerivedListClean = new ArrayList<MBLDBomDerived>();

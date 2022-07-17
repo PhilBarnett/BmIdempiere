@@ -42,6 +42,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	 */
 	private static final long serialVersionUID = 2339407400844279640L;
 	private static final String ADD_AS_MTMPRODUCTION_LINE ="addasmtmproductionline";
+	private static final String BLD_LINE_PRODUCTSETINSTANCE_ID = "bld_line_productsetinstance_id";
 	private int mOrder_id = 0;
 	private MOrder mOrder = null;
 	private MBLDMtomItemLine[] m_lines = null;
@@ -665,12 +666,17 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 				final String trxn = get_TrxName();
 				System.out.println("trxn: " + trxn + " get_TrxName(): " + get_TrxName());
 				
-				//Get any BOM line items from the orderLine product that are to added to the production
-				Integer additionalMProductIDs[] = getadditionalMProductIDs(mProduct);
+				//Get any BOM line items from the orderLine product that are to be added to the production
+				Integer additionalMProductIDs[] = getadditionalMProductIDs(mProduct, theOrderLine);
 				if(additionalMProductIDs.length > 0)
 				{
 					for(int j = 0; j < additionalMProductIDs.length; j++)
 					{
+						if(!isMTMandisManufactured(additionalMProductIDs[j]))
+						{
+							throw new AdempiereUserError(MProduct.get(additionalMProductIDs[j]).toString() + " is not Made to Measure and/or not manufactured, check product setup.");
+						}
+						
 						MBLDMtomItemLine extraLine = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
 						extraLine.setFromOrderLine(theOrderLine, additionalMProductIDs[j].intValue());
 						extraLine.saveEx();
@@ -689,20 +695,42 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			}
 	}
 	
+	private boolean isMTMandisManufactured(Integer mProductID) {
+		MProduct mProduct = MProduct.get(mProductID);
+		if(mProduct.get_ValueAsBoolean("ismadetomeasure") && mProduct.isManufactured()) return true;
+		return false;
+	}
+
+
 	/**
 	 * Gets the additional products to add to a production from the MProduct mProduct.
 	 * @param mProduct
+	 * @param theOrderLine 
 	 * @return
 	 */
-	private Integer[] getadditionalMProductIDs(MProduct mProduct) {
+	private Integer[] getadditionalMProductIDs(MProduct mProduct, MOrderLine theOrderLine) {
 		MPPProductBOMLine[] mPPPRoductBOMLines = MPPProductBOM.getDefault(mProduct, get_TrxName()).getLines();
+		int bld_line_productsetinstance_id = theOrderLine.get_ValueAsInt(BLD_LINE_PRODUCTSETINSTANCE_ID);
+		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDLineProductInstance.getmBLDLineProductInstance(bld_line_productsetinstance_id, get_TrxName());
 		ArrayList<Integer> additionalProducts = new ArrayList<Integer>();
 		for(int i = 0; i < mPPPRoductBOMLines.length; i++)
 		{
 			boolean isAddToProduction = mPPPRoductBOMLines[i].get_ValueAsBoolean(ADD_AS_MTMPRODUCTION_LINE);
+			
 			if(isAddToProduction)
 			{
-				additionalProducts.add(mPPPRoductBOMLines[i].getM_Product_ID());
+				for(int c = 0; c < mBLDLineProductInstance.length; c++)
+				{
+					int additionalProductIdToAdd = mPPPRoductBOMLines[i].getM_Product_ID();
+					//Check if the isAddToProduction product is on the bld products for this orderline
+					if(mBLDLineProductInstance[c].getM_Product_ID() == additionalProductIdToAdd)
+					{
+						additionalProducts.add(additionalProductIdToAdd);
+						break;
+					}
+					
+				}
+				
 			}
 		}
 		

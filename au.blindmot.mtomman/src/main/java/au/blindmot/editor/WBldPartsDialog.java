@@ -1548,7 +1548,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 					if(partSetPartypeID == editorPartTypeID)
 					{
 						
-						if (productPartSet[i].isMandatory() && value == null)
+						if (editor.isEnabled() && productPartSet[i].isMandatory() && (value == null || value.get_ID() < 1))
 							mandatory += " - " + productPartSet[i].getName();
 						
 						log.warning("BEFORE if((!isChainPartType(editor)) || ((isChainPartType(editor) && isChainControl)))");
@@ -1899,19 +1899,27 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		MProduct parentProduct = new MProduct(((MProduct) ((Listbox) parentEditor).getValue()));
 		int mProductID = parentProduct.getM_Product_ID();
 		
-		MProduct referencedProduct = new MProduct(((MProduct) ((Listbox) referencedEditor).getValue()));
-		int referencedMPartTypeID = referencedProduct.getM_PartType_ID();
+		MBLDProductPartType mBLDProductPartType = new MBLDProductPartType(Env.getCtx(), mBLDProductPartTypeID, null);
+		int referencedMPartTypeID = mBLDProductPartType.getM_PartTypeID();
 		
 		
-		//Get values for referenced editor.		
-		MProduct[] values = MBLDProductPartType.getPartSetProducts(mProductID, referencedMPartTypeID, null);
-		values = modifyDualTypes(values, isDualRoller);
-		referencedEditor.removeAllItems();
-		for (MProduct value : values) 
+		//Get values for referenced editor.	
+		if(mProductID > 1)//Editor not empty 
 		{
-			ListItem item = new ListItem(value != null ? value.getName() : "", value);
-			referencedEditor.appendChild(item);
+			MProduct[] values = MBLDProductPartType.getPartSetProducts(mProductID, referencedMPartTypeID, null);
+			values = modifyDualTypes(values, isDualRoller);
+			referencedEditor.removeAllItems();
+			for (MProduct value : values) 
+			{
+				ListItem item = new ListItem(value != null ? value.getName() : "", value);
+				referencedEditor.appendChild(item);
+			}
 		}
+		if(mProductID < 1)//Editor empty
+		{
+			referencedEditor.removeAllItems();
+		}
+		
 	}
 	 
 	/**

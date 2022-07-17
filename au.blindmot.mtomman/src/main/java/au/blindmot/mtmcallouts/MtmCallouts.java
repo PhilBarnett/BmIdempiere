@@ -134,8 +134,8 @@ public class MtmCallouts implements IColumnCallout {
 			
 			if(isMadeToMeasure)
 			{
-				if(isPriceLocked(mTab) && (mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_M_AttributeSetInstance_ID))
-						||(mField.getColumnName().equalsIgnoreCase("bld_line_productsetinstance_id")))
+				if(isPriceLocked(mTab) && (mField.getColumnName().equalsIgnoreCase(MOrderLine.COLUMNNAME_M_AttributeSetInstance_ID)
+						|| mField.getColumnName().equalsIgnoreCase("BLD_Line_ProductSetInstance_ID")))
 				{
 					return "";//Don't change qty fields if price is locked - no change to qty, no change to price.
 				}

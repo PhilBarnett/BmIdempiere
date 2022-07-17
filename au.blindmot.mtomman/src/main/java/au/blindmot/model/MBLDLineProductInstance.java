@@ -1,7 +1,14 @@
 package au.blindmot.model;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Properties;
+import java.util.logging.Level;
+
+import org.compiere.util.DB;
+import org.compiere.util.Env;
 
 public class MBLDLineProductInstance extends X_BLD_Line_ProductInstance {
 
@@ -52,6 +59,51 @@ public class MBLDLineProductInstance extends X_BLD_Line_ProductInstance {
 	
 	}
 	
+	/**
+	 * 
+	 * @param bld_Line_ProductSetInstance_ID
+	 * @param trxn
+	 * @return
+	 */
+	public static MBLDLineProductInstance[] getmBLDLineProductInstance(int bld_Line_ProductSetInstance_ID, String trxn) {
+		
+		StringBuilder sql = new StringBuilder();
+		sql.append("SELECT bld_line_productinstance_id ");
+		sql.append("FROM bld_line_productinstance ");
+		sql.append("WHERE bld_line_productsetinstance_id = ? ");
+		sql.append("ORDER BY bld_product_parttype_id");
+		MBLDLineProductInstance[] retValueArray  = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		ArrayList<MBLDLineProductInstance> mBPSI = new ArrayList<MBLDLineProductInstance>();
+		
+		try
+		{
+			pstmt = DB.prepareStatement(sql.toString(), null);
+			pstmt.setInt(1, bld_Line_ProductSetInstance_ID);
+			rs = pstmt.executeQuery();
+			while(rs.next())
+			{
+				int mBLDLineProductInstanceID = rs.getInt(1);
+				MBLDLineProductInstance addValue = new MBLDLineProductInstance (Env.getCtx(), mBLDLineProductInstanceID, trxn);
+				//Does this need to be saved? addValue.saveEx();
+				mBPSI.add(addValue);
+			}
+		}
+		catch (SQLException ex)
+		{
+			MBLDProductPartType.log.log(Level.SEVERE, sql.toString(), ex);
+		}
+		finally
+		{
+			DB.close(rs, pstmt);
+			rs = null; pstmt = null;
+		}
+		retValueArray = new MBLDLineProductInstance[mBPSI.size()];
+		return mBPSI.toArray(retValueArray);
+		
+		}
+
 	public MBLDLineProductInstance(Properties ctx, int id, String trxName)
 	{
 		super(ctx, id, trxName);

@@ -49,6 +49,9 @@ public class MtmUtils {
 	public static final String MTM_BOTTOM_BAR_DEDUCTION = "Bottom bar addition";
 	public static final String MTM_DROP_DEDUCTION = "Drop deduction";
 	public static final String MTM_OVERALL_DEDUCTION = "Overall deduction";
+	public static final String MTM_WIDTH_ADDITION = "Width addition";
+	public static final String MTM_WIDTH_MULTIPLIER = "Width multiplier";
+	public static final String MTM_DROP_MULTIPLIER = "Drop multiplier";
 	//public static final String MTM_HOOK_CLEARANCE_FF = "Hook clearance face fix";
 	//public static final String MTM_HOOK_CLEARANCE_FF_SW = "Hook clearance face fix Swave";
 	//public static final String MTM_HOOK_CLEARANCE_TF_SW = "Hook clearance top fix Swave";
@@ -862,7 +865,7 @@ public static ArrayList <Integer> getMTMPriceProductIDs(Properties pCtx, MOrderL
 	}
 	//Add the orderline product to the list so the orderline price gets added.
 	productIDsCheck.add(Integer.valueOf(mOrderLine.getM_Product_ID()));
-	MBLDLineProductInstance[] instance = MBLDProductPartType.getmBLDLineProductInstance(mOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),null);
+	MBLDLineProductInstance[] instance = MBLDLineProductInstance.getmBLDLineProductInstance(mOrderLine.get_ValueAsInt("bld_line_productsetinstance_id"),null);
 	//Breakpoint addes below to check this still works from EventHandler
 	return processIDs(pCtx, /*productIDsCheck,*/ instance, mProduct_ID, true);
 }
@@ -899,7 +902,7 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		}
 		
 		//Get All the products in the part selection dialogue into an array
-		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(line.get_ValueAsInt("bld_line_productsetinstance_id"),null);
+		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDLineProductInstance.getmBLDLineProductInstance(line.get_ValueAsInt("bld_line_productsetinstance_id"),null);
 				
 		//Add the orderline product to the list so the orderline price gets added.
 		
@@ -913,8 +916,12 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		}
 		
 		//Loop through all the products in the part selection dialogue, add any that are 'Select other parttype'.
-		//Get all selectable parttypes with a Otherbom_M_Parttype_ID
 		MBLDProductPartType[] mBLDProductPartTypes = MBLDProductPartType.getMBLDProductPartTypes(Env.getCtx(), mProduct_ID, null);
+		/*mBLDProductPartTypes contains a list of the dialogue part types EG Curtain track, Fabric, Curtain Lining, Curtain bracket
+		 *Some of the part types will be 'select other part types' which is a setting that allows items on a parent's BOM
+		 *to have items selected from their BOM
+		 */
+		//Get all selectable parttypes with a Otherbom_M_Parttype_ID
 		ArrayList<Integer> otherbomMpartTypeIDs = getSelectOtherMpartTypeIDs(mBLDProductPartTypes);
 		
 		for(int x = 0; x < mBLDLineProductInstance.length; x++)
@@ -927,10 +934,13 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 			if(otherbomMpartTypeIDs.contains(mPartTypeID))
 			{
 				//Add the mProductID of the otherBomMPartType
+				/*What it needs to do is find the 'other' product on the BLD Line ProductSetInstance Dialogue and add it once?
+				 */
+				
 				
 				int instanceProductID = mBLDLineProductInstance[x].getM_Product_ID();//EG bracket on track BOM
 				int parentProductIDtoAdd = getParentMproductIDFromOtherInstance(mPartTypeID, mBLDLineProductInstance, instanceProductID);
-				if(parentProductIDtoAdd > 0)
+				if(parentProductIDtoAdd > 0 && !productIDsCheck.contains(parentProductIDtoAdd))//Add parents only once
 				{
 					productIDsCheck.add(parentProductIDtoAdd);
 				}
@@ -1069,6 +1079,8 @@ private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductIn
 	}
 	
 	/**
+	 * Returns a list of the 'other part type' that was used to select sub BOm items from
+	 * in the BLD Line Product SetInstance (product options) dialogue.
 	 * @param defaultMPPProductBOMLines
 	 * @param parentProductID 
 	 * @param mBLDProductPartTypes 
@@ -1261,8 +1273,10 @@ private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductIn
 	
 	/**
 	 * Gets runner count for curtain carriers
-	 * NOTE: This gets the runner count for each curtain then returns the count per curtain * number of curtains. The runner count per curtain is always rounded up to even;
-	 * To get the runner count per curtain, dividing back to the number of curtains will always get an even number. This method is used for both Swave and standard carriers.
+	 * NOTE: This gets the runner count for each curtain then returns the count per curtain * number of curtains. 
+	 * The runner count per curtain is always rounded up to even;
+	 * To get the runner count per curtain, dividing back to the number of curtains will always get an even number. 
+	 * This method is used for both Swave and standard carriers.
 	 * Swave curtains MUST have an even number of carriers.
 	 * @param trackWidth
 	 * @param numOfCurtains 

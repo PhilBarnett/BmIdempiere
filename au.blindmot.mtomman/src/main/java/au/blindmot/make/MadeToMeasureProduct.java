@@ -312,15 +312,22 @@ public static String EACH_1 = "Ea ";//Each with space
 		BigDecimal bigHeight = new BigDecimal(height);
 		if(mProductID != 0)
 		{
+			addBldMtomCuts(mProductID, bigWidth, bigLength, bigHeight);
+		}
+		
+	}
+	
+	protected void addBldMtomCuts(int mProductID, BigDecimal width, BigDecimal length, BigDecimal height) {
+		if(mProductID != 0)
+		{
 			MBLDMtomCuts cut = new MBLDMtomCuts(Env.getCtx(), 0, trxName);
-			cut.setWidth(bigWidth);
-			cut.setLength(bigLength);
-			cut.setHeight(bigHeight);
+			cut.setWidth(width);
+			cut.setLength(length);
+			cut.setHeight(height);
 			cut.setM_Product_ID(mProductID);
 			cut.setbld_mtom_item_line_ID(mtom_item_line_id);
 			cut.saveEx();
 		}
-		
 	}
 	
 	public AttributePair[] getMAttributeSetInstance() {
@@ -471,7 +478,7 @@ public static String EACH_1 = "Ea ";//Each with space
 	 */
 	public MBLDLineProductInstance[] getMBLDLineProductInstance() {
 		int bld_Line_ProductSetInstance_ID = mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID();
-		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDProductPartType.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
+		MBLDLineProductInstance[] mBLDLineProductInstance = MBLDLineProductInstance.getmBLDLineProductInstance(bld_Line_ProductSetInstance_ID, trxName); 
 		return mBLDLineProductInstance;
 	}//getMBLDLineProductInstance
 	
@@ -766,7 +773,7 @@ public static String EACH_1 = "Ea ";//Each with space
 			MProduct bldPartSetProduct = new MProduct(Env.getCtx(), mBLDLineProductInstance[i].getM_Product_ID(), trxName);
 			X_M_PartType xMPartType = new X_M_PartType(Env.getCtx(), bldPartSetProduct.getM_PartType_ID(), trxName);
 			
-			 if(xMPartType.getName().equalsIgnoreCase(partType))
+			if(xMPartType != null && xMPartType.getName() != null && xMPartType.getName().equalsIgnoreCase(partType))
 			 {
 				int partTypeID = mBLDLineProductInstance[i].getM_Product_ID();
 				foundIDs.add(Integer.valueOf(partTypeID));
@@ -811,8 +818,12 @@ public static String EACH_1 = "Ea ";//Each with space
 	 public static boolean isProductPartTypeSelectable(int bomProductID, int m_product_id) {
 		 
 		 MBLDProductPartType[] mBLDProductPartTypes = MBLDProductPartType.getMBLDProductPartTypes(Env.getCtx(), m_product_id, null);
-		 int partTypeID = MProduct.get(bomProductID).getM_PartType_ID();
 		 boolean found = false;
+		if(bomProductID > 0) 
+		{
+			int partTypeID = MProduct.get(bomProductID).getM_PartType_ID();
+		
+		 
 		 for(int q = 0; q < mBLDProductPartTypes.length; q++)
 		 {
 			 if(mBLDProductPartTypes[q].getM_PartTypeID() == partTypeID)//It's a selectable parttype
@@ -821,6 +832,7 @@ public static String EACH_1 = "Ea ";//Each with space
 				 break;
 			 }
 		 }
+	 }
 		return found;
 	 }
 	

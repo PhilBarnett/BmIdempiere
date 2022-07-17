@@ -122,7 +122,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		if(fabricID !=0 )
 
 			{
-				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);	
+				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, Env.ZERO);	
 			}
 		
 		int rollerTID = getBomDerivedProductID(PART_TYPE_ROLLER_TUBE);
@@ -139,7 +139,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		
 		if(rollerTubeID !=0 )
 			{
-				addBldMtomCuts(rollerTubeID,Env.ZERO,getRollerTubeCut(wide),0);
+				addBldMtomCuts(rollerTubeID,Env.ZERO,getRollerTubeCut(wide),Env.ZERO);
 				log.warning("--------addBldMtomCuts Adding roller tube to cuts: " + rollerIDToUse);
 			}
 		
@@ -157,7 +157,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		if(bottombarIDToUse !=0 )
 
 			{
-				addBldMtomCuts(bottombarIDToUse,Env.ZERO,bottomBarCut,0);
+				addBldMtomCuts(bottombarIDToUse,Env.ZERO,bottomBarCut,Env.ZERO);
 			}
 		
 		return true;
@@ -435,6 +435,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 	 * @param length
 	 * @param height
 	 */
+	/*
 	protected void addBldMtomCuts(int mProductID, BigDecimal width, BigDecimal length, int height){
 		BigDecimal bigWidth = width;
 		BigDecimal bigLength = length;
@@ -450,7 +451,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 			cut.saveEx();
 		}
 		
-	}//addBldMtomCuts
+	}//addBldMtomCuts */
 
 	 
 	 public ArrayList <KeyNamePair> getHeadRailComps() {

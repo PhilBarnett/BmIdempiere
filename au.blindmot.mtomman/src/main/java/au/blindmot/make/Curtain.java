@@ -140,12 +140,6 @@ public class Curtain extends RollerBlind {
 		//setIsSwave();
 		
 		log.warning("---------In getCuts()");
-		/*
-		 *
-		 * TODO: Modify to iterate through BOM derived and cut as appropriate:
-		 * getBomDerived
-		 * iterate -> get cut based on parttype
-		 */
 		
 		int trackID = getBomDerivedProductID(CurtainConfig.PART_TYPE_CURTAIN_TRACK.toString());
 		log.warning("--------Curtain track ID found: " + trackID);
@@ -183,7 +177,14 @@ public class Curtain extends RollerBlind {
 		{
 			if(curtainTapeID > 0)
 			{
-				addBldMtomCuts(curtainTapeID,Env.ZERO,getBomQty(curtainTapeID),0);
+				//BigDecimal qty = getCurtainFabricQty(mProductID);
+				int numberOfCurtains = getNumberOfCurtains(curtainOpening);
+				{	
+					for(int i = 0; i < numberOfCurtains; i++)
+					{
+						addBldMtomCuts(curtainTapeID,Env.ZERO,getBomQty(curtainTapeID),Env.ZERO);	
+					}
+				}
 			}
 		}
 		
@@ -318,6 +319,7 @@ public class Curtain extends RollerBlind {
 		
 		
 		BigDecimal qty = BigDecimal.ZERO;
+		if(mProductBomid == 0) return qty;
 		if(mProductBomid == curtainTrackID)
 			{
 				//qty = getRollerTubeQty(curtainTrackID);//check to see if this works - if it does delete this comment.
@@ -363,11 +365,13 @@ public class Curtain extends RollerBlind {
 					return qty;
 				}
 			}
-			else if(mProductBomid == curtainBracketID)
+		
+		
+		else if(mProductBomid == curtainBracketID)
 			{
 				setIsFaceFix(mProductBomid);
-				int bracketsPerMetre = Integer.valueOf((String) MtmUtils.getMattributeInstanceValue(mProductBomid, CurtainConfig.ATTRIBUTE_BRACKETS_PER_METRE.toString(), trxName));
-				BigDecimal bigBracketsPerMetre = BigDecimal.valueOf(bracketsPerMetre);
+				String  bracketsPerMetre = (String) MtmUtils.getMattributeInstanceValue(mProductBomid, CurtainConfig.ATTRIBUTE_BRACKETS_PER_METRE.toString(), trxName);
+				BigDecimal bigBracketsPerMetre = new BigDecimal(bracketsPerMetre);
 				BigDecimal bigTrackWidth = BigDecimal.valueOf(wide);
 				
 				BigDecimal bracketsRounded = qty;
@@ -411,6 +415,8 @@ public class Curtain extends RollerBlind {
 		BigDecimal targetFullness = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(m_product_id, CurtainConfig.ATRRIBUTE_FULLNESS_TARGET.toString(), trxName));
 		int numOfCurtains = getNumberOfCurtains(curtainOpening);
 		int carrierFoundID = 0;
+		
+		//Carrier stuff necessary? Handled in curtain track?
 		if(carrierID > 0)
 		{
 			carrierFoundID = carrierID;
@@ -424,8 +430,8 @@ public class Curtain extends RollerBlind {
 		
 		if(carrierFoundID == 0)
 		{
-			log.warning("------In Curtain.getCurtainFabricQty(int fabricID) --> No carrierID, returning ZERO");
-			return BigDecimal.ZERO;
+			log.warning("------In Curtain.getCurtainFabricQty(int fabricID) --> No carrierID.");
+			//return BigDecimal.ZERO;
 		}
 		
 		BigDecimal fabricAddition = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName));
@@ -433,7 +439,6 @@ public class Curtain extends RollerBlind {
 		
 		if(isSwave) 
 		{
-			//curtainTapeID =  1000449;//TODO: HArd coded, remove once tessted
 			int headingTapeID = 0;
 			if(curtainTapeID > 0)
 			{
@@ -445,7 +450,8 @@ public class Curtain extends RollerBlind {
 			}
 			if(headingTapeID < 1)
 			{
-				throw new AdempiereUserError(CurtainConfig.ERROR_NO_SWAVE_TAPE.toString());
+				return Env.ZERO;
+				//throw new AdempiereUserError(CurtainConfig.ERROR_NO_SWAVE_TAPE.toString());
 			}
 			
 			//Integer[] headingTapeProductIDs = getProductIDFromBldLineSetInstance(PART_TYPE_CURTAIN_TAPE);
@@ -575,12 +581,12 @@ public class Curtain extends RollerBlind {
 		{
 			if(isSwave)//it's FF Swave
 			{
-				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_FF.toString(), trxName));
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_FF_SW.toString(), trxName));
 					
 			}
 			else//It's FF std
 			{
-				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_FF_SW.toString(), trxName));
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_FF.toString(), trxName));
 				header = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HEADER_FF.toString(), trxName));
 			}
 			
@@ -590,13 +596,13 @@ public class Curtain extends RollerBlind {
 		{
 			if(isSwave)//It's TF Swave
 			{
-				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_TF.toString(), trxName));
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_TF_SW.toString(), trxName));
 				log.warning("---------Swave standard curtain detected, hook clearance:" + hookClearance.toString());
 				
 			}
 			else//It's TF Std
 			{
-				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_TF_SW.toString(), trxName));
+				hookClearance = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HOOK_CLEARANCE_TF.toString(), trxName));
 				header = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(trackID, CurtainConfig.ATRRIBUTE_HEADER_TF.toString(), trxName));
 				log.warning("---------Top fix standard curtain detected, hook clearance:" + hookClearance.toString() + " Header: " + header);
 			}
@@ -739,7 +745,8 @@ public class Curtain extends RollerBlind {
 		PART_TYPE_CURTAIN_LINING("Curtain lining"),
 		PART_TYPE_CURTAIN_TAPE("Curtain tape"),
 		PART_TYPE_CURTAIN_BRACKET("Curtain bracket"), 
-		PART_TYPE_FABRIC("Fabric");
+		PART_TYPE_FABRIC("Fabric"), 
+		PART_TYPE_DRIVE_BELT("Curtain drive belt");
 
 	    private static final Map<String, CurtainConfig> BY_LABEL = new HashMap<>();
 	   

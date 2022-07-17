@@ -87,7 +87,7 @@ public class MBLDLineProductSetInstance extends X_BLD_Line_ProductSetInstance {
 		StringBuilder sb = new StringBuilder();
 		
 		//	Instance Values
-		MBLDLineProductInstance[] instance = MBLDProductPartType.getmBLDLineProductInstance(getBLD_Line_ProductSetInstance_ID(), get_TrxName());
+		MBLDLineProductInstance[] instance = MBLDLineProductInstance.getmBLDLineProductInstance(getBLD_Line_ProductSetInstance_ID(), get_TrxName());
 		for (int i = 0; i < instance.length; i++)
 		{
 			

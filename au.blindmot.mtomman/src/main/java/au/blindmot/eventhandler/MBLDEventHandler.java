@@ -35,7 +35,6 @@ import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDMtomItemLine;
 import au.blindmot.model.MBLDMtomProduction;
-import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.model.X_BLD_Line_ProductSetInstance;
 import au.blindmot.utils.MtmUtils;
 
@@ -101,7 +100,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 	
 	if(po instanceof MOrderLine && po != null)//We have an orderline
 	{
-		log.warning("---------MOrderLine event triggered");
+		log.warning("---------MOrderLine event triggered: " + event.getTopic());
 		log.warning("---------event: " + event);
 		trxName = po.get_TrxName();
 		//po.save();
@@ -361,9 +360,18 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				}
 				BigDecimal bigValue = new BigDecimal(parentOrder.get_Value(MOrder.COLUMNNAME_TotalLines).toString());
 				BigDecimal bigCost = new BigDecimal(cost);
-				BigDecimal grossMargin =  bigValue.subtract(bigCost).divide(bigValue, 2, RoundingMode.HALF_UP).multiply(Env.ONEHUNDRED);
-				//setField(grossMargin, mTab, COLUMN_GROSS_MARGIN);
-				parentOrder.set_ValueNoCheck(COLUMN_GROSS_MARGIN, grossMargin);
+				BigDecimal grossMargin = new BigDecimal("0");
+				if(bigCost.compareTo(Env.ZERO) == 0 || bigValue.compareTo(Env.ZERO) == 0)
+				{
+					grossMargin = Env.ONEHUNDRED;
+				}
+				else
+				{
+					grossMargin =  bigValue.subtract(bigCost).divide(bigValue, 2, RoundingMode.HALF_UP).multiply(Env.ONEHUNDRED);
+					//setField(grossMargin, mTab, COLUMN_GROSS_MARGIN);
+					parentOrder.set_ValueNoCheck(COLUMN_GROSS_MARGIN, grossMargin);
+				}
+				
 				parentOrder.saveEx();
 			}
 			return;
@@ -676,7 +684,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 		log.warning("--------In MBLDEventHandler.copyBldProductInstance()");
 		log.warning("fromBldPIID = " + fromBldPIID + ", toBldPIID = " + toBldPIID + ", mProductID = " + mProductID);
 		StringBuilder sb = new StringBuilder();
-		MBLDLineProductInstance[] fromInstance = MBLDProductPartType.getmBLDLineProductInstance(fromBldPIID, trxName);
+		MBLDLineProductInstance[] fromInstance = MBLDLineProductInstance.getmBLDLineProductInstance(fromBldPIID, trxName);
 		if(toBldPIID > 0)
 			{
 				for(int i = 0; i < fromInstance.length; i++)

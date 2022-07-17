@@ -103,13 +103,13 @@ public class SideRetainedBlind extends RollerBlind  {
 		if(fabricID !=0 )
 
 			{
-				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, 0);	
+				addBldMtomCuts(fabricID, fabricWidth, fabricDrop, Env.ZERO);	
 			}
 	
 		
 		if(rollerTubeID !=0 )
 			{
-				addBldMtomCuts(rollerTubeID,Env.ZERO,getRollerTubeCut(wide),0);
+				addBldMtomCuts(rollerTubeID,Env.ZERO,getRollerTubeCut(wide),Env.ZERO);
 				log.warning("--------addBldMtomCuts Adding roller tube to cuts: " + rollerTubeID);
 			}
 		
@@ -127,7 +127,7 @@ public class SideRetainedBlind extends RollerBlind  {
 		if(bottombarIDToUse !=0 )
 
 			{
-				addBldMtomCuts(bottombarIDToUse,Env.ZERO,bottomBarCut,0);
+				addBldMtomCuts(bottombarIDToUse,Env.ZERO,bottomBarCut,Env.ZERO);
 			}
 		
 		MBLDBomDerived[] bomDerivedLines = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mtom_item_line_id);
