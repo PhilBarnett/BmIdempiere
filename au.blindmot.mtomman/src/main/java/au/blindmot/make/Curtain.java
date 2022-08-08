@@ -230,8 +230,8 @@ public class Curtain extends RollerBlind {
 		}
 		else//it's not continuous 
 		{
-			Double runnerCountTotal = Double.valueOf(0);
-			headingWidthPerCurtainField = Double.valueOf(0);
+			Double runnerCountTotal = Double.valueOf(0);//Initialise with 0
+			headingWidthPerCurtainField = Double.valueOf(0);//Initialise with 0
 			BigDecimal makeDrop = getMakeDrop(BigDecimal.valueOf(high));
 			BigDecimal fabricLengthAdd = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName));
 			BigDecimal dropCutLength = makeDrop.add(fabricLengthAdd);
@@ -493,7 +493,7 @@ public class Curtain extends RollerBlind {
 			{
 				//=heading width std carriers * drops/curtain * num of curtains
 				Double headingWidthStd = MtmUtils.getHeadingWidthStdCarriers(wide);
-				BigDecimal dropsPerCurtain = MtmUtils.getDropsPerCurtainStd(fabricID, m_product_id, headingWidthStd.intValue(), trxName);
+				BigDecimal dropsPerCurtain = MtmUtils.getDropsPerCurtainStd(fabricID, m_product_id, headingWidthStd.intValue()/numOfCurtains, trxName);
 				return dropsPerCurtain.multiply(fabricCutDrop).multiply(BigDecimal.valueOf(numOfCurtains));
 			}
 		}

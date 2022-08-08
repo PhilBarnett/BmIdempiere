@@ -1196,7 +1196,7 @@ private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductIn
 	 * @param fabricID
 	 * @param curtainID
 	 * @param numOfCurtains
-	 * @param headingWidth: Total heading width
+	 * @param headingWidth: heading width PER CURTAIN
 	 * @param trxName
 	 * @return 
 	 */

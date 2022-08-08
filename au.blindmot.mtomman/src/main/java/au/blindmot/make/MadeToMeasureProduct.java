@@ -351,11 +351,12 @@ public static String EACH_1 = "Ea ";//Each with space
 		List<AttributePair> list = new ArrayList<AttributePair>();
 		for (int i = 0; i < attributes.length; i++) {
 			MAttributeInstance mai = attributes[i].getMAttributeInstance(mAttributeSetInstance.getM_AttributeSetInstance_ID());
-			if (mai == null || mai.getValue() == null || attributes[i] == null)
+			//Below commented out 26/7/22; was causing termination of loop when a null attribute value was found.
+			/*if (mai == null || mai.getValue() == null || attributes[i] == null)
 			{
 				break;
 			}
-			else
+			else*/
 			{
 				
 				if(attributes[i].getName() == null)
@@ -382,7 +383,11 @@ public static String EACH_1 = "Ea ";//Each with space
 				
 				else 
 					{
-						list.add(new AttributePair(attributes[i].getName().toString(), mai.getValue()));//Add the remaining attributes to an AtributePair
+					if (mai.getValue() != null || mai != null || attributes[i] != null)
+						{
+							list.add(new AttributePair(attributes[i].getName().toString(), mai.getValue()));//Add the remaining attributes to an AtributePair
+						}
+					
 
 					}
 				

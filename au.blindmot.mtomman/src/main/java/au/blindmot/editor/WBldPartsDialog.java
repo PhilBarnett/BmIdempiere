@@ -1061,7 +1061,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		return 0;
 	}
 	
-	private Listbox getReferencedEditorID(String sourceBoxID) {
+	private Listbox[] getReferencedEditorID(String sourceBoxID) {
 		/*Loop through editors
 		 *Is the source editor referenced as 'Use Bom from this parttype?
 		 *If it is, then return it.
@@ -1072,7 +1072,7 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		MBLDProductPartType sourceMBLDProductPartType = new MBLDProductPartType(Env.getCtx(), sourceMBLDpartTypeID, null);
 		int sourceMpartTypeID = sourceMBLDProductPartType.getM_PartTypeID();
 		
-		
+		ArrayList<Listbox> listBoxes = new ArrayList<Listbox>();
 		for(int j = 0; j < m_editors.size(); j++)
 		{
 			Listbox editor = null;	
@@ -1085,11 +1085,13 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 					int otherMpartTypeID = mBLDProductPartType.getOtherbomMParttypeID();
 					if(sourceMpartTypeID == otherMpartTypeID)
 					{
-						return editor;
+						System.out.println("Editor found = " + editor.toString() + " " + boxID);
+						listBoxes.add(editor);
+						//return editor;
 					}
 			}
 		}
-		return null;
+		return listBoxes.toArray(new Listbox[listBoxes.size()]);
 	}
 
 	/**
@@ -1202,11 +1204,14 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		int other = getOtherSelectedMpartProductID(mPartTypeID);
 		String otherBoxID = getOtherSelectedMpartListBoxID(mPartTypeID);
 		
-		Listbox referencedEditor = getReferencedEditorID(boxID);
+		Listbox[] referencedEditors = getReferencedEditorID(boxID);
 		
-		if(referencedEditor != null)
+		if(referencedEditors.length > 0)
 			{
-				resetEditor(referencedEditor, listBox);
+				for(int q = 0; q < referencedEditors.length; q++)
+				{
+					resetEditor(referencedEditors[q], listBox);
+				}
 			}
 		
 		
@@ -1907,7 +1912,14 @@ public class WBldPartsDialog extends Window implements EventListener<Event>
 		if(mProductID > 1)//Editor not empty 
 		{
 			MProduct[] values = MBLDProductPartType.getPartSetProducts(mProductID, referencedMPartTypeID, null);
-			values = modifyDualTypes(values, isDualRoller);
+			String desc = mBLDProductPartType.getName();
+			
+			if(desc.equalsIgnoreCase(BRACKET) || mBLDProductPartType.getName().equalsIgnoreCase(BRACKET) || 
+					mBLDProductPartType.getName().equalsIgnoreCase(Curtain.CurtainConfig.PART_TYPE_CURTAIN_BRACKET.toString()))
+			{
+				values = modifyDualTypes(values, isDualRoller);
+			}
+			
 			referencedEditor.removeAllItems();
 			for (MProduct value : values) 
 			{
