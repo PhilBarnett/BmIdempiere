@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.compiere.model.MProduct;
 import org.compiere.model.X_M_PartType;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
@@ -177,12 +178,12 @@ public class Curtain extends RollerBlind {
 		{
 			if(curtainTapeID > 0)
 			{
-				//BigDecimal qty = getCurtainFabricQty(mProductID);
+				BigDecimal qty = getBomQty(curtainTapeID);//total qty (all curtains)
 				int numberOfCurtains = getNumberOfCurtains(curtainOpening);
 				{	
 					for(int i = 0; i < numberOfCurtains; i++)
 					{
-						addBldMtomCuts(curtainTapeID,Env.ZERO,getBomQty(curtainTapeID),Env.ZERO);	
+						addBldMtomCuts(curtainTapeID,Env.ZERO,qty.divide(BigDecimal.valueOf(numberOfCurtains)),Env.ZERO);	
 					}
 				}
 			}
@@ -280,7 +281,14 @@ public class Curtain extends RollerBlind {
 		
 	
 	private boolean isContinuous(int mProductID) {
-		BigDecimal rollWidth = new BigDecimal ((String)MtmUtils.getMattributeInstanceValue(mProductID, MtmUtils.ROLL_WIDTH, trxName));
+		String rollWidthString = (String)MtmUtils.getMattributeInstanceValue(mProductID, MtmUtils.ROLL_WIDTH, trxName);
+		if(rollWidthString == null) 
+		{
+			//ERROR_NO_ROLL_WIDTH
+			String fabricName = MProduct.get(mProductID).getName();
+			throw new AdempiereUserError(CurtainConfig.ERROR_NO_ROLL_WIDTH.toString() + " Fabric: " + fabricName);
+		}
+		BigDecimal rollWidth = new BigDecimal (rollWidthString);
 		BigDecimal dropAdd = new BigDecimal ((String)MtmUtils.getMattributeInstanceValue(m_product_id, MtmUtils.MTM_FABRIC_ADDITION, trxName));
 		BigDecimal measuredDrop = new BigDecimal(high);
 		if(rollWidth.compareTo(measuredDrop.add(dropAdd)) == 1) return true;//It's continuous
@@ -362,7 +370,7 @@ public class Curtain extends RollerBlind {
 				qty = totalRunnerCount.multiply(sWaveDepth);
 				if(qty != BigDecimal.ZERO)
 				{
-					return qty;
+					return qty;//Returns the total tape qty
 				}
 			}
 		
@@ -688,6 +696,7 @@ public class Curtain extends RollerBlind {
 		ERROR_NO_SWAVE_TAPE("No Swave tape found. Check product setup"),
 		ERROR_NO_TRACK("No track found. Check product setup - tracks must present on the product BOM and availabale as 'User Select"),
 		ERROR_NO_CURTAINS("No curtains found. Did someone change the 'Curtain opening' attributes? Could also be a programming bug."),
+		ERROR_NO_ROLL_WIDTH("Roll width could not be determined - check that the fabric has a non instance attribute called 'roll width' and that there is a value set for it. "),
 		ERROR_NO_FLOOR_CLEARANCE("No floor clearance found. Check the attribute setup for the parent product and make sure there is an instance attribute: Floor Clearance (mm)"),
 		CURTAIN_POSITION_FRONT("Front"),
 		CURTAIN_OPENING_CENTRE("Centre, 2 curtains"),
