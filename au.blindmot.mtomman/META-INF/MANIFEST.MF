@@ -71,8 +71,7 @@ Export-Package: au.blindmot.calloutfactory;uses:="org.adempiere.base",
    org.compiere.process,
    au.blindmot.BMGoogleOauth,
    org.adempiere.webui.util",
- au.blindmot.processes.mtmcreate;uses:="org.compiere.process",
- au.blindmot.utils
+ au.blindmot.processes.mtmcreate
 Bundle-ClassPath: .,
  target/lib/apiguardian-api-1.1.0.jar,
  target/lib/checker-compat-qual-2.5.5.jar,
