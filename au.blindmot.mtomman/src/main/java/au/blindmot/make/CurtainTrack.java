@@ -17,7 +17,7 @@ import au.blindmot.model.MBLDProductPartType;
 import au.blindmot.utils.MtmUtils;
 
 /**
- * @author phil
+ * @author Phil Barnett
  *
  */
 public class CurtainTrack extends RollerBlind {
