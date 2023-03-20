@@ -51,12 +51,15 @@
     <artifactId>jetty-servlet</artifactId>
     <version>9.4.33.v20201020</version>
 </dependency>
-   <!-- https://mvnrepository.com/artifact/at.bestsolution.efxclipse.eclipse/org.eclipse.jetty.server -->
-  <dependency>
-   <groupId>org.apache.httpcomponents</groupId>
-   <artifactId>httpclient</artifactId>
-   <version>4.2.1</version>
-  </dependency>
+
+
+
+<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
+<dependency>
+    <groupId>org.apache.httpcomponents</groupId>
+    <artifactId>httpclient</artifactId>
+    <version>4.5.14</version>
+</dependency>
   </dependencies>
   <build>
   <sourceDirectory>src</sourceDirectory>

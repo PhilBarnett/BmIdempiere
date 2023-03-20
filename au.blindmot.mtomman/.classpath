@@ -25,7 +25,6 @@
 	<classpathentry kind="lib" path="target/lib/grpc-context-1.22.1.jar"/>
 	<classpathentry kind="lib" path="target/lib/gson-2.8.8.jar"/>
 	<classpathentry kind="lib" path="target/lib/guava-28.2-android.jar"/>
-	<classpathentry kind="lib" path="target/lib/httpclient-4.2.1.jar"/>
 	<classpathentry kind="lib" path="target/lib/httpcore-4.4.13.jar"/>
 	<classpathentry kind="lib" path="target/lib/j2objc-annotations-1.3.jar"/>
 	<classpathentry kind="lib" path="target/lib/javax.servlet-api-3.1.0.jar"/>

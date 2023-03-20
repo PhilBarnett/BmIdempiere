@@ -9,7 +9,8 @@ Require-Bundle: org.adempiere.base,
  org.adempiere.ui.zk;bundle-version="7.1.0",
  org.junit,
  org.adempiere.plugin.utils;bundle-version="9.0.0",
- zcommon
+ zcommon,
+ org.apache.httpcomponents.httpclient
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-INF/ModelFactory.xml,OSGI-INF/ProcessFactory.xml, OSGI-INF/EventHandler2.xml, OSGI-INF/au.blindmot.mtmbtn.action.mtmb.xml,OSGI-INF/DisplayTypeFactory.xml,OSGI-INF/EditorFactory.xml,OSGI-INF/LookupFactory.xml,OSGI-INF/.xml, OSGI-INF/BLDBarcodeLookupFactory.xml
 Bundle-ActivationPolicy: lazy
