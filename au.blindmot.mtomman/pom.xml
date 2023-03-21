@@ -51,9 +51,6 @@
     <artifactId>jetty-servlet</artifactId>
     <version>9.4.33.v20201020</version>
 </dependency>
-
-
-
 <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
 <dependency>
     <groupId>org.apache.httpcomponents</groupId>

@@ -32,6 +32,7 @@ public class CurtainTrack extends RollerBlind {
 	private String position;
 	private int driveBeltID;
 	private int curtainGearboxID;
+	private BigDecimal headRailCut = Env.ZERO;
 	//private static String PART_TYPE_CURTAIN_MOTOR
 	//private static final String ROLLER_TUBE = "Roller tube";
 
@@ -76,10 +77,6 @@ public class CurtainTrack extends RollerBlind {
 				else if(parTypeName.equals(CurtainConfig.PART_TYPE_CURTAIN_BRACKET.toString()))
 				{
 					curtainBracketID = mProductId;
-				}
-				else if(parTypeName.equals(CurtainConfig.PART_TYPE_DRIVE_GEARBOX.toString()))
-				{
-					curtainGearboxID = mProductId;
 				}
 				/*
 				else if(parTypeName.equals(CurtainConfig.PART_TYPE_FABRIC.toString()))
@@ -126,6 +123,11 @@ public class CurtainTrack extends RollerBlind {
 			curtainTapeID = getBomDerivedProductID(CurtainConfig.PART_TYPE_CURTAIN_TAPE.toString());
 		}
 		
+		if (curtainGearboxID == 0)
+		{
+			curtainGearboxID = getBomDerivedProductID(CurtainConfig.PART_TYPE_DRIVE_GEARBOX.toString());
+		}
+		
 		if(!(driveBeltID > 0))
 		{
 			driveBeltID = getBomDerivedProductID(CurtainConfig.PART_TYPE_DRIVE_BELT.toString());
@@ -134,7 +136,7 @@ public class CurtainTrack extends RollerBlind {
 		
 		
 		BigDecimal qty = BigDecimal.ZERO;
-		if(mProductBomid == rollerTubeID)
+		/*if(mProductBomid == rollerTubeID)
 			{
 				qty = getRollerTubeQty(rollerTubeID);//check to see if this works - if it does delete this comment.
 				if(qty != BigDecimal.ZERO)
@@ -143,7 +145,7 @@ public class CurtainTrack extends RollerBlind {
 				}
 				
 			} 
-			else if(mProductBomid == carrierFoundID)
+			else */if(mProductBomid == carrierFoundID)
 			{
 				String carrierPitchS = (String) MtmUtils.getMattributeInstanceValue(mProductBomid, CurtainConfig.ATTRIBUTE_CARRIER_PITCH.toString(), trxName);
 				if(carrierPitchS == null && mProductBomid == 0)
@@ -187,10 +189,10 @@ public class CurtainTrack extends RollerBlind {
 					throw new AdempiereUserError(CurtainConfig.ERROR_NO_BRACKETS.toString());
 				} 
 			}
-			else if(mProductBomid == curtainGearboxID)
+			else if(mProductBomid == driveBeltID)
 			{
 				{
-					return getBeltCut(curtainGearboxID);
+					return getBeltCut(driveBeltID, getRollerTubeCut(wide));
 				}
 			}
 		return qty;//Default
@@ -253,12 +255,8 @@ public class CurtainTrack extends RollerBlind {
 	 * @param beltProductID
 	 * @return
 	 */
-	private BigDecimal getBeltCut(int beltProductID) {
-		//Get head rail cut
-		BigDecimal headRailCut = getRollerTubeCut(wide);
-		//BigDecimal widthAddition = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(beltProductID, MtmUtils.MTM_WIDTH_ADDITION.toString(), trxName));
+	private BigDecimal getBeltCut(int beltProductID, BigDecimal headRailCut) {
 		BigDecimal widthAddition = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(curtainGearboxID, MtmUtils.MTM_WIDTH_ADDITION.toString(), trxName));
-		//BigDecimal widthMultiplier = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(beltProductID, MtmUtils.MTM_WIDTH_MULTIPLIER.toString(), trxName));
 		BigDecimal widthMultiplier = new BigDecimal((String)MtmUtils.getMattributeInstanceValue(curtainGearboxID, MtmUtils.MTM_WIDTH_MULTIPLIER.toString(), trxName));
 		//Move the width multiplier and the width addition to the gearbox product in Idempiere. Maybe add some checking code to make sure the found gearbox has the attribute.
 		BigDecimal beltCut = headRailCut.multiply(widthMultiplier).add(widthAddition);
@@ -266,15 +264,22 @@ public class CurtainTrack extends RollerBlind {
 	}
 	
 	@Override
-	/**
+	/**Curtain track needs the track cut and if motorised, the belt cut
 	 * 
 	 */
 	public boolean getCuts() {
 		
+		if(headRailCut.compareTo(Env.ZERO) == 0)
+		headRailCut = getRollerTubeCut(wide);
+		
+		//Add the drive belt if it's motorised.
 		if(driveBeltID > 0 && curtainGearboxID >0)
 		{
-			addBldMtomCuts(driveBeltID, Env.ZERO, getBeltCut(driveBeltID), Env.ZERO);
+			addBldMtomCuts(driveBeltID, Env.ZERO, getBeltCut(driveBeltID, headRailCut), Env.ZERO);
 		}
+		
+		//Add the track to the cut list
+		addBldMtomCuts(rollerTubeID, Env.ZERO, headRailCut, Env.ZERO);
 		
 		/*Uncomment to add carriers to cut list.
 		 * 
@@ -291,7 +296,7 @@ public class CurtainTrack extends RollerBlind {
 			
 		} */
 		
-		super.getCuts();
+		//super.getCuts();
 		return true;
 	}
 }
