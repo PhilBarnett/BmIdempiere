@@ -1,0 +1,420 @@
+/******************************************************************************
+ * Product: iDempiere ERP & CRM Smart Business Solution                       *
+ * Copyright (C) 1999-2012 ComPiere, Inc. All Rights Reserved.                *
+ * This program is free software, you can redistribute it and/or modify it    *
+ * under the terms version 2 of the GNU General Public License as published   *
+ * by the Free Software Foundation. This program is distributed in the hope   *
+ * that it will be useful, but WITHOUT ANY WARRANTY, without even the implied *
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.           *
+ * See the GNU General Public License for more details.                       *
+ * You should have received a copy of the GNU General Public License along    *
+ * with this program, if not, write to the Free Software Foundation, Inc.,    *
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.                     *
+ * For the text or an alternative of this public license, you may reach us    *
+ * ComPiere, Inc., 2620 Augustine Dr. #245, Santa Clara, CA 95054, USA        *
+ * or via info@compiere.org or http://www.compiere.org/license.html           *
+ *****************************************************************************/
+/** Generated Model - DO NOT CHANGE */
+package za.co.ntier.model;
+
+import java.sql.ResultSet;
+import java.util.Properties;
+import org.compiere.model.*;
+
+/** Generated Model for ZZ_Woocommerce_Map
+ *  @author iDempiere (generated) 
+ *  @version Release 9 - $Id$ */
+@org.adempiere.base.Model(table="ZZ_Woocommerce_Map")
+public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_Persistent 
+{
+
+	/**
+	 *
+	 */
+	private static final long serialVersionUID = 20230529L;
+
+    /** Standard Constructor */
+    public X_ZZ_Woocommerce_Map (Properties ctx, int ZZ_Woocommerce_Map_ID, String trxName)
+    {
+      super (ctx, ZZ_Woocommerce_Map_ID, trxName);
+      /** if (ZZ_Woocommerce_Map_ID == 0)
+        {
+			setM_Product_ID (0);
+			setZZ_Woocommerce_Map_ID (0);
+        } */
+    }
+
+    /** Load Constructor */
+    public X_ZZ_Woocommerce_Map (Properties ctx, ResultSet rs, String trxName)
+    {
+      super (ctx, rs, trxName);
+    }
+
+    /** AccessLevel
+      * @return 6 - System - Client 
+      */
+    protected int get_AccessLevel()
+    {
+      return accessLevel.intValue();
+    }
+
+    /** Load Meta Data */
+    protected POInfo initPO (Properties ctx)
+    {
+      POInfo poi = POInfo.getPOInfo (ctx, Table_ID, get_TrxName());
+      return poi;
+    }
+
+    public String toString()
+    {
+      StringBuilder sb = new StringBuilder ("X_ZZ_Woocommerce_Map[")
+        .append(get_ID()).append("]");
+      return sb.toString();
+    }
+
+	/** Set Description.
+		@param Description Optional short description of the record
+	*/
+	public void setDescription (String Description)
+	{
+		set_Value (COLUMNNAME_Description, Description);
+	}
+
+	/** Get Description.
+		@return Optional short description of the record
+	  */
+	public String getDescription()
+	{
+		return (String)get_Value(COLUMNNAME_Description);
+	}
+
+	/** Set Comment/Help.
+		@param Help Comment or Hint
+	*/
+	public void setHelp (String Help)
+	{
+		set_Value (COLUMNNAME_Help, Help);
+	}
+
+	/** Get Comment/Help.
+		@return Comment or Hint
+	  */
+	public String getHelp()
+	{
+		return (String)get_Value(COLUMNNAME_Help);
+	}
+
+	public org.compiere.model.I_M_Attribute getM_Attribute() throws RuntimeException
+	{
+		return (org.compiere.model.I_M_Attribute)MTable.get(getCtx(), org.compiere.model.I_M_Attribute.Table_ID)
+			.getPO(getM_Attribute_ID(), get_TrxName());
+	}
+
+	/** Set Attribute.
+		@param M_Attribute_ID Product Attribute
+	*/
+	public void setM_Attribute_ID (int M_Attribute_ID)
+	{
+		if (M_Attribute_ID < 1)
+			set_ValueNoCheck (COLUMNNAME_M_Attribute_ID, null);
+		else
+			set_ValueNoCheck (COLUMNNAME_M_Attribute_ID, Integer.valueOf(M_Attribute_ID));
+	}
+
+	/** Get Attribute.
+		@return Product Attribute
+	  */
+	public int getM_Attribute_ID()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_Attribute_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public org.compiere.model.I_M_Attribute getm_attribute_product() throws RuntimeException
+	{
+		return (org.compiere.model.I_M_Attribute)MTable.get(getCtx(), org.compiere.model.I_M_Attribute.Table_ID)
+			.getPO(getm_attribute_product_id(), get_TrxName());
+	}
+
+	/** Set m_attribute_product_id.
+		@param m_attribute_product_id m_attribute_product_id
+	*/
+	public void setm_attribute_product_id (int m_attribute_product_id)
+	{
+		set_Value (COLUMNNAME_m_attribute_product_id, Integer.valueOf(m_attribute_product_id));
+	}
+
+	/** Get m_attribute_product_id.
+		@return m_attribute_product_id	  */
+	public int getm_attribute_product_id()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_m_attribute_product_id);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public I_M_AttributeSetInstance getM_AttributeSetInstance() throws RuntimeException
+	{
+		return (I_M_AttributeSetInstance)MTable.get(getCtx(), I_M_AttributeSetInstance.Table_ID)
+			.getPO(getM_AttributeSetInstance_ID(), get_TrxName());
+	}
+
+	/** Set Attribute Set Instance.
+		@param M_AttributeSetInstance_ID Product Attribute Set Instance
+	*/
+	public void setM_AttributeSetInstance_ID (int M_AttributeSetInstance_ID)
+	{
+		if (M_AttributeSetInstance_ID < 0)
+			set_Value (COLUMNNAME_M_AttributeSetInstance_ID, null);
+		else
+			set_Value (COLUMNNAME_M_AttributeSetInstance_ID, Integer.valueOf(M_AttributeSetInstance_ID));
+	}
+
+	/** Get Attribute Set Instance.
+		@return Product Attribute Set Instance
+	  */
+	public int getM_AttributeSetInstance_ID()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_AttributeSetInstance_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public org.compiere.model.I_M_AttributeValue getM_AttributeValue() throws RuntimeException
+	{
+		return (org.compiere.model.I_M_AttributeValue)MTable.get(getCtx(), org.compiere.model.I_M_AttributeValue.Table_ID)
+			.getPO(getM_AttributeValue_ID(), get_TrxName());
+	}
+
+	/** Set Attribute Value.
+		@param M_AttributeValue_ID Product Attribute Value
+	*/
+	public void setM_AttributeValue_ID (int M_AttributeValue_ID)
+	{
+		if (M_AttributeValue_ID < 1)
+			set_ValueNoCheck (COLUMNNAME_M_AttributeValue_ID, null);
+		else
+			set_ValueNoCheck (COLUMNNAME_M_AttributeValue_ID, Integer.valueOf(M_AttributeValue_ID));
+	}
+
+	/** Get Attribute Value.
+		@return Product Attribute Value
+	  */
+	public int getM_AttributeValue_ID()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_AttributeValue_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public org.compiere.model.I_M_Attribute getm_attributevalue_product() throws RuntimeException
+	{
+		return (org.compiere.model.I_M_Attribute)MTable.get(getCtx(), org.compiere.model.I_M_Attribute.Table_ID)
+			.getPO(getm_attributevalue_product_id(), get_TrxName());
+	}
+
+	/** Set m_attributevalue_product_id.
+		@param m_attributevalue_product_id m_attributevalue_product_id
+	*/
+	public void setm_attributevalue_product_id (int m_attributevalue_product_id)
+	{
+		set_Value (COLUMNNAME_m_attributevalue_product_id, Integer.valueOf(m_attributevalue_product_id));
+	}
+
+	/** Get m_attributevalue_product_id.
+		@return m_attributevalue_product_id	  */
+	public int getm_attributevalue_product_id()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_m_attributevalue_product_id);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public org.compiere.model.I_M_PartType getM_PartType() throws RuntimeException
+	{
+		return (org.compiere.model.I_M_PartType)MTable.get(getCtx(), org.compiere.model.I_M_PartType.Table_ID)
+			.getPO(getM_PartType_ID(), get_TrxName());
+	}
+
+	/** Set Part Type.
+		@param M_PartType_ID Part Type
+	*/
+	public void setM_PartType_ID (int M_PartType_ID)
+	{
+		if (M_PartType_ID < 1)
+			set_ValueNoCheck (COLUMNNAME_M_PartType_ID, null);
+		else
+			set_ValueNoCheck (COLUMNNAME_M_PartType_ID, Integer.valueOf(M_PartType_ID));
+	}
+
+	/** Get Part Type.
+		@return Part Type	  */
+	public int getM_PartType_ID()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_PartType_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public org.compiere.model.I_M_Product getM_Product() throws RuntimeException
+	{
+		return (org.compiere.model.I_M_Product)MTable.get(getCtx(), org.compiere.model.I_M_Product.Table_ID)
+			.getPO(getM_Product_ID(), get_TrxName());
+	}
+
+	/** Set Product.
+		@param M_Product_ID Product, Service, Item
+	*/
+	public void setM_Product_ID (int M_Product_ID)
+	{
+		if (M_Product_ID < 1)
+			set_ValueNoCheck (COLUMNNAME_M_Product_ID, null);
+		else
+			set_ValueNoCheck (COLUMNNAME_M_Product_ID, Integer.valueOf(M_Product_ID));
+	}
+
+	/** Get Product.
+		@return Product, Service, Item
+	  */
+	public int getM_Product_ID()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_Product_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public org.compiere.model.I_M_Product getm_product_line() throws RuntimeException
+	{
+		return (org.compiere.model.I_M_Product)MTable.get(getCtx(), org.compiere.model.I_M_Product.Table_ID)
+			.getPO(getm_product_line_id(), get_TrxName());
+	}
+
+	/** Set M_Product_ID.
+		@param m_product_line_id M_Product_ID
+	*/
+	public void setm_product_line_id (int m_product_line_id)
+	{
+		set_Value (COLUMNNAME_m_product_line_id, Integer.valueOf(m_product_line_id));
+	}
+
+	/** Get M_Product_ID.
+		@return M_Product_ID	  */
+	public int getm_product_line_id()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_m_product_line_id);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	/** Set woocommerce_field_key.
+		@param woocommerce_field_key woocommerce_field_key
+	*/
+	public void setwoocommerce_field_key (String woocommerce_field_key)
+	{
+		set_Value (COLUMNNAME_woocommerce_field_key, woocommerce_field_key);
+	}
+
+	/** Get woocommerce_field_key.
+		@return woocommerce_field_key	  */
+	public String getwoocommerce_field_key()
+	{
+		return (String)get_Value(COLUMNNAME_woocommerce_field_key);
+	}
+
+	/** Set woocommerce_field_label.
+		@param woocommerce_field_label woocommerce_field_label
+	*/
+	public void setwoocommerce_field_label (String woocommerce_field_label)
+	{
+		set_Value (COLUMNNAME_woocommerce_field_label, woocommerce_field_label);
+	}
+
+	/** Get woocommerce_field_label.
+		@return woocommerce_field_label	  */
+	public String getwoocommerce_field_label()
+	{
+		return (String)get_Value(COLUMNNAME_woocommerce_field_label);
+	}
+
+	/** Set woocommerce_field_value.
+		@param woocommerce_field_value woocommerce_field_value
+	*/
+	public void setwoocommerce_field_value (String woocommerce_field_value)
+	{
+		set_Value (COLUMNNAME_woocommerce_field_value, woocommerce_field_value);
+	}
+
+	/** Get woocommerce_field_value.
+		@return woocommerce_field_value	  */
+	public String getwoocommerce_field_value()
+	{
+		return (String)get_Value(COLUMNNAME_woocommerce_field_value);
+	}
+
+	/** Set Woocommerce Map.
+		@param ZZ_Woocommerce_Map_ID Woocommerce Map
+	*/
+	public void setZZ_Woocommerce_Map_ID (int ZZ_Woocommerce_Map_ID)
+	{
+		if (ZZ_Woocommerce_Map_ID < 1)
+			set_ValueNoCheck (COLUMNNAME_ZZ_Woocommerce_Map_ID, null);
+		else
+			set_ValueNoCheck (COLUMNNAME_ZZ_Woocommerce_Map_ID, Integer.valueOf(ZZ_Woocommerce_Map_ID));
+	}
+
+	/** Get Woocommerce Map.
+		@return Woocommerce Map	  */
+	public int getZZ_Woocommerce_Map_ID()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_ZZ_Woocommerce_Map_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	/** Attribute = 10000003 */
+	public static final String ZZ_WOOCOMMERCE_MAP_TYPE_Attribute = "10000003";
+	/** Product add = 10000004 */
+	public static final String ZZ_WOOCOMMERCE_MAP_TYPE_ProductAdd = "10000004";
+	/** Product attribute = 10000005 */
+	public static final String ZZ_WOOCOMMERCE_MAP_TYPE_ProductAttribute = "10000005";
+	/** Set zz_woocommerce_map_type.
+		@param zz_woocommerce_map_type zz_woocommerce_map_type
+	*/
+	public void setzz_woocommerce_map_type (String zz_woocommerce_map_type)
+	{
+
+		set_Value (COLUMNNAME_zz_woocommerce_map_type, zz_woocommerce_map_type);
+	}
+
+	/** Get zz_woocommerce_map_type.
+		@return zz_woocommerce_map_type	  */
+	public String getzz_woocommerce_map_type()
+	{
+		return (String)get_Value(COLUMNNAME_zz_woocommerce_map_type);
+	}
+
+	/** Set ZZ_Woocommerce_Map_UU.
+		@param ZZ_Woocommerce_Map_UU ZZ_Woocommerce_Map_UU
+	*/
+	public void setZZ_Woocommerce_Map_UU (String ZZ_Woocommerce_Map_UU)
+	{
+		set_ValueNoCheck (COLUMNNAME_ZZ_Woocommerce_Map_UU, ZZ_Woocommerce_Map_UU);
+	}
+
+	/** Get ZZ_Woocommerce_Map_UU.
+		@return ZZ_Woocommerce_Map_UU	  */
+	public String getZZ_Woocommerce_Map_UU()
+	{
+		return (String)get_Value(COLUMNNAME_ZZ_Woocommerce_Map_UU);
+	}
+}
