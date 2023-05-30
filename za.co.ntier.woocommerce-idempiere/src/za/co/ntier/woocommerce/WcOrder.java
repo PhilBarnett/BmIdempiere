@@ -4,34 +4,31 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Level;
-
+import org.compiere.model.MAttributeInstance;
+import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBPartnerLocation;
 import org.compiere.model.MLocation;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
+import org.compiere.model.MProduct;
 import org.compiere.model.MUser;
 import org.compiere.model.PO;
-import org.compiere.model.X_C_OrderLine;
 import org.compiere.model.X_C_POSPayment;
 import org.compiere.model.X_C_Payment;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
-import org.compiere.util.Env;
 
 import za.co.ntier.model.MzzWoocommerce;
+import za.co.ntier.model.MzzWoocommerceMap;
 import za.co.ntier.model.X_ZZ_Woocommerce_Match;
-
 import org.compiere.process.DocAction;
 
 /**
@@ -46,7 +43,9 @@ public final class WcOrder {
 	private final String trxName;
 	private final int POSTENDERTYPE_ID = 1000000;
 	private final int POS_ORDER = 135;
-	
+	private static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
+	private static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
+	private static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
 
 	// private final int priceList_ID = 101;
 	final String PAYMENT_RULE = "M";
@@ -215,10 +214,10 @@ public final class WcOrder {
 		} else
 			if (log.isLoggable(Level.FINE))
 				log.fine("Order: " + order.getDocumentNo() + " did not complete");
-			
-			//throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");
+		order.saveEx();//Comment out with line below to bypass is completed check.
+			throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");
 
-		order.saveEx();
+		//order.saveEx(); Uncomment if 'throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");' is commented out
 	}
 
 	public void createOrderLine(Map<?, ?> line, Map<?, ?> orderWc) {
@@ -265,6 +264,7 @@ public final class WcOrder {
 									 System.out.println(field.get("id"));
 									 System.out.println(field.get("label"));
 									 System.out.println(field.get("value"));
+									 processWooCommMeta(orderLine, field, orderLine.getM_Product_ID(), ctx, trxName);
 								}
 								catch(java.lang.ClassCastException e)
 								{
@@ -395,6 +395,65 @@ public final class WcOrder {
 		return (str == null || "".equals(str.trim()));
 	}
 	
+	/**
+	 * 
+	 * @param line
+	 * @param field
+	 * @param mProductID
+	 * @param ctx
+	 */
+	public void processWooCommMeta(MOrderLine line, LinkedHashMap<String, Object> field, int mProductID, Properties ctx, String trxn) {
+		//Get field data
+		String fieldID = (String) field.get("id");
+		//String fieldLabel = (String)field.get("label");
+		String fieldValue = (String) field.get("value");
 	
+		
+		//Process field data
+		
+		MzzWoocommerceMap mzzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(mProductID, fieldID, fieldValue, ctx);
+		if(mzzWoocommerceMap == null)
+		{
+			throw new AdempiereUserError("No mapping found for WooCommerce fieldID " + fieldID + ". Check mapping on product: " + MProduct.get(mProductID).getName());
+		}
+		
+		if(mzzWoocommerceMap.getzz_woocommerce_map_type().equals(WOOCOMMERCE_MAP_TYPE_ATTRIBUTE))
+		{
+			/*Check if an Attributeset instance already exists, if not create
+			 Add the attribute and its value to the Attributeset instance*/
+			int m_AttributeSetInstance_ID = line.getM_AttributeSetInstance_ID();
+			if(m_AttributeSetInstance_ID > 0)//line already has an Atrribute set instance.
+			{
+				MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), trxn);
+				mAttributeInstance.saveEx(trxn);
+				//(Properties ctx, int M_Attribute_ID, int M_AttributeSetInstance_ID, String Value, String trxName)
+			}
+			else
+			{
+				MAttributeSetInstance mAttributeSetInstance = new MAttributeSetInstance(ctx, m_AttributeSetInstance_ID, trxn);
+				mAttributeSetInstance.saveEx();
+				m_AttributeSetInstance_ID = mAttributeSetInstance.get_ID();
+				line.setM_AttributeSetInstance_ID(m_AttributeSetInstance_ID);
+				MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), trxn);
+				mAttributeInstance.saveEx(trxn);
+				line.saveEx(trxn);
+				
+			}
+		}
+		else if(mzzWoocommerceMap.getwoocommerce_field_value().equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD))
+		{
+			/*Check if a bld_line_productsetinstance exists, if not, create one.
+			 create a bld_line_productinstance record and link to bld_line_productsetinstance*/
+		}
+		else if(mzzWoocommerceMap.getwoocommerce_field_value().equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))
+		{
+			/*How to handle multiple cases of bld_line_productsetinstances containing multiple records of the same product?
+			 * Check existence of m_attributesetinstance_id in bld_line_productinstance -> if it does not exist then create and add attribute & value
+			 * If m_attributesetinstance_id in bld_line_productinstance > 0 then it already exists -> check if the attribute value has been set
+			 * Ifattribute has not been set, then set it.
+			 * Get the */
+		}
+		
+	}
 
 }
