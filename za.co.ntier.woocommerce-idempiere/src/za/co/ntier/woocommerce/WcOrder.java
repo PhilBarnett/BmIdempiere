@@ -294,6 +294,12 @@ public final class WcOrder {
 		return m_Product_ID;
 	}
 	
+	/**
+	 * Uses the WooCommerce ProductID to match to a product in Idempiere.
+	 * Overrides getProductId(String name) which relies on the name string of the WooCommerce product.
+	 * @param woocommID
+	 * @return
+	 */
 	public int getProductId(int woocommID) {
 		int orgID = order.getAD_Org_ID();
 		MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
@@ -388,5 +394,7 @@ public final class WcOrder {
 	public static boolean isBlankOrNull(String str) {
 		return (str == null || "".equals(str.trim()));
 	}
+	
+	
 
 }
