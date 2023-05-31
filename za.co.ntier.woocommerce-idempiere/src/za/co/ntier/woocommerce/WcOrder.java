@@ -28,6 +28,8 @@ import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 
+import au.blindmot.model.MBLDLineProductInstance;
+import au.blindmot.model.MBLDLineProductSetInstance;
 import za.co.ntier.model.MzzWoocommerce;
 import za.co.ntier.model.MzzWoocommerceMap;
 import za.co.ntier.model.X_ZZ_Woocommerce_Match;
@@ -207,6 +209,7 @@ public final class WcOrder {
 
 	//Consider not running this method - at least until the system is stable.
 	public void completeOrder() {
+		throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");
 		/*
 		
 		order.setDateOrdered(new Timestamp(System.currentTimeMillis()));
@@ -283,8 +286,11 @@ public final class WcOrder {
 						 }
 					 }
 				}
-				//Added by Phil
-
+				
+		MAttributeSetInstance	lineAttSetIns = new MAttributeSetInstance(ctx, orderLine.getM_AttributeSetInstance_ID(), trxName);	
+		lineAttSetIns.setDescription();
+		lineAttSetIns.save();
+		//Added by Phil
 		if (!orderLine.save()) {
 			throw new IllegalStateException("Could not create Order Line");
 		}
@@ -426,35 +432,28 @@ public final class WcOrder {
 		{
 			/*Check if an Attributeset instance already exists, if not create
 			 Add the attribute and its value to the Attributeset instance*/
-			int m_AttributeSetInstance_ID = line.getM_AttributeSetInstance_ID();
-			if(m_AttributeSetInstance_ID > 0)//line already has an Atrribute set instance.
-			{
-				MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), trxn);
-				mAttributeInstance.saveEx(trxn);
-				//(Properties ctx, int M_Attribute_ID, int M_AttributeSetInstance_ID, String Value, String trxName)
-			}
-			else
-			{
-				MAttributeSetInstance mAttributeSetInstance = new MAttributeSetInstance(ctx, m_AttributeSetInstance_ID, trxn);
-				mAttributeSetInstance.saveEx(trxn);
-				MAttribute mapAttribute = new MAttribute(ctx, mzzWoocommerceMap.getM_Attribute_ID(), trxn);
-				int mAttributeSetID = MProduct.get(mProductID).getM_AttributeSet_ID();
-				String attributeValueType = mapAttribute.getAttributeValueType();
-				
+			
+			MAttribute mapAttribute = new MAttribute(ctx, mzzWoocommerceMap.getM_Attribute_ID(), trxn);
+			int mAttributeSetID = MProduct.get(mProductID).getM_AttributeSet_ID();
+			String attributeValueType = mapAttribute.getAttributeValueType();
+			MAttributeSetInstance mAttributeSetInstance = new MAttributeSetInstance(ctx, line.getM_AttributeSetInstance_ID(), trxn);
+			mAttributeSetInstance.saveEx(trxn);
+		
 				mAttributeSetInstance.setM_AttributeSet_ID(mAttributeSetID);
-				m_AttributeSetInstance_ID = mAttributeSetInstance.get_ID();
+				int m_AttributeSetInstance_ID = mAttributeSetInstance.get_ID();
 				line.setM_AttributeSetInstance_ID(m_AttributeSetInstance_ID);
 				
 				if(attributeValueType.equals("N"))//It's a number attribute
 				{
-					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getwoocommerce_field_value(), trxn);
+					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, Integer.parseInt((String)field.get("value")), trxn);
+					mAttributeInstance.setValueInt(Integer.parseInt((String)field.get("value")));
 					mAttributeInstance.saveEx();
 					/*MAttributeInstance (Properties ctx, int M_Attribute_ID, 
 					int M_AttributeSetInstance_ID, int Value, String trxName)*/
 				}
 				else if(attributeValueType.equals("S"))//It's a string attribute
 				{
-					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getwoocommerce_field_value(), trxn);
+					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, (String) field.get("value"), trxn);
 					mAttributeInstance.saveEx();
 					/*MAttributeInstance (Properties ctx, int M_Attribute_ID, 
 					int M_AttributeSetInstance_ID, String Value, String trxName)*/
@@ -462,30 +461,39 @@ public final class WcOrder {
 				else if(attributeValueType.equals("L"))//It's a list attribute
 				{
 					//TODO: This sets the value with the WooCOmmerce data. Will this cause unexpected results?
-					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), mzzWoocommerceMap.getwoocommerce_field_value());
+					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), (String) field.get("value"), trxn);
 					mAttributeInstance.saveEx();
 					/*MAttributeInstance(Properties ctx, int M_Attribute_ID, int M_AttributeSetInstance_ID,
 					int M_AttributeValue_ID, String Value, String trxName)*/
 				}
 				else if(attributeValueType.equals("R"))//It's a Yes/No checkbox
 				{
-					
+					//TODO: Implement 
 				}
-				
-				//MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), trxn);
-				//mAttributeInstance.saveEx();
 				mAttributeSetInstance.saveEx();
 				line.saveEx();
 				
-			}
+			
 		}
 		else if(mzzWoocommerceMap.getwoocommerce_field_value().equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD))
 		{
-			/*Check if a bld_line_productsetinstance exists, if not, create one.
-			 create a bld_line_productinstance record and link to bld_line_productsetinstance*/
+			//Check if a bld_line_productsetinstance exists, if not, create one.
+			MBLDLineProductSetInstance mBldLineProductSetInstance = new MBLDLineProductSetInstance(ctx, line.get_ValueAsInt("bld_line_productsetinstance_id"), trxn);
+			mBldLineProductSetInstance.saveEx(trxn);
+			int bldLineProductSetInstanceID = mBldLineProductSetInstance.get_ID();
+			line.set_ValueNoCheck("bld_line_productsetinstance_id", bldLineProductSetInstanceID);
+			
+			 //create a bld_line_productinstance record and link to bld_line_productsetinstance
+			MBLDLineProductInstance mBLDLineProductInstance = new MBLDLineProductInstance(ctx, 0, trxn);
+			mBLDLineProductInstance.setBLD_Line_ProductSetInstance_ID(bldLineProductSetInstanceID);
+			mBLDLineProductInstance.setBLD_Product_PartType_ID(mzzWoocommerceMap.getM_PartType_ID());
+			mBLDLineProductInstance.setM_Product_ID(mzzWoocommerceMap.getm_product_line_id());
+			mBLDLineProductInstance.saveEx();
 		}
 		else if(mzzWoocommerceMap.getwoocommerce_field_value().equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))
 		{
+			//Get the MBLDLineProductInstance. This relies on the products being added to the MBLDLineProductInstance before this code runs.
+			//TODO: Code to get the MBLDLineProductInstance.
 			/*How to handle multiple cases of bld_line_productsetinstances containing multiple records of the same product?
 			 * Check existence of m_attributesetinstance_id in bld_line_productinstance -> if it does not exist then create and add attribute & value
 			 * If m_attributesetinstance_id in bld_line_productinstance > 0 then it already exists -> check if the attribute value has been set
