@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.logging.Level;
+
+import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MBPartner;
@@ -205,6 +207,8 @@ public final class WcOrder {
 
 	//Consider not running this method - at least until the system is stable.
 	public void completeOrder() {
+		/*
+		
 		order.setDateOrdered(new Timestamp(System.currentTimeMillis()));
 		order.setDateAcct(new Timestamp(System.currentTimeMillis()));
 		order.setDocAction(DocAction.ACTION_Complete);
@@ -216,6 +220,8 @@ public final class WcOrder {
 				log.fine("Order: " + order.getDocumentNo() + " did not complete");
 		order.saveEx();//Comment out with line below to bypass is completed check.
 			throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");
+			
+			*/
 
 		//order.saveEx(); Uncomment if 'throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");' is commented out
 	}
@@ -410,7 +416,6 @@ public final class WcOrder {
 	
 		
 		//Process field data
-		
 		MzzWoocommerceMap mzzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(mProductID, fieldID, fieldValue, ctx);
 		if(mzzWoocommerceMap == null)
 		{
@@ -431,12 +436,46 @@ public final class WcOrder {
 			else
 			{
 				MAttributeSetInstance mAttributeSetInstance = new MAttributeSetInstance(ctx, m_AttributeSetInstance_ID, trxn);
-				mAttributeSetInstance.saveEx();
+				mAttributeSetInstance.saveEx(trxn);
+				MAttribute mapAttribute = new MAttribute(ctx, mzzWoocommerceMap.getM_Attribute_ID(), trxn);
+				int mAttributeSetID = MProduct.get(mProductID).getM_AttributeSet_ID();
+				String attributeValueType = mapAttribute.getAttributeValueType();
+				
+				mAttributeSetInstance.setM_AttributeSet_ID(mAttributeSetID);
 				m_AttributeSetInstance_ID = mAttributeSetInstance.get_ID();
 				line.setM_AttributeSetInstance_ID(m_AttributeSetInstance_ID);
-				MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), trxn);
-				mAttributeInstance.saveEx(trxn);
-				line.saveEx(trxn);
+				
+				if(attributeValueType.equals("N"))//It's a number attribute
+				{
+					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getwoocommerce_field_value(), trxn);
+					mAttributeInstance.saveEx();
+					/*MAttributeInstance (Properties ctx, int M_Attribute_ID, 
+					int M_AttributeSetInstance_ID, int Value, String trxName)*/
+				}
+				else if(attributeValueType.equals("S"))//It's a string attribute
+				{
+					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getwoocommerce_field_value(), trxn);
+					mAttributeInstance.saveEx();
+					/*MAttributeInstance (Properties ctx, int M_Attribute_ID, 
+					int M_AttributeSetInstance_ID, String Value, String trxName)*/
+				}
+				else if(attributeValueType.equals("L"))//It's a list attribute
+				{
+					//TODO: This sets the value with the WooCOmmerce data. Will this cause unexpected results?
+					MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), mzzWoocommerceMap.getwoocommerce_field_value());
+					mAttributeInstance.saveEx();
+					/*MAttributeInstance(Properties ctx, int M_Attribute_ID, int M_AttributeSetInstance_ID,
+					int M_AttributeValue_ID, String Value, String trxName)*/
+				}
+				else if(attributeValueType.equals("R"))//It's a Yes/No checkbox
+				{
+					
+				}
+				
+				//MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMap.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMap.getM_AttributeValue_ID(), trxn);
+				//mAttributeInstance.saveEx();
+				mAttributeSetInstance.saveEx();
+				line.saveEx();
 				
 			}
 		}
