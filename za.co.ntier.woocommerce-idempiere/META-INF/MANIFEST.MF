@@ -8,7 +8,7 @@ Bundle-RequiredExecutionEnvironment: JavaSE-11
 Require-Bundle: org.adempiere.base;bundle-version="7.1.0",
  org.adempiere.plugin.utils;bundle-version="7.1.0",
  au.blindmot.mtomman;bundle-version="9.1.7"
-Service-Component: ProcessFactory.xml
+Service-Component: OSGI-INF/ProcessFactory.xml, OSGI-INF/ModelFactory.xml
 Bundle-Vendor: nTier Software Services
 Export-Package: za.co.ntier.factories,
  za.co.ntier.model,

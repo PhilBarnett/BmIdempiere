@@ -119,83 +119,18 @@ public interface I_ZZ_Woocommerce_Map
 	  */
 	public boolean isActive();
 
-    /** Column name M_Attribute_ID */
-    public static final String COLUMNNAME_M_Attribute_ID = "M_Attribute_ID";
+    /** Column name Line */
+    public static final String COLUMNNAME_Line = "Line";
 
-	/** Set Attribute.
-	  * Product Attribute
+	/** Set Line No.
+	  * Unique line for this document
 	  */
-	public void setM_Attribute_ID (int M_Attribute_ID);
+	public void setLine (int Line);
 
-	/** Get Attribute.
-	  * Product Attribute
+	/** Get Line No.
+	  * Unique line for this document
 	  */
-	public int getM_Attribute_ID();
-
-	public org.compiere.model.I_M_Attribute getM_Attribute() throws RuntimeException;
-
-    /** Column name m_attribute_product_id */
-    public static final String COLUMNNAME_m_attribute_product_id = "m_attribute_product_id";
-
-	/** Set m_attribute_product_id	  */
-	public void setm_attribute_product_id (int m_attribute_product_id);
-
-	/** Get m_attribute_product_id	  */
-	public int getm_attribute_product_id();
-
-	public org.compiere.model.I_M_Attribute getm_attribute_product() throws RuntimeException;
-
-    /** Column name M_AttributeSetInstance_ID */
-    public static final String COLUMNNAME_M_AttributeSetInstance_ID = "M_AttributeSetInstance_ID";
-
-	/** Set Attribute Set Instance.
-	  * Product Attribute Set Instance
-	  */
-	public void setM_AttributeSetInstance_ID (int M_AttributeSetInstance_ID);
-
-	/** Get Attribute Set Instance.
-	  * Product Attribute Set Instance
-	  */
-	public int getM_AttributeSetInstance_ID();
-
-	public I_M_AttributeSetInstance getM_AttributeSetInstance() throws RuntimeException;
-
-    /** Column name M_AttributeValue_ID */
-    public static final String COLUMNNAME_M_AttributeValue_ID = "M_AttributeValue_ID";
-
-	/** Set Attribute Value.
-	  * Product Attribute Value
-	  */
-	public void setM_AttributeValue_ID (int M_AttributeValue_ID);
-
-	/** Get Attribute Value.
-	  * Product Attribute Value
-	  */
-	public int getM_AttributeValue_ID();
-
-	public org.compiere.model.I_M_AttributeValue getM_AttributeValue() throws RuntimeException;
-
-    /** Column name m_attributevalue_product_id */
-    public static final String COLUMNNAME_m_attributevalue_product_id = "m_attributevalue_product_id";
-
-	/** Set m_attributevalue_product_id	  */
-	public void setm_attributevalue_product_id (int m_attributevalue_product_id);
-
-	/** Get m_attributevalue_product_id	  */
-	public int getm_attributevalue_product_id();
-
-	public org.compiere.model.I_M_Attribute getm_attributevalue_product() throws RuntimeException;
-
-    /** Column name M_PartType_ID */
-    public static final String COLUMNNAME_M_PartType_ID = "M_PartType_ID";
-
-	/** Set Part Type	  */
-	public void setM_PartType_ID (int M_PartType_ID);
-
-	/** Get Part Type	  */
-	public int getM_PartType_ID();
-
-	public org.compiere.model.I_M_PartType getM_PartType() throws RuntimeException;
+	public int getLine();
 
     /** Column name M_Product_ID */
     public static final String COLUMNNAME_M_Product_ID = "M_Product_ID";
@@ -211,17 +146,6 @@ public interface I_ZZ_Woocommerce_Map
 	public int getM_Product_ID();
 
 	public org.compiere.model.I_M_Product getM_Product() throws RuntimeException;
-
-    /** Column name m_product_line_id */
-    public static final String COLUMNNAME_m_product_line_id = "m_product_line_id";
-
-	/** Set M_Product_ID	  */
-	public void setm_product_line_id (int m_product_line_id);
-
-	/** Get M_Product_ID	  */
-	public int getm_product_line_id();
-
-	public org.compiere.model.I_M_Product getm_product_line() throws RuntimeException;
 
     /** Column name Updated */
     public static final String COLUMNNAME_Updated = "Updated";
@@ -274,15 +198,6 @@ public interface I_ZZ_Woocommerce_Map
 
 	/** Get Woocommerce Map	  */
 	public int getZZ_Woocommerce_Map_ID();
-
-    /** Column name zz_woocommerce_map_type */
-    public static final String COLUMNNAME_zz_woocommerce_map_type = "zz_woocommerce_map_type";
-
-	/** Set zz_woocommerce_map_type	  */
-	public void setzz_woocommerce_map_type (String zz_woocommerce_map_type);
-
-	/** Get zz_woocommerce_map_type	  */
-	public String getzz_woocommerce_map_type();
 
     /** Column name ZZ_Woocommerce_Map_UU */
     public static final String COLUMNNAME_ZZ_Woocommerce_Map_UU = "ZZ_Woocommerce_Map_UU";
