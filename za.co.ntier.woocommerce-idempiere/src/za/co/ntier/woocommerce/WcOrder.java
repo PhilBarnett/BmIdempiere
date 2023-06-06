@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 import org.compiere.model.I_C_OrderLine;
 import org.compiere.model.I_M_AttributeInstance;
@@ -268,7 +269,7 @@ public final class WcOrder {
 		duplicateOrderLine = false;
 		ArrayList<LinkedHashMap<String,Object>> metaData = (ArrayList<LinkedHashMap<String, Object>>) line.get("meta_data");
 		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();//Holds the found Mapping instructions for this WC orderline
-		ArrayList<MzzWoocommerceMap> lineZzWoocommerceMapList = new ArrayList<>();//Holds Map records for this WC orderline
+		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = new ArrayList<>();//Holds Map records for this WC orderline
 		
 		for (LinkedHashMap<String, Object> metaItem : metaData)
 			{
@@ -294,7 +295,7 @@ public final class WcOrder {
 									 LinkedHashMap<String, Object> field = (LinkedHashMap<String, Object>) fieldItem.getValue();
 										
 									 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLine.getM_Product_ID(),(String)field.get("id"), (String)field.get("value"), ctx);
-									 lineZzWoocommerceMapList.add(zzWoocommerceMap); //Add all found mappings to List
+									 masterZzWoocommerceMapList.add(zzWoocommerceMap); //Add all found mappings to List
 									 
 									 System.out.println(field.get("id"));
 									 System.out.println(field.get("label"));
@@ -314,7 +315,7 @@ public final class WcOrder {
 			}
 						 
 						 //Create MapLines (the actual instructions to create attributes, product options and product attributes), add to List
-						 for(MzzWoocommerceMap zzWoocommerceMapItem : lineZzWoocommerceMapList)
+						 for(MzzWoocommerceMap zzWoocommerceMapItem : masterZzWoocommerceMapList)
 						 {
 							 MzzWoocommerceMapLine[] mzzWoocommerceMapLns = 
 									 zzWoocommerceMapItem.getMzzWoocommerceMapLines(zzWoocommerceMapItem.get_ID(), ctx, "", "");
@@ -324,79 +325,26 @@ public final class WcOrder {
 							 }
 						 }
 							//we now have all the MzzWoocommerceMapLines in an ArrayList.
-							/*Find duplicate attributes - we want to find Attribute that are being created by more than one WooCommerce field.
+							/*Find duplicate attributes - we want to find Attributes that
+							 * are being created by more than one WooCommerce field.
 							 * If we find one, we add it to a storage List
-							 * For example, a line that is setting width twice.*/
-						 
+							 * For example, 2 lines that are both setting width.*/
 					
-							ArrayList<MzzWoocommerceMapLine> duplicateAttributes = new ArrayList<MzzWoocommerceMapLine>();
-							HashMap<Integer,Integer> filteredAttributeMapLines = new HashMap<Integer,Integer>();
-							for(MzzWoocommerceMapLine mapline : mzzWoocommerceMapLines)
-							{
-								
-								int key = mapline.getM_Attribute_ID();
-								if(key > 0)//This mapline is mapping a WC field to BLDParttype
-								{
-									int value = mapline.getZZ_Woocommerce_Map_ID();
-									System.out.println("Key: " + key + " Value: " + value);
-									if(filteredAttributeMapLines.put(key, value)!=null)//pair is already in HashMap
-									{
-										duplicateAttributes.add(mapline);
-									}
-								}
-							}
+						 //Create lists of duplicate maplines by maptype.
+						 ArrayList<MzzWoocommerceMapLine> duplicateAttributes = GetMzzWooCommerceLineDuplicates(WOOCOMMERCE_MAP_TYPE_ATTRIBUTE, mzzWoocommerceMapLines);
+						 ArrayList<MzzWoocommerceMapLine> duplicateBldPartTypes = GetMzzWooCommerceLineDuplicates(WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD, mzzWoocommerceMapLines);
+						 ArrayList<MzzWoocommerceMapLine> duplicateProductAttributes = GetMzzWooCommerceLineDuplicates(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE, mzzWoocommerceMapLines);
 							
-							//Find duplicate Part adds - we want to find BldMParttypes that are being created by more than oneWooCommerce field. If we find one, we add it to a storage List
-							ArrayList<MzzWoocommerceMapLine> duplicateBldPartTypes = new ArrayList<MzzWoocommerceMapLine>();
-							HashMap<Integer,Integer> filteredPartMapLines = new HashMap<Integer,Integer>();
-							for(MzzWoocommerceMapLine mapline : mzzWoocommerceMapLines)
-							{
-								
-								int key = mapline.getBLD_Product_PartType_ID();
-								System.out.println(mapline.getzz_woocommerce_map_type());
-								if(key > 0 && mapline.getzz_woocommerce_map_type().equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD))//This mapline is mapping a WC field to BLDParttype
-								{
-									int value = mapline.getZZ_Woocommerce_Map_ID();
-									System.out.println("Key: " + key + " Value: " + value);
-									if(filteredPartMapLines.put(key, value)!=null)//pair is already in HashMap
-									{
-										duplicateBldPartTypes.add(mapline);
-									}
-								}
-							}
-							/*Find duplicate product attribute creation. We want to fid product attributes that are being set by differnt WC fields,
-							 * For example fabric colour being set by more than one WC field.
-							 * The opening if() statement assumes there will only be duplicate product attribute adds if there are duplicate parttype adds.
-							 */
-							HashMap<Integer,Integer> filteredProductAttributes = new HashMap<Integer,Integer>();
-							ArrayList<MzzWoocommerceMapLine> duplicateProductAttributes = new ArrayList<MzzWoocommerceMapLine>();
-							if(duplicateBldPartTypes.size()>0)
-							{
-								for(MzzWoocommerceMapLine mapline : mzzWoocommerceMapLines)
-								{
-									
-									int key = mapline.getM_Attribute_Product_ID();
-									if(key > 0 && mapline.getzz_woocommerce_map_type().equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))//This mapline is mapping a WC field to BLDParttype
-									{
-										int value = mapline.getZZ_Woocommerce_Map_ID();
-										System.out.println("Key: " + key + " Value: " + value);
-										if(filteredProductAttributes.put(key, value)!=null)//pair is already in HashMap
-										{
-											duplicateProductAttributes.add(mapline);
-										}
-									}
-								}
-							}
-						 
 						 /*We now have 3 lists of possible duplicate WC mapped fields.
 						  * Create Lists of MzzWoocommerceMapLines to create the MOrderLines.
 						  * The operation to create the duplicate MzzWoocommerceMap Lists leaves
 						  * There will NumberOfUniqueDuplicateAttributes X UniqueDuplicatePartTypes -> 3 widths, 2 fabrics -> 6 Orderlines*/
-							sortArrayAttributes = new ArrayList<ArrayList<MzzWoocommerceMapLine>>();
-							//sortArrayProducts = new ArrayList<ArrayList<MzzWoocommerceMapLine>>();
+						 	sortArrayAttributes = new ArrayList<ArrayList<MzzWoocommerceMapLine>>();
+							sortArrayAttributes = processRepeatingFields(duplicateProductAttributes);
+							sortArrayProducts = new ArrayList<ArrayList<MzzWoocommerceMapLine>>();
 							//processRepeatingFields(duplicateAttributes);
-							processRepeatingFields(duplicateBldPartTypes);
-							processRepeatingFields(duplicateProductAttributes);
+							sortArrayProducts = processRepeatingFields(duplicateBldPartTypes);
+							processRepeatingFields(duplicateProductAttributes);//This reuses the sortArrayProducts field and adds to it.
 						 
 						 //System.out.println(values.toString());
 			
@@ -407,20 +355,29 @@ public final class WcOrder {
 		MBLDLineProductSetInstance lineBldInstance = new MBLDLineProductSetInstance(ctx, orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), trxName);
 		lineBldInstance.setDescription(orderLine.getM_Product_ID());
 		lineBldInstance.save();
+		if(sortArrayProducts.size()==0 || sortArrayAttributes.size() ==0)//no duplicate fields, single Orderline
+		{
+			//Process single order.
+		}
+		else//Process multi Orderlines
+		{
+			//Create
+		}
+		/****************************Refactor from here**************************************************/
 		if(duplicateOrderLine)
 		{
-			createMultipleProduct(orderLine, trxName);
+			duplicateOrderLine(orderLine, trxName);
 		}
 		duplicateOrderLine = false;
 		duplicateFields = null;
 		//Added by Phil
-		
+		/****************************Refactor yo here**************************************************/
 		if (!orderLine.save()) {
 			throw new IllegalStateException("Could not create Order Line");
 		}
 	}
 	
-	public /*ArrayList<?>*/ void processRepeatingFields(ArrayList<MzzWoocommerceMapLine> duplicates) {
+	public ArrayList<ArrayList<MzzWoocommerceMapLine>> processRepeatingFields(ArrayList<MzzWoocommerceMapLine> duplicates) {
 		
 		for(MzzWoocommerceMapLine mzzWoocommerceMapLine : duplicates)
 		{
@@ -436,96 +393,118 @@ public final class WcOrder {
 				firstEntry.add(mzzWoocommerceMapLine);
 				sortArrayAttributes.add(firstEntry);
 			}
-			sortArrayAttributes = sortThisMess(sortArrayAttributes, mzzWoocommerceMapLine);
+			sortArrayAttributes = sortMapLinesIntoArrayLists(sortArrayAttributes, mzzWoocommerceMapLine);
 			//ArrayList<MzzWoocommerceMapLine> subList = new ArrayList<MzzWoocommerceMapLine>();
 			//subList.add(mzzWoocommerceMapLine);
 		}
 		
 		
-		//return sortArray;
+		return sortArrayAttributes;
 	}
 	
-	public ArrayList<ArrayList<MzzWoocommerceMapLine>> sortThisMess(ArrayList<ArrayList<MzzWoocommerceMapLine>> mess, MzzWoocommerceMapLine zzzWoocommerceMapLine) {
+	public ArrayList<ArrayList<MzzWoocommerceMapLine>> sortMapLinesIntoArrayLists(ArrayList<ArrayList<MzzWoocommerceMapLine>> arrayListInProgress, MzzWoocommerceMapLine zzzWoocommerceMapLine) {
 		//Is the mzzWoocommerceMapLine already on the list?
-		//for(ArrayList<MzzWoocommerceMapLine> mapArrayList : mess)
-		boolean exit = false;
-		for(int xx = 0; xx < mess.size(); xx++)
+		//for(ArrayList<MzzWoocommerceMapLine> mapArrayList : arrayListInProgress)
+		
+	  if(!(isAlreadyInArrayListInProgress(arrayListInProgress, zzzWoocommerceMapLine)))
+	  {
+		for(int xx = 0; xx < arrayListInProgress.size(); xx++)//Start at the beginning and compare the mapline to contents
 		{
-			//for(MzzWoocommerceMapLine mzzLineToExamine : mapArrayList)
-				//if(exit) break;
-				for(int v =0; v < mess.get(xx).size(); v++)
-			{
-				//Is this the same element?
-				if(!(mess.get(xx).get(v).get_ID() == zzzWoocommerceMapLine.get_ID()))
+			ArrayList<MzzWoocommerceMapLine> currentListItem = 	arrayListInProgress.get(xx);
+			//for(int v =0; v < currentListItem.size(); v++)
+			//{
+				//switch(currentListItem.get(v).getzz_woocommerce_map_type()) 
+				switch(zzzWoocommerceMapLine.getzz_woocommerce_map_type())
 				{
-					//Is it the same maptype?
-					if(mess.get(xx).get(v).getzz_woocommerce_map_type().equals(zzzWoocommerceMapLine.getzz_woocommerce_map_type()))
-					{//The above if stops any maptypes aprt from the one used to initialise the map
-						//Is it setting the same stuff?
-						switch(mess.get(xx).get(v).getzz_woocommerce_map_type()) {
-						case WOOCOMMERCE_MAP_TYPE_ATTRIBUTE:
-							//is it setting the same Attribute?
-							if(mess.get(xx).get(v).getM_Attribute_ID() == zzzWoocommerceMapLine.getM_Attribute_ID())
-							{
-								//Add it to the mess in new ArrayList
-								ArrayList<MzzWoocommerceMapLine> addedzzMapLineList = new ArrayList<MzzWoocommerceMapLine>();
-								addedzzMapLineList.add(zzzWoocommerceMapLine);
-								mess.add(addedzzMapLineList);
-							}
-							else
-							{
-								//Add to current list
-								mess.get(xx).add(zzzWoocommerceMapLine);
-							}
-							return mess;
-							//break;
-						case WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD:
-							//Is it setting the same producttype?
-							if(mess.get(xx).get(v).getBLD_Product_PartType_ID() == zzzWoocommerceMapLine.getBLD_Product_PartType_ID())
-							{
-								//Add it to the mess in new ArrayList
-								ArrayList<MzzWoocommerceMapLine> addedzzMapLineList = new ArrayList<MzzWoocommerceMapLine>();
-								addedzzMapLineList.add(zzzWoocommerceMapLine);
-								mess.add(addedzzMapLineList);
-							}
-							else
-							{
-								//Add to current list
-								mess.get(xx).add(zzzWoocommerceMapLine);
-							}
-							return mess;
-							//break;
-							
-						case WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE:
-							//Is it setting the same product attribute, EG fabric colour?
-							if(mess.get(xx).get(v).getM_Attribute_Product_ID() == zzzWoocommerceMapLine.getM_Attribute_Product_ID())
-							{
-								///Add it to the mess in new ArrayList
-								ArrayList<MzzWoocommerceMapLine> addedzzMapLineList = new ArrayList<MzzWoocommerceMapLine>();
-								addedzzMapLineList.add(zzzWoocommerceMapLine);
-								mess.add(addedzzMapLineList);
-							}
-							else
-							{
-								//Add to current list
-								mess.get(xx).add(zzzWoocommerceMapLine);
-							}
-							return mess;
-							default:
-							
-								//Add to current list
-								mess.get(xx).add(zzzWoocommerceMapLine);
-								return mess;
-							//break;
-							
+				case WOOCOMMERCE_MAP_TYPE_ATTRIBUTE:
+					//is it setting the same Attribute? if it is then do nothing, continue iterating
+					if(!(isAttributeMapTypeInList(currentListItem, zzzWoocommerceMapLine)))
+						{
+							currentListItem.add(zzzWoocommerceMapLine);
+							return arrayListInProgress;
 						}
+			
+					break;
+				case WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD:
+					//Is it setting the same producttype?
+					if(!(isProductPartMapTypeInList(currentListItem, zzzWoocommerceMapLine)))
+					{
+						currentListItem.add(zzzWoocommerceMapLine);
+						return arrayListInProgress;
 					}
-				}
-				//mess.get(xx).add(zzzWoocommerceMapLine);//Add to current list
+					
+					break;
+					
+				case WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE:
+					//Is it setting the same product attribute, EG fabric colour?
+					if(!(isProductAttributeTypeInList(currentListItem, zzzWoocommerceMapLine)))
+					{
+						currentListItem.add(zzzWoocommerceMapLine);
+						return arrayListInProgress;
+					}
+					
+					
+				}/*Switch end - zzzWoocommerceMapLine is not in zzzWoocommerceMapLine
+				and doesn't match any of the existing map types*/
+		}/*End of outer loop - default action. We're left with zzzWoocommerceMapLine that matches nothing 
+			in the above tests, so add it to a NEW List */
+		ArrayList<MzzWoocommerceMapLine> addedzzMapLineList = new ArrayList<MzzWoocommerceMapLine>();
+		addedzzMapLineList.add(zzzWoocommerceMapLine);
+		arrayListInProgress.add(addedzzMapLineList);
+		
+		return arrayListInProgress;
+	  }
+		return arrayListInProgress;
+		
+	}
+	
+	private boolean isProductPartMapTypeInList(ArrayList<MzzWoocommerceMapLine> list, MzzWoocommerceMapLine line) {
+		for(int vv =0; vv < list.size(); vv++)
+		{
+			if(list.get(vv).getzz_woocommerce_map_type().equals(line.getzz_woocommerce_map_type()))
+			{
+				if(list.get(vv).getBLD_Product_PartType_ID() == line.getBLD_Product_PartType_ID())return true;
 			}
 		}
-		
-		return mess;
+		return false;
+	}
+	
+	private boolean isAttributeMapTypeInList(ArrayList<MzzWoocommerceMapLine> list, MzzWoocommerceMapLine line) {
+		for(int vv =0; vv < list.size(); vv++)
+		{
+			if(list.get(vv).getzz_woocommerce_map_type().equals(line.getzz_woocommerce_map_type()))
+			{
+				if(list.get(vv).getM_Attribute_ID() == line.getM_Attribute_ID())return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean isProductAttributeTypeInList(ArrayList<MzzWoocommerceMapLine> list, MzzWoocommerceMapLine line) {
+		for(int vv =0; vv < list.size(); vv++)
+		{
+			if(list.get(vv).getzz_woocommerce_map_type().equals(line.getzz_woocommerce_map_type()))
+			{
+				if(list.get(vv).getM_Attribute_Product_ID() == line.getM_Attribute_Product_ID())return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean isAlreadyInArrayListInProgress(ArrayList<ArrayList<MzzWoocommerceMapLine>> arrayListInProgress, MzzWoocommerceMapLine line) {
+		for(int xx = 0; xx < arrayListInProgress.size(); xx++)//Start at the beginning and compare the mapline to contents
+		{
+			ArrayList<MzzWoocommerceMapLine> currentListItem = 	arrayListInProgress.get(xx);	
+			for(int v =0; v < currentListItem.size(); v++)
+			{
+				//Is this element already in the arrayListInProgress? If yes, we skip and return.
+				if(currentListItem.get(v).get_ID() == line.get_ID())
+				{
+					return true;
+				}
+			}
+		}
+		return false;
 		
 	}
 	
@@ -912,7 +891,7 @@ public final class WcOrder {
 		//line.saveEx();
 	}	
 	
-	public void createMultipleProduct(MOrderLine line, String trxn /*, List<?> changeItems*/) {
+	public void duplicateOrderLine(MOrderLine line, String trxn /*, List<?> changeItems*/) {
 		MOrderLine duplicateOrderLine = new MOrderLine(order);
 		MOrderLine.copyValues(line, duplicateOrderLine);
 		//MAttributeSetInstance duplicateMAttributeSetInstance = new MAttributeSetInstance(ctx, 0 ,trxn);
@@ -924,6 +903,8 @@ public final class WcOrder {
 			processWooCommMeta(duplicateOrderLine, duplicateField, duplicateOrderLine.getM_Product_ID(), ctx, trxn);
 		}
 		duplicateOrderLine.save();
+	}
+	
 		
 		//Copy order line just created.
 		//Change items - could have the meta objects to set as different?
@@ -934,6 +915,51 @@ public final class WcOrder {
 		 How to dual linked blinds? -> same a above?
 		 Attributes - should overwrite themselves, products -> fetch the BLDproductSetInstance and replace product by parttype?*/
 		//What has to change? for dual products, it may be the fabric, roll type, curtain position
-	}
+
 	
+	/**
+	 * 
+	 * @param mapType
+	 * @param mzzWoocommerceMapLines
+	 * @return
+	 */
+	public ArrayList<MzzWoocommerceMapLine> GetMzzWooCommerceLineDuplicates(String mapType, ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines) {
+		
+		ArrayList<MzzWoocommerceMapLine> duplicatesToReturn = new ArrayList<MzzWoocommerceMapLine>();
+		Map<Integer,Integer> rawAttributeMapLines = new HashMap<Integer,Integer>();
+		for(MzzWoocommerceMapLine mapline : mzzWoocommerceMapLines)
+		{
+			int key = mapline.get_ID();
+			int value = mapline.getM_Attribute_ID();
+			rawAttributeMapLines.put(key, value);
+		}
+			
+		HashMap<Integer, List<Integer>> valueToKeyMapCounter = new HashMap<>();
+
+        for (Entry<Integer, Integer> entry : rawAttributeMapLines.entrySet()) {
+            if (valueToKeyMapCounter.containsKey(entry.getValue())) {
+                valueToKeyMapCounter.get(entry.getValue()).add(entry.getKey());
+            } else {
+                List<Integer> keys = new ArrayList<>();
+                keys.add(entry.getKey());
+                valueToKeyMapCounter.put(entry.getValue(), keys);
+            }
+        }
+        for (Map.Entry<Integer, List<Integer>> counterEntry : valueToKeyMapCounter.entrySet()) {
+            if (counterEntry.getValue().size() > 1) 
+            {
+                if(counterEntry.getKey() > 0)
+                {
+	            	System.out.println("Duplicated Value:" + counterEntry.getKey() + " for Keys:" + counterEntry.getValue());
+	            	ArrayList<Integer> MapLineIDs = (ArrayList<Integer>) counterEntry.getValue();
+	                for(Integer id : MapLineIDs)
+	                {
+	                	duplicatesToReturn.add(new MzzWoocommerceMapLine(ctx, id, trxName));
+	                }
+                
+                }
+            }
+        }
+		return duplicatesToReturn;
+	}
 }
