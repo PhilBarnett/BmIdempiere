@@ -80,6 +80,19 @@ public interface I_ZZ_Woocommerce_Match
 	  */
 	public int getCreatedBy();
 
+    /** Column name Description */
+    public static final String COLUMNNAME_Description = "Description";
+
+	/** Set Description.
+	  * Optional short description of the record
+	  */
+	public void setDescription (String Description);
+
+	/** Get Description.
+	  * Optional short description of the record
+	  */
+	public String getDescription();
+
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";
 
@@ -107,6 +120,19 @@ public interface I_ZZ_Woocommerce_Match
 	public int getM_Product_ID();
 
 	public org.compiere.model.I_M_Product getM_Product() throws RuntimeException;
+
+    /** Column name Name */
+    public static final String COLUMNNAME_Name = "Name";
+
+	/** Set Name.
+	  * Alphanumeric identifier of the entity
+	  */
+	public void setName (String Name);
+
+	/** Get Name.
+	  * Alphanumeric identifier of the entity
+	  */
+	public String getName();
 
     /** Column name Updated */
     public static final String COLUMNNAME_Updated = "Updated";

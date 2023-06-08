@@ -31,7 +31,7 @@ public class X_ZZ_Woocommerce_Match extends PO implements I_ZZ_Woocommerce_Match
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20230528L;
+	private static final long serialVersionUID = 20230609L;
 
     /** Standard Constructor */
     public X_ZZ_Woocommerce_Match (Properties ctx, int ZZ_Woocommerce_Match_ID, String trxName)
@@ -70,9 +70,25 @@ public class X_ZZ_Woocommerce_Match extends PO implements I_ZZ_Woocommerce_Match
     public String toString()
     {
       StringBuilder sb = new StringBuilder ("X_ZZ_Woocommerce_Match[")
-        .append(get_ID()).append("]");
+        .append(get_ID()).append(",Name=").append(getName()).append("]");
       return sb.toString();
     }
+
+	/** Set Description.
+		@param Description Optional short description of the record
+	*/
+	public void setDescription (String Description)
+	{
+		set_Value (COLUMNNAME_Description, Description);
+	}
+
+	/** Get Description.
+		@return Optional short description of the record
+	  */
+	public String getDescription()
+	{
+		return (String)get_Value(COLUMNNAME_Description);
+	}
 
 	public org.compiere.model.I_M_Product getM_Product() throws RuntimeException
 	{
@@ -100,6 +116,22 @@ public class X_ZZ_Woocommerce_Match extends PO implements I_ZZ_Woocommerce_Match
 		if (ii == null)
 			 return 0;
 		return ii.intValue();
+	}
+
+	/** Set Name.
+		@param Name Alphanumeric identifier of the entity
+	*/
+	public void setName (String Name)
+	{
+		set_Value (COLUMNNAME_Name, Name);
+	}
+
+	/** Get Name.
+		@return Alphanumeric identifier of the entity
+	  */
+	public String getName()
+	{
+		return (String)get_Value(COLUMNNAME_Name);
 	}
 
 	/** Set woocommerce_key.

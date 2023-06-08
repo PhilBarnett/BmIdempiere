@@ -73,6 +73,7 @@ public final class WcOrder {
 	private PO wcDefaults;
 	private ArrayList<ArrayList<MzzWoocommerceMapLine>> sortArrayAttributes;
 	private ArrayList<ArrayList<MzzWoocommerceMapLine>> sortArrayProducts;
+	private LinkedHashMap<Object, Object> fieldValues;
 
 	public WcOrder(Properties ctx, String trxName, PO wcDefaults) {
 		this.ctx = ctx;
@@ -249,6 +250,7 @@ public final class WcOrder {
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
 	
 		orderLine.setM_Product_ID(getProductId(((Integer) line.get("product_id")).intValue()));
+		orderLine.setDescription(getWooCommerceProductName((Integer)line.get("product_id")) + " " + orderLine.getDescription());
 		// orderLine.setC_UOM_ID(originalOLine.getC_UOM_ID());
 		// orderLine.setC_Tax_ID(originalOLine.getC_Tax_ID());
 		orderLine.setM_Warehouse_ID(order.getM_Warehouse_ID());
@@ -269,14 +271,14 @@ public final class WcOrder {
 		duplicateOrderLine = false;
 		ArrayList<LinkedHashMap<String,Object>> metaData = (ArrayList<LinkedHashMap<String, Object>>) line.get("meta_data");
 		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();//Holds the found Mapping instructions for this WC orderline
-		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = new ArrayList<>();//Holds Map records for this WC orderline
+		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = createdMapListFromMetaData(metaData, orderLine.getM_Product_ID());
 		
-		for (LinkedHashMap<String, Object> metaItem : metaData)
+	/*	for (LinkedHashMap<String, Object> metaItem : metaData)
 			{
 				 if(metaItem.get("key").equals("_wapf_meta"))
 					 /*_wapf_meta contains the unique id of each field that
 					  * can be matched to the backend product  */
-				 {
+					 /*			 {
 					 LinkedHashMap<String, Object> wapfMeta = (LinkedHashMap<String, Object>) metaItem.get("value");
 					 //Create a list of mapping object for this WC order line
 					 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
@@ -312,7 +314,7 @@ public final class WcOrder {
 						 }
 					 } 
 				 }
-			}
+			} */
 						 
 						 //Create MapLines (the actual instructions to create attributes, product options and product attributes), add to List
 						 for(MzzWoocommerceMap zzWoocommerceMapItem : masterZzWoocommerceMapList)
@@ -337,8 +339,7 @@ public final class WcOrder {
 							
 						 /*We now have 3 lists of possible duplicate WC mapped fields.
 						  * Create Lists of MzzWoocommerceMapLines to create the MOrderLines.
-						  * The operation to create the duplicate MzzWoocommerceMap Lists leaves
-						  * There will NumberOfUniqueDuplicateAttributes X UniqueDuplicatePartTypes -> 3 widths, 2 fabrics -> 6 Orderlines*/
+						  * There will NumberOfUniqueDuplicateAttributes X UniqueDuplicatePartTypes -> EG 3 widths, 2 fabrics -> 6 Orderlines*/
 						 	sortArrayAttributes = new ArrayList<ArrayList<MzzWoocommerceMapLine>>();
 							sortArrayAttributes = processRepeatingFields(sortArrayAttributes, duplicateAttributes);
 							sortArrayProducts = new ArrayList<ArrayList<MzzWoocommerceMapLine>>();
@@ -349,7 +350,7 @@ public final class WcOrder {
 						 //System.out.println(values.toString());
 			
 				
-		MAttributeSetInstance	lineAttSetIns = new MAttributeSetInstance(ctx, orderLine.getM_AttributeSetInstance_ID(), trxName);	
+		MAttributeSetInstance lineAttSetIns = new MAttributeSetInstance(ctx, orderLine.getM_AttributeSetInstance_ID(), trxName);	
 		lineAttSetIns.setDescription();
 		lineAttSetIns.save();
 		MBLDLineProductSetInstance lineBldInstance = new MBLDLineProductSetInstance(ctx, orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), trxName);
@@ -357,16 +358,68 @@ public final class WcOrder {
 		lineBldInstance.save();
 		if(sortArrayProducts.size()==0 || sortArrayAttributes.size() ==0)//no duplicate fields, single Orderline
 		{
-			//Process single order.
+			//Process single order using masterMapList.
+			ArrayList<ArrayList<MzzWoocommerceMap>> singleOrderLine = new ArrayList<ArrayList<MzzWoocommerceMap>>();
+			singleOrderLine.add(masterZzWoocommerceMapList);
+			processOrderLine(orderLine, singleOrderLine, trxName);
+			
 		}
 		else//Process multi Orderlines
 		{
+			ArrayList<ArrayList<MzzWoocommerceMap>>  interimMzzWoocommerceMapListAttributes = new ArrayList<ArrayList<MzzWoocommerceMap>>();
+			ArrayList<ArrayList<MzzWoocommerceMap>>  interimMzzWoocommerceMapListProduct = new ArrayList<ArrayList<MzzWoocommerceMap>>();
+			ArrayList<ArrayList<MzzWoocommerceMap>>  mergedMzzWoocommerceMapListProduct = new ArrayList<ArrayList<MzzWoocommerceMap>>();
+			ArrayList<MzzWoocommerceMap> filteredMaps = new ArrayList<MzzWoocommerceMap>();
 			if(sortArrayAttributes.size() > 0)
 			{
 				//Create Mapping list for each Orderline
-				//For each line in sortArrayAttributes, create a MzzWoocommerceMap with the conflicting MzzWoocommerceMap records removed
-				ArrayList<ArrayList<MzzWoocommerceMap>>  interimMzzWoocommerceMapList 
-				= createOrderlineMapList(masterZzWoocommerceMapList, sortArrayAttributes, new ArrayList<ArrayList<MzzWoocommerceMap>>());
+				//For each line in sortArrayAttributes, create a single MzzWoocommerceMap with the conflicting MzzWoocommerceMap records removed
+				//Becomes a 'skeleton' to which map records for each orderline can be created.
+				filteredMaps = createFilteredMapList(masterZzWoocommerceMapList, sortArrayAttributes);
+			}
+			if(sortArrayProducts.size() > 0)
+			{
+				filteredMaps = createFilteredMapList(filteredMaps, sortArrayProducts);
+			}
+			//filteredMaps is now good to use - no conflicting entries
+			
+			if(sortArrayAttributes.size() > 0 && !(sortArrayProducts.size() > 0))//Create a list for attribute MOrderlIne creation only.
+			{
+				interimMzzWoocommerceMapListAttributes = createOrderLineMapSubList(sortArrayAttributes, filteredMaps);
+				processOrderLine(orderLine, interimMzzWoocommerceMapListAttributes, trxName);
+			}
+			if(sortArrayProducts.size() > 0 && !(sortArrayAttributes.size() > 0))//Create a list for product related MOrderlIne creation only.
+			{
+				interimMzzWoocommerceMapListProduct = createOrderLineMapSubList(sortArrayProducts, filteredMaps);
+				processOrderLine(orderLine, interimMzzWoocommerceMapListProduct , trxName);
+			}
+			
+			if(sortArrayProducts.size() > 0 && sortArrayAttributes.size() > 0)
+			{
+				ArrayList<MzzWoocommerceMap> emptyMap = new ArrayList<MzzWoocommerceMap>();//Use an empty map - basically creates a MzzWoocommerceMap instead of MzzWoocommerceMapLine
+				interimMzzWoocommerceMapListAttributes = createOrderLineMapSubList(sortArrayAttributes, emptyMap);
+				interimMzzWoocommerceMapListProduct = createOrderLineMapSubList(sortArrayProducts, emptyMap);
+				mergedMzzWoocommerceMapListProduct  = mergeMaps(interimMzzWoocommerceMapListAttributes, interimMzzWoocommerceMapListProduct, filteredMaps);
+				processOrderLine(orderLine, mergedMzzWoocommerceMapListProduct, trxName);
+			}
+			
+			
+			//Delete or comment out once testing complete
+			for(ArrayList<MzzWoocommerceMap> mapItem : mergedMzzWoocommerceMapListProduct)
+			{
+				System.out.println("************Begin Orderline*************");
+				
+				for(MzzWoocommerceMap mzzWoocommerceMap : mapItem)
+				{
+					System.out.println(mzzWoocommerceMap.toString() + " " + mzzWoocommerceMap.getwoocommerce_field_label());
+				}
+				System.out.println("************End Orderline*************");
+				
+			}//End Delete or comment out once testing complete
+			
+	/*		{
+				interimMzzWoocommerceMapList 
+				= createOrderlineMapList(masterZzWoocommerceMapList, sortArrayAttributes);
 				
 				System.out.println( interimMzzWoocommerceMapList.toString());
 				
@@ -385,7 +438,18 @@ public final class WcOrder {
 				}
 					System.out.println( "interimMzzWoocommerceMapList.size(): "+ interimMzzWoocommerceMapList.size());
 			}//We now have interimMzzWoocommerceMapList with enough info to create the attributes of the order lines
-			//TODO:
+			//If they exist, create a multiple of sum(attribute variations) x sum(product variations)
+			ArrayList<ArrayList<MzzWoocommerceMap>>  finalMzzWoocommerceMapList = new ArrayList<ArrayList<MzzWoocommerceMap>>();
+			if(sortArrayProducts.size() > 0)
+			{
+					for(ArrayList<MzzWoocommerceMap> interimMap : interimMzzWoocommerceMapList)
+				{
+					finalMzzWoocommerceMapList = createOrderlineMapList(interimMap, sortArrayProducts);
+				}
+					System.out.println(finalMzzWoocommerceMapList.toString());
+			}
+			
+	*/
 			
 			//use interimMzzWoocommerceMapList [0] -> [x] and createOrderlineMapList with sortArrayProducts as parameter, 
 			//look at using interimMzzWoocommerceMapList [0] -> [x] as parameter instead of master list?
@@ -396,14 +460,18 @@ public final class WcOrder {
 			ArrayList<ArrayList<MzzWoocommerceMapLine>> mapLineListInProgress,
 			ArrayList<ArrayList<MzzWoocommerceMap>> mapListInProgres*/
 			
-		}
+			
+			
+		}//End else
 		/****************************Refactor from here**************************************************/
-		if(duplicateOrderLine)
+		/*
+ 		if(duplicateOrderLine)
 		{
 			duplicateOrderLine(orderLine, trxName);
 		}
 		duplicateOrderLine = false;
 		duplicateFields = null;
+		*/
 		//Added by Phil
 		/****************************Refactor to here**************************************************/
 		if (!orderLine.save()) {
@@ -411,15 +479,105 @@ public final class WcOrder {
 		}
 	}
 	
+	
+	public void processOrderLine(MOrderLine line, ArrayList<ArrayList<MzzWoocommerceMap>> mapList, String trxn /*, List<?> changeItems*/) {
+		for(ArrayList<MzzWoocommerceMap> mzzWoocommerceMapList : mapList)
+		{
+			processWooCommMeta(mzzWoocommerceMapList, line, ctx, trxn);
+			System.out.println(mapList.indexOf(mzzWoocommerceMapList));
+			
+			if(1 + mapList.indexOf(mzzWoocommerceMapList) < mapList.size())//Don't copy the last line.
+			{
+				MOrderLine duplicateOrderLine = new MOrderLine(order);
+				MOrderLine.copyValues(line, duplicateOrderLine);
+				MAttributeSetInstance duplicateMAttributeSetInstance = new MAttributeSetInstance(ctx, 0 ,trxn);
+				duplicateMAttributeSetInstance.save();
+				duplicateOrderLine.setM_AttributeSetInstance_ID(duplicateMAttributeSetInstance.get_ID());
+				String sql = "SELECT COALESCE(MAX(Line),0)+10 FROM C_OrderLine WHERE C_Order_ID=?";
+				int ii = DB.getSQLValue (trxn, sql, order.getC_Order_ID());
+				duplicateOrderLine.setLine (ii);
+				duplicateOrderLine.save();
+				line = duplicateOrderLine;
+			}
+		}
+		
+	/*	MOrderLine duplicateOrderLine = new MOrderLine(order);
+		MOrderLine.copyValues(line, duplicateOrderLine);
+		//MAttributeSetInstance duplicateMAttributeSetInstance = new MAttributeSetInstance(ctx, 0 ,trxn);
+		//duplicateMAttributeSetInstance.save();
+		//duplicateOrderLine.setM_AttributeSetInstance_ID(duplicateMAttributeSetInstance.get_ID());
+		
+		
+		duplicateOrderLine.save();
+		for(LinkedHashMap<String, Object> duplicateField : duplicateFields)
+		{
+			processWooCommMeta(duplicateOrderLine,  ctx, trxn);
+		}
+		duplicateOrderLine.save();
+	*/
+	}
+	
+	/**
+	 * 
+	 * @param attributes
+	 * @param products
+	 * @param filteredMap
+	 * @return
+	 */
+	private ArrayList<ArrayList<MzzWoocommerceMap>> mergeMaps(ArrayList<ArrayList<MzzWoocommerceMap>> attributes, 
+			ArrayList<ArrayList<MzzWoocommerceMap>> products
+			, ArrayList<MzzWoocommerceMap> filteredMap) 
+	{
+		ArrayList<ArrayList<MzzWoocommerceMap>> mergedMap = new ArrayList<ArrayList<MzzWoocommerceMap>>();
+		for(ArrayList<MzzWoocommerceMap> attributeMapItem : attributes)
+		{
+			
+			for(ArrayList<MzzWoocommerceMap> productItem : products)
+			{
+				ArrayList<MzzWoocommerceMap> filteredMapCopy = new ArrayList<MzzWoocommerceMap>(filteredMap);
+				filteredMapCopy.addAll(attributeMapItem);
+				System.out.println("attributeMapItem " + attributeMapItem.toString());
+				System.out.println("productItem " + productItem.toString());
+				filteredMapCopy.addAll(productItem);
+				mergedMap.add(filteredMapCopy);
+			}
+		}
+		return mergedMap;
+	}
+	
+	/**
+	 * For each line in sortArrayAttributes, add the parent MzzWoocommerceMap records back to the lists created above
+	 * @param sortedArray
+	 * @param filteredMap
+	 * @return
+	 */
+	private ArrayList<ArrayList<MzzWoocommerceMap>> createOrderLineMapSubList(ArrayList<ArrayList<MzzWoocommerceMapLine>> sortedArray, ArrayList<MzzWoocommerceMap> filteredMap) {
+		
+		//for(int idx = 0; idx < sortedArray.size(); idx++)
+		ArrayList<ArrayList<MzzWoocommerceMap>> mapToReturn = new ArrayList<ArrayList<MzzWoocommerceMap>>();
+		for(ArrayList<MzzWoocommerceMapLine> sortedArrayItem : sortedArray)
+		{
+			ArrayList<MzzWoocommerceMap> mzzWoocommerceMapLn = new ArrayList<MzzWoocommerceMap>(filteredMap);
+			for(MzzWoocommerceMapLine mzzWoocommerceMapLine : sortedArrayItem)
+			{
+				mzzWoocommerceMapLn.add(new MzzWoocommerceMap(ctx, mzzWoocommerceMapLine.getZZ_Woocommerce_Map_ID(), trxName));
+			}
+			mapToReturn.add(mzzWoocommerceMapLn);
+		}
+		
+		return mapToReturn;
+	}
+	
+	/**
+	 * A preparatory method to create objects parameters for sortMapLinesIntoArrayLists()
+	 * @param sortArray
+	 * @param duplicates
+	 * @return
+	 */
 	public ArrayList<ArrayList<MzzWoocommerceMapLine>> processRepeatingFields(ArrayList<ArrayList<MzzWoocommerceMapLine>> sortArray, ArrayList<MzzWoocommerceMapLine> duplicates) {
 		
 		for(MzzWoocommerceMapLine mzzWoocommerceMapLine : duplicates)
 		{
-			//create sublist
-			//Add the first element of duplicates to the list
-			//increment counter variable
-			//Move to next element in duplicates. Is it the same object no -> is it setting the same attribute, product or product attribute as the previous?
-			//If yes, create new arrayList and add the element to it.
 			//
 			if(sortArray.size() < 1)//initialise with the first element of the duplicate list
 			{
@@ -428,14 +586,16 @@ public final class WcOrder {
 				sortArray.add(firstEntry);
 			}
 			sortArray = sortMapLinesIntoArrayLists(sortArray, mzzWoocommerceMapLine);
-			//ArrayList<MzzWoocommerceMapLine> subList = new ArrayList<MzzWoocommerceMapLine>();
-			//subList.add(mzzWoocommerceMapLine);
 		}
-		
-		
 		return sortArray;
 	}
 	
+	/**
+	 * 
+	 * @param arrayListInProgress
+	 * @param zzzWoocommerceMapLine
+	 * @return
+	 */
 	public ArrayList<ArrayList<MzzWoocommerceMapLine>> sortMapLinesIntoArrayLists(ArrayList<ArrayList<MzzWoocommerceMapLine>> arrayListInProgress, MzzWoocommerceMapLine zzzWoocommerceMapLine) {
 		//Is the mzzWoocommerceMapLine already on the list?
 		//for(ArrayList<MzzWoocommerceMapLine> mapArrayList : arrayListInProgress)
@@ -492,6 +652,12 @@ public final class WcOrder {
 		
 	}
 	
+	/**
+	 * 
+	 * @param list
+	 * @param line
+	 * @return
+	 */
 	private boolean isProductPartMapTypeInList(ArrayList<MzzWoocommerceMapLine> list, MzzWoocommerceMapLine line) {
 		for(int vv =0; vv < list.size(); vv++)
 		{
@@ -503,6 +669,12 @@ public final class WcOrder {
 		return false;
 	}
 	
+	/**
+	 * 
+	 * @param list
+	 * @param line
+	 * @return
+	 */
 	private boolean isAttributeMapTypeInList(ArrayList<MzzWoocommerceMapLine> list, MzzWoocommerceMapLine line) {
 		for(int vv =0; vv < list.size(); vv++)
 		{
@@ -514,6 +686,12 @@ public final class WcOrder {
 		return false;
 	}
 	
+	/**
+	 * 
+	 * @param list
+	 * @param line
+	 * @return
+	 */
 	private boolean isProductAttributeTypeInList(ArrayList<MzzWoocommerceMapLine> list, MzzWoocommerceMapLine line) {
 		for(int vv =0; vv < list.size(); vv++)
 		{
@@ -525,6 +703,12 @@ public final class WcOrder {
 		return false;
 	}
 	
+	/**
+	 * 
+	 * @param arrayListInProgress
+	 * @param line
+	 * @return
+	 */
 	private boolean isAlreadyInArrayListInProgress(ArrayList<ArrayList<MzzWoocommerceMapLine>> arrayListInProgress, MzzWoocommerceMapLine line) {
 		for(int xx = 0; xx < arrayListInProgress.size(); xx++)//Start at the beginning and compare the mapline to contents
 		{
@@ -543,6 +727,11 @@ public final class WcOrder {
 	}
 	
 
+	/**
+	 * 
+	 * @param name
+	 * @return
+	 */
 	public int getProductId(String name) {
 		int m_Product_ID = DB.getSQLValue(trxName, "select m_product_id " + "from m_product mp " + "where name like ?",
 				name);
@@ -560,6 +749,21 @@ public final class WcOrder {
 	 * @return
 	 */
 	public int getProductId(int woocommID) {
+		return getxZZWoocommerceMatch(woocommID).getM_Product_ID();
+	}
+	
+	/**
+	 * Returns the record for the name stored in the system for the mapped WooCommerce product.
+	 * This is not synced with WooCommerce.
+	 * @param woocommID
+	 * @return
+	 */
+	public String getWooCommerceProductName(int woocommID) {
+		return getxZZWoocommerceMatch(woocommID).getName();
+	}
+	
+	public X_ZZ_Woocommerce_Match getxZZWoocommerceMatch(int woocommID) {
+		
 		int orgID = order.getAD_Org_ID();
 		MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
 		PO[] xZZWoocommerceMatches = mzzWoocommerce.getLines("", "");
@@ -568,7 +772,7 @@ public final class WcOrder {
 			X_ZZ_Woocommerce_Match xZZWoocommerceMatch = new X_ZZ_Woocommerce_Match(ctx, xZZWoocommerceMatches[x].get_ID(), trxName);
 			if(xZZWoocommerceMatch.getwoocommerce_key() == woocommID)
 			{
-				return xZZWoocommerceMatch.getM_Product_ID();
+				return xZZWoocommerceMatch /*.getM_Product_ID()*/;
 				
 			}
 		}
@@ -576,6 +780,10 @@ public final class WcOrder {
 	}
 	
 
+	/**
+	 * 
+	 * @param orderWc
+	 */
 	public void createShippingCharge(Map<?, ?> orderWc) {
 		MOrderLine orderLine = new MOrderLine(order);
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
@@ -659,11 +867,13 @@ public final class WcOrder {
 	 * @param mProductID
 	 * @param ctx
 	 */
-	public void processWooCommMeta(MOrderLine line, LinkedHashMap<String, Object> field, int mProductID, Properties ctx, String trxn) {
+	public void processWooCommMeta(ArrayList<MzzWoocommerceMap> mapListToProcess, MOrderLine line,/* LinkedHashMap<String, Object> field, int mProductID,*/ Properties ctx, String trxn) {
+		int mProductID = line.getM_Product_ID();
+		
 		//Get field data
-		String fieldID = (String) field.get("id");
+		//String fieldID = (String) field.get("id");
 		//String fieldLabel = (String)field.get("label");
-		String fieldValue = (String) field.get("value");
+		//String fieldValue = (String) field.get("value");
 		
 		
 		/*Refactor to create multiple
@@ -677,6 +887,8 @@ public final class WcOrder {
 		 * "lines' should be good to make the first OrderLine once the process is complete
 		 */
 		
+	/*	
+		
 		//Process field data
 		MzzWoocommerceMap mzzWoocommerceMapMatch = MzzWoocommerceMap.getMzzWoocommerceMap(mProductID, fieldID, fieldValue, ctx);
 		//System.out.println(mzzWoocommerceMapMatch.getzz_woocommerce_map_type());
@@ -684,10 +896,20 @@ public final class WcOrder {
 			{
 				throw new AdempiereUserError("No mapping found for WooCommerce fieldID " + fieldID + ". Check mapping on product: " + MProduct.get(mProductID).getName());
 			}
-				String whereClause = "and "+ MzzWoocommerceMapLine.COLUMNNAME_IsActive + "='Y'";
-				MzzWoocommerceMapLine[] mzzWoocommerceMapLines = mzzWoocommerceMapMatch.getMzzWoocommerceMapLines(mzzWoocommerceMapMatch.get_ID(), ctx, "", whereClause);
 		
-		for(int l = 0; l < mzzWoocommerceMapLines.length; l++)
+	*/	
+				
+		//for(ArrayList<MzzWoocommerceMap> currentMapList : mapListToProcess)
+		//{
+		for(MzzWoocommerceMap currentMapItem : mapListToProcess)
+		{
+			String whereClause = "and "+ MzzWoocommerceMapLine.COLUMNNAME_IsActive + "='Y'";
+			String fv = (String) fieldValues.get(currentMapItem.get_ID());
+			currentMapItem.setFieldValue((String) fieldValues.get(currentMapItem.get_ID()));
+			MzzWoocommerceMapLine[] mzzWoocommerceMapLines = currentMapItem.getMzzWoocommerceMapLines(currentMapItem.get_ID(), ctx, "", whereClause);
+					
+				
+		for(int l = 0; l < mzzWoocommerceMapLines.length; l++) //Make this inner loop
 		{
 			
 			String mapType = mzzWoocommerceMapLines[l].getzz_woocommerce_map_type();
@@ -715,7 +937,7 @@ public final class WcOrder {
 					mAttributeSetInstance.setM_AttributeSet_ID(mAttributeSetID);
 					int m_AttributeSetInstance_ID = mAttributeSetInstance.get_ID();
 					line.setM_AttributeSetInstance_ID(m_AttributeSetInstance_ID);
-					setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, field, mapType,trxn);
+					setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, currentMapItem.getFieldValue(), mapType,trxn);
 					//setAttribute(String attributeValueType, MzzWoocommerceMap mzzWoocommerceMap, int m_AttributeSetInstance_ID, Properties field, String trxn)
 	
 					mAttributeSetInstance.saveEx();
@@ -750,6 +972,7 @@ public final class WcOrder {
 					mBLDLineProductInstance.setBLD_Line_ProductSetInstance_ID(bldLineProductSetInstanceID);
 					mBLDLineProductInstance.save();
 				}
+				
 			}
 			
 			 //get a bld_line_productinstance record and add the product
@@ -767,6 +990,8 @@ public final class WcOrder {
 						break;
 					}
 				}
+				mBldLineProductSetInstance.setDescription(mProductID);
+				mBldLineProductSetInstance.save();
 		}
 		
 		else if(mapType.equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))
@@ -776,7 +1001,7 @@ public final class WcOrder {
 			 * Check existence of m_attributesetinstance_id in bld_line_productinstance -> if it does not exist then create and add attribute & value
 			 * If m_attributesetinstance_id in bld_line_productinstance > 0 then it already exists -> check if the attribute value has been set
 			 * Ifattribute has not been set, then set it.
-			 * Get the */
+			 */
 			int bldLineProductSetInstanceID = line.get_ValueAsInt("bld_line_productsetinstance_id");
 			//int mzzWoocommerceMapm_attribute_product_id = mzzWoocommerceMap.getm_attribute_product_id();
 			int mzzWoocommerceMapBLD_Product_PartType_ID = mzzWoocommerceMapLines[l].getBLD_Product_PartType_ID();
@@ -796,7 +1021,7 @@ public final class WcOrder {
 					mAttributeSetInstance.save();
 					MAttributeValue mapAttributeValue = new MAttributeValue(ctx, mzzWoocommerceMapLines[l].getM_Attribute_Product_ID(), trxn);
 					MAttribute mapAttribute = new MAttribute(ctx, mapAttributeValue.getM_Attribute_ID(), trxn);
-					setAttribute(mapAttribute.getAttributeValueType(), mzzWoocommerceMapLines[l], mAttributeSetInstanceID, field, mapType, trxn);
+					setAttribute(mapAttribute.getAttributeValueType(), mzzWoocommerceMapLines[l], mAttributeSetInstanceID, currentMapItem.getFieldValue(), mapType, trxn);
 					break;
 				}
 			}
@@ -855,14 +1080,15 @@ public final class WcOrder {
 				setAttribute(attributeValueType, mzzWoocommerceMap, m_AttributeSetInstance_ID, field, mapType, trxn);
 				mAttributeSetInstance.saveEx();
 			} */
-		} 
-		
+	    	}//End for(int l = 0; l < mzzWoocommerceMapLines.length; l++) loop
+		   }//End for(MzzWoocommerceMap currentMapItem : currentMapList) loop
 	}
 
 	public void setAttribute(String attributeValueType, 
 			MzzWoocommerceMapLine mzzWoocommerceMapLine, 
 			int m_AttributeSetInstance_ID, 
-			LinkedHashMap<String, Object> field, 
+			//LinkedHashMap<String, Object> field, 
+			String valueOfField,
 			String mapType,
 			String trxn) {
 		if(attributeValueType.equals("N"))//It's a number attribute
@@ -871,14 +1097,14 @@ public final class WcOrder {
 			//MAttributeInstance mAttributeInstance;
 			if(mapType.equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))
 			{
-				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_Product_ID(), m_AttributeSetInstance_ID, Integer.parseInt((String)field.get("value")), trxn);
+				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_Product_ID(), m_AttributeSetInstance_ID, Integer.parseInt(valueOfField), trxn);
 			}
 			else
 			{
-				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_ID(), m_AttributeSetInstance_ID, Integer.parseInt((String)field.get("value")), trxn);
+				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_ID(), m_AttributeSetInstance_ID, Integer.parseInt(valueOfField), trxn);
 			}
 			
-			mAttributeInstance.setValueInt(Integer.parseInt((String)field.get("value")));
+			mAttributeInstance.setValueInt(Integer.parseInt(valueOfField));
 			mAttributeInstance.saveEx();
 			/*MAttributeInstance (Properties ctx, int M_Attribute_ID, 
 			int M_AttributeSetInstance_ID, int Value, String trxName)*/
@@ -888,11 +1114,11 @@ public final class WcOrder {
 			MAttributeInstance mAttributeInstance;
 			if(mapType.equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))
 			{
-				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_Product_ID(), m_AttributeSetInstance_ID, (String) field.get("value"), trxn);
+				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_Product_ID(), m_AttributeSetInstance_ID, valueOfField, trxn);
 			}
 			else
 			{
-				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_ID(), m_AttributeSetInstance_ID, (String) field.get("value"), trxn);
+				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_ID(), m_AttributeSetInstance_ID, valueOfField, trxn);
 			}
 			
 			mAttributeInstance.saveEx();
@@ -905,11 +1131,11 @@ public final class WcOrder {
 			MAttributeInstance mAttributeInstance;
 			if(mapType.equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))
 			{
-				 mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_Product_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMapLine.getM_Attributevalue_Product_ID(), (String) field.get("value"), trxn);
+				 mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_Product_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMapLine.getM_Attributevalue_Product_ID(), valueOfField, trxn);
 			}
 			else
 			{
-				 mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMapLine.getM_AttributeValue_ID(), (String) field.get("value"), trxn);
+				 mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMapLine.getM_AttributeValue_ID(), valueOfField, trxn);
 			}
 			mAttributeInstance.saveEx();
 			/*MAttributeInstance(Properties ctx, int M_Attribute_ID, int M_AttributeSetInstance_ID,
@@ -924,33 +1150,7 @@ public final class WcOrder {
 		m_AttributeSetInstance.save();
 		//line.saveEx();
 	}	
-	
-	public void duplicateOrderLine(MOrderLine line, String trxn /*, List<?> changeItems*/) {
-		MOrderLine duplicateOrderLine = new MOrderLine(order);
-		MOrderLine.copyValues(line, duplicateOrderLine);
-		//MAttributeSetInstance duplicateMAttributeSetInstance = new MAttributeSetInstance(ctx, 0 ,trxn);
-		//duplicateMAttributeSetInstance.save();
-		//duplicateOrderLine.setM_AttributeSetInstance_ID(duplicateMAttributeSetInstance.get_ID());
-		duplicateOrderLine.save();
-		for(LinkedHashMap<String, Object> duplicateField : duplicateFields)
-		{
-			processWooCommMeta(duplicateOrderLine, duplicateField, duplicateOrderLine.getM_Product_ID(), ctx, trxn);
-		}
-		duplicateOrderLine.save();
-	}
-	
-		
-		//Copy order line just created.
-		//Change items - could have the meta objects to set as different?
-		/*Perhaps examine the WooCommerce meta to determine the duplicated parttypes to determine what should be different in
-		 the second product? EG 2 fabric = dual blind or curtain, with different fabric? Chain & motor means a roller with a chain
-		 and a roller with a motor?
-		 Create a maptype add to dual? create dual?
-		 How to dual linked blinds? -> same a above?
-		 Attributes - should overwrite themselves, products -> fetch the BLDproductSetInstance and replace product by parttype?*/
-		//What has to change? for dual products, it may be the fabric, roll type, curtain position
 
-	
 	/**
 	 * 
 	 * @param mapType
@@ -1016,11 +1216,11 @@ public final class WcOrder {
 	 * @return
 	 */
 	private ArrayList<ArrayList<MzzWoocommerceMap>>  createOrderlineMapList(
-			ArrayList<MzzWoocommerceMap> mapListMaster, 
-			ArrayList<ArrayList<MzzWoocommerceMapLine>> filteredMapLineListInProgress,
-			ArrayList<ArrayList<MzzWoocommerceMap>> mapListInProgress) {
+			ArrayList<MzzWoocommerceMap> mapListMaster
+			,ArrayList<ArrayList<MzzWoocommerceMapLine>> filteredMapLineListInProgress) {
 		
 		//Create a MzzWoocommerceMap based on the master list (mapList)
+		ArrayList<ArrayList<MzzWoocommerceMap>> mapListInProgress = new ArrayList<ArrayList<MzzWoocommerceMap>>();
 		ArrayList<MzzWoocommerceMap> orderLineMapToAdd = new ArrayList<MzzWoocommerceMap>(mapListMaster);
 		//Loop through, check if any of the MzzWoocommerceMapLines - child records of the MzzWoocommerceMap object in the master list conflict.
 		for(ArrayList<MzzWoocommerceMapLine> currentMapLineSubList : filteredMapLineListInProgress)
@@ -1029,9 +1229,10 @@ public final class WcOrder {
 				for(int index = 0; index < currentMapLineSubList.size(); index ++)
 			{
 				//Remove from the copied list any records that have map lines with conflicting intentions
-				if(isThereConflict(orderLineMapToAdd, currentMapLineSubList.get(index)))
+					int removeIndex = isThereConflict(orderLineMapToAdd, currentMapLineSubList.get(index));
+				if(removeIndex > 0)
 				{
-					orderLineMapToAdd.remove(index);
+					orderLineMapToAdd.remove(removeIndex);
 				}
 			}
 				mapListInProgress.add(orderLineMapToAdd);
@@ -1041,13 +1242,45 @@ public final class WcOrder {
 		
 	}
 	
+	
+	
+	/**
+	 * 
+	 * @param mapListMaster
+	 * @param filteredMapLineListInProgress
+	 * @param mapListInProgress
+	 * @return
+	 */
+	private ArrayList<MzzWoocommerceMap>  createFilteredMapList(ArrayList<MzzWoocommerceMap> mapListMaster
+			,ArrayList<ArrayList<MzzWoocommerceMapLine>> filteredMapLineListInProgress) {
+		
+		//Create a MzzWoocommerceMap based on the master list (mapList)
+		ArrayList<MzzWoocommerceMap> filteredMap = new ArrayList<MzzWoocommerceMap>(mapListMaster);
+		//Loop through, check if any of the MzzWoocommerceMapLines - child records of the MzzWoocommerceMap object in the master list conflict.
+		for(ArrayList<MzzWoocommerceMapLine> currentMapLineSubList : filteredMapLineListInProgress)
+		{
+			for(int index = 0; index < currentMapLineSubList.size(); index ++)
+			{
+				//Remove from the copied list any records that have map lines with conflicting intentions
+					int removeIndex = isThereConflict(filteredMap, currentMapLineSubList.get(index));
+				if(removeIndex > 0)
+				{
+					filteredMap.remove(removeIndex);
+				}
+			}
+		}
+		return filteredMap;	
+	}
+	
+	
+	
 	/**
 	 * 
 	 * @param orderLineMapToCheck
 	 * @param mapLine
 	 * @return
 	 */
-	private boolean isThereConflict(ArrayList<MzzWoocommerceMap> orderLineMapToCheck, MzzWoocommerceMapLine mapLine) {
+	private int isThereConflict(ArrayList<MzzWoocommerceMap> orderLineMapToCheck, MzzWoocommerceMapLine mapLine) {
 		for(int u = 0; u < orderLineMapToCheck.size(); u++)
 		{
 			/*There is conflict when
@@ -1063,28 +1296,92 @@ public final class WcOrder {
 					{
 						if(mzzWoocommerceMapLines[b].getM_Attribute_ID() == mapLine.getM_Attribute_ID())
 						{
-							return true;
+							return u;
 						}
 					}
 					else if(mapType.equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD))
 					{
 						if(mzzWoocommerceMapLines[b].getBLD_Product_PartType_ID() == mapLine.getBLD_Product_PartType_ID())
 						{
-							return true;
+							return u;
 						}
 					}
 					else if(mapType.equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))
 					{
 						if(mzzWoocommerceMapLines[b].getM_Attribute_Product_ID() == mapLine.getM_Attribute_Product_ID())
 						{
-							return true;
+							return u;
 						}
 					}
 				}
 			}
 			//return false;
 		}
-		return false;
+		return 0;
+	}
+	
+	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(ArrayList<LinkedHashMap<String, Object>> metaData, int orderLineProductID) {
+		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = new ArrayList<>(); 
+		fieldValues = new LinkedHashMap<Object, Object>();
+		for (LinkedHashMap<String, Object> metaItem : metaData)
+		{
+			
+			if(metaItem.get("key").equals("_wapf_meta"))
+				 /*_wapf_meta contains the unique id of each field that
+				  * can be matched to the backend product  */
+			 {
+				 LinkedHashMap<String, Object> wapfMeta = (LinkedHashMap<String, Object>) metaItem.get("value");
+				 //Create a list of mapping object for this WC order line
+				 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
+				 {
+					 System.out.println(wapfMetaItem.getValue());
+					 //Get a LinkedHashMap of all the fields and their IDs.
+					 
+					 LinkedHashMap<String, Object> fields = (LinkedHashMap<String, Object>) wapfMetaItem.getValue();
+					 for(Map.Entry<String, Object> fieldItem : fields.entrySet())
+					 { 
+						try 
+						{
+							 //System.out.println(fieldItem.getValue());
+							if(fieldItem.getValue().getClass().equals(LinkedHashMap.class)) 
+							{
+								 LinkedHashMap<String, Object> field = (LinkedHashMap<String, Object>) fieldItem.getValue();
+									
+								 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLineProductID,(String)field.get("id"), (String)field.get("value"), ctx);
+								 if(zzWoocommerceMap == null)
+								 {
+									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
+									 msg.append(field.get("id"));
+									 msg.append(" in product: ");
+									 msg.append(MProduct.get(orderLineProductID).getName());
+									 msg.append(". Add the field mapping to the product, delete order no. ");
+									 msg.append(order.getDocumentNo());
+									 msg.append(" and try running the Woocomerce sync process manually.");
+									 
+									 log.warning(msg.toString());
+									 throw new AdempiereUserError(msg.toString());
+								 }
+								 masterZzWoocommerceMapList.add(zzWoocommerceMap); //Add all found mappings to List
+								 if(field.get("value") != null)fieldValues.put(zzWoocommerceMap.get_ID(), field.get("value"));
+								 
+								 System.out.println(field.get("id"));
+								 System.out.println(field.get("label"));
+								 System.out.println(field.get("value"));
+								 //break;//There's no more useful stuff.
+								 //processWooCommMeta(orderLine, field, orderLine.getM_Product_ID(), ctx, trxName);
+							}
+							
+						}
+						catch(java.lang.ClassCastException e)
+						{
+							System.out.println("Exception thrown.");
+						}
+					 }
+				 } 
+			 }
+		}
+		return masterZzWoocommerceMapList;
+		
 	}
 	
 }
