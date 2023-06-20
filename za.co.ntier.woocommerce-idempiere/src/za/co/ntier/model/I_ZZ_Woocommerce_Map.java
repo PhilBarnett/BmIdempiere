@@ -106,6 +106,19 @@ public interface I_ZZ_Woocommerce_Map
 	  */
 	public String getHelp();
 
+    /** Column name ignore_no_child_records */
+    public static final String COLUMNNAME_ignore_no_child_records = "ignore_no_child_records";
+
+	/** Set Ignore No Child Records.
+	  * Tells the system that a record without mapping lines (child records) is OK.
+	  */
+	public void setignore_no_child_records (boolean ignore_no_child_records);
+
+	/** Get Ignore No Child Records.
+	  * Tells the system that a record without mapping lines (child records) is OK.
+	  */
+	public boolean isignore_no_child_records();
+
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";
 

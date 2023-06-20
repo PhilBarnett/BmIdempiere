@@ -74,6 +74,9 @@ public final class WcOrder {
 	private ArrayList<ArrayList<MzzWoocommerceMapLine>> sortArrayAttributes;
 	private ArrayList<ArrayList<MzzWoocommerceMapLine>> sortArrayProducts;
 	private LinkedHashMap<Object, Object> fieldValues;
+	private String wooCommProductName ="";
+	private Integer wooCommProductID;
+	private StringBuilder mapNotFound;
 
 	public WcOrder(Properties ctx, String trxName, PO wcDefaults) {
 		this.ctx = ctx;
@@ -250,7 +253,16 @@ public final class WcOrder {
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
 	
 		orderLine.setM_Product_ID(getProductId(((Integer) line.get("product_id")).intValue()));
-		orderLine.setDescription(getWooCommerceProductName((Integer)line.get("product_id")) + " " + orderLine.getDescription());
+		wooCommProductName = getWooCommerceProductName(((Integer) line.get("product_id")).intValue());
+		wooCommProductID = (Integer) line.get("product_id");
+		if(orderLine.getDescription() != null)
+		{
+			orderLine.setDescription(getWooCommerceProductName((Integer)line.get("product_id")) + " " + orderLine.getDescription());
+		}
+		else
+		{
+			orderLine.setDescription(getWooCommerceProductName((Integer)line.get("product_id")));
+		}
 		// orderLine.setC_UOM_ID(originalOLine.getC_UOM_ID());
 		// orderLine.setC_Tax_ID(originalOLine.getC_Tax_ID());
 		orderLine.setM_Warehouse_ID(order.getM_Warehouse_ID());
@@ -776,6 +788,7 @@ public final class WcOrder {
 				
 			}
 		}
+		
 		throw new AdempiereUserError("Unable to Match WooComm product to Idempiere product. Make sure the product mapping exists and is mapped to a real product.");
 	}
 	
@@ -1352,13 +1365,58 @@ public final class WcOrder {
 								 {
 									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
 									 msg.append(field.get("id"));
+									 msg.append(" with label:");
+									 msg.append(field.get("label"));
+									 msg.append(" with value: ");
+									 msg.append(field.get("value"));
 									 msg.append(" in product: ");
 									 msg.append(MProduct.get(orderLineProductID).getName());
-									 msg.append(". Add the field mapping to the product, delete order no. ");
+									 msg.append(" with WooCommerce name: ");
+									 msg.append(wooCommProductName);
+									 msg.append("and Woocommerce product ID: ");
+									 msg.append(wooCommProductID);
+									 msg.append("Empty field mappings have been added automatically, please find them and update as needed. ");
+									 msg.append(". Once the mappings are complete, delete order no. ");
 									 msg.append(order.getDocumentNo());
 									 msg.append(" and try running the Woocomerce sync process manually.");
 									 
 									 log.warning(msg.toString());
+									 
+									 if(mapNotFound != null)
+									 {
+										 mapNotFound.append(msg);
+									 }
+									 else
+									 {
+										 mapNotFound = new StringBuilder(msg);
+									 }
+									 
+									 zzWoocommerceMap = new MzzWoocommerceMap(ctx, 0, trxName);
+									 zzWoocommerceMap.setM_Product_ID(orderLineProductID);
+									 zzWoocommerceMap.setwoocommerce_field_key((String)field.get("id"));
+									 if(field.get("value") != null) zzWoocommerceMap.setwoocommerce_field_value((String)field.get("value"));
+									 StringBuilder description = new StringBuilder("Empty record auto created by WooCommerce Sync process.");
+									 description.append(" Please either add appropriate mapping records (child records)");
+									 description.append(" or check the 'Ignore No Child Records' box so the system does not throw an error on this record.");
+									 zzWoocommerceMap.setDescription(description.toString());
+									 zzWoocommerceMap.save(trxName);
+									 
+									 /*TODO: Create behaviour for unmatched WooCommerce fields as follows:
+										 * 1. Create an empty StringBuilder field. DONE: private StringBuilder mapNotFound;
+										 * 2. When a mapping record cannot be found, create the record in the database with no child records. DONE
+										 * 3. Set the 'Ignore children' column to 'N'. DONE - that's it's default
+										 * 4. Modify the above message to advise that the record has been added with empty child records, that the sync has failed and that the new record will need to have child records added 
+										 * or the 'Ignore empty children' column set to 'Y'. Done
+										 * 5.add the above message to the field.
+										 * 5a. Modify the code that finds the mapping child records to throw an error when a field mapping is found, the children are empty and the 
+										 * 'Ignore Children' field is set to 'N', send an email then throw an error.
+										 * 6. Outside the loop, log the message, Email the message, then throw an error to stop the process.
+										 * It's then up to the user to handle the further set up that is needed. What this does is at least do some of the setup
+										 * by creating the empty records.
+										 * 
+										 * */
+									 
+								
 									 throw new AdempiereUserError(msg.toString());
 								 }
 								 masterZzWoocommerceMapList.add(zzWoocommerceMap); //Add all found mappings to List

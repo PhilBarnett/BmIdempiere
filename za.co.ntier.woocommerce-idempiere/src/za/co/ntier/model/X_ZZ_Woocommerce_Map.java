@@ -31,7 +31,7 @@ public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20230603L;
+	private static final long serialVersionUID = 20230620L;
 
     /** Standard Constructor */
     public X_ZZ_Woocommerce_Map (Properties ctx, int ZZ_Woocommerce_Map_ID, String trxName)
@@ -39,6 +39,7 @@ public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_
       super (ctx, ZZ_Woocommerce_Map_ID, trxName);
       /** if (ZZ_Woocommerce_Map_ID == 0)
         {
+			setignore_no_child_records (false);
 			setM_Product_ID (0);
 			setZZ_Woocommerce_Map_ID (0);
         } */
@@ -102,6 +103,29 @@ public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_
 	public String getHelp()
 	{
 		return (String)get_Value(COLUMNNAME_Help);
+	}
+
+	/** Set Ignore No Child Records.
+		@param ignore_no_child_records Tells the system that a record without mapping lines (child records) is OK.
+	*/
+	public void setignore_no_child_records (boolean ignore_no_child_records)
+	{
+		set_Value (COLUMNNAME_ignore_no_child_records, Boolean.valueOf(ignore_no_child_records));
+	}
+
+	/** Get Ignore No Child Records.
+		@return Tells the system that a record without mapping lines (child records) is OK.
+	  */
+	public boolean isignore_no_child_records()
+	{
+		Object oo = get_Value(COLUMNNAME_ignore_no_child_records);
+		if (oo != null) 
+		{
+			 if (oo instanceof Boolean) 
+				 return ((Boolean)oo).booleanValue(); 
+			return "Y".equals(oo);
+		}
+		return false;
 	}
 
 	/** Set Line No.
