@@ -3,7 +3,7 @@ Automatic-Module-Name: za.co.ntier.woocommerce
 Bundle-ManifestVersion: 2
 Bundle-Name: Woocommerce-ntier
 Bundle-SymbolicName: za.co.ntier.woocommerce;singleton:=true
-Bundle-Version: 1.0.0.qualifier
+Bundle-Version: 1.0.2.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Require-Bundle: org.adempiere.base;bundle-version="7.1.0",
  org.adempiere.plugin.utils;bundle-version="7.1.0",
@@ -22,7 +22,7 @@ Bundle-ClassPath: .,
  org.apache.httpcomponents.httpcore_4.4.12.v20200108-1212.jar,
  commons-logging.jar,
  com.fasterxml.jackson.core.jackson-annotations_2.10.0.jar
-Bundle-Activator: org.adempiere.plugin.utils.AdempiereActivator
+Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 Import-Package: org.compiere.model,
  org.osgi.framework;version="1.9.0"
 Bundle-ActivationPolicy: lazy

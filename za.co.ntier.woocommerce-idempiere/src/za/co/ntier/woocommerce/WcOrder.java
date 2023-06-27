@@ -22,6 +22,7 @@ import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MAttributeValue;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBPartnerLocation;
+import org.compiere.model.MDocType;
 import org.compiere.model.MLocation;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
@@ -57,7 +58,9 @@ public final class WcOrder {
 	private final Properties ctx;
 	private final String trxName;
 	private final int POSTENDERTYPE_ID = 1000000;
-	private final int POS_ORDER = 135;
+	private final String DOC_BASE_TYPE = "SOO";
+	private final String ORDER_TYPE = "POS Order";
+	//private final int POS_ORDER = 135;//Hard coded to Garden World, does not work in all clients.
 	private static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
 	private static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
 	private static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
@@ -99,12 +102,33 @@ public final class WcOrder {
 		order.setM_PriceList_ID(getPriceList(orderWc));
 		order.setIsSOTrx(true);
 		order.setM_Warehouse_ID((int) wcDefaults.get_Value("m_warehouse_id"));
-		order.setC_DocTypeTarget_ID(POS_ORDER);
+		int cDocTypeID = 0;
+		MDocType[] mDocTypes = MDocType.getOfDocBaseType(ctx, DOC_BASE_TYPE);
+		for(int g = 0; g < mDocTypes.length; g++)
+		{
+			if(mDocTypes[g].getName().equalsIgnoreCase(ORDER_TYPE))
+			{
+				cDocTypeID = mDocTypes[g].get_ID();
+				break;
+			}
+		}
+		order.setC_DocTypeTarget_ID(cDocTypeID);
 		order.setPaymentRule(PAYMENT_RULE);
 		order.setDeliveryRule("F");
 		order.setInvoiceRule("D");
 
 		if (!order.save()) {
+			int orgID = order.getAD_Org_ID();
+			MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
+			String email = mzzWoocommerce.getnotify_email();
+			StringBuilder msg = new StringBuilder("WooCommerce sync encountered a problem. Order: ");
+			msg.append(order.getDocumentNo());
+			msg.append(" had an Order save error. ");
+			msg.append("Check logs for the error. ");
+			msg.append("The error occured in method: createOrder(Map<?, ?> orderWc) ");
+			msg.append(". The WooCommerce sync process may need to be run manually.");
+			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
+			log.warning(msg.toString());
 			throw new IllegalStateException("Could not create order");
 		}
 	}
@@ -486,9 +510,26 @@ public final class WcOrder {
 		*/
 		//Added by Phil
 		/****************************Refactor to here**************************************************/
-		if (!orderLine.save()) {
+		
+		if (!orderLine.save())
+		 {
+		
+			int orgID = order.getAD_Org_ID();
+			MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
+			String email = mzzWoocommerce.getnotify_email();
+			StringBuilder msg = new StringBuilder("WooCommerce sync encountered a problem. Order: ");
+			msg.append(order.getDocumentNo());
+			msg.append(" had an Orderline save error. ");
+			msg.append("Check logs for the error. ");
+			msg.append(". The WooCommerce sync process may need to be run manually.");
+			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
+			log.warning(msg.toString());
 			throw new IllegalStateException("Could not create Order Line");
 		}
+		
+		//if (!orderLine.save()) {
+			//throw new IllegalStateException("Could not create Order Line");
+		//}
 	}
 	
 	
@@ -788,8 +829,15 @@ public final class WcOrder {
 				
 			}
 		}
-		
-		throw new AdempiereUserError("Unable to Match WooComm product to Idempiere product. Make sure the product mapping exists and is mapped to a real product.");
+		 StringBuilder msg = new StringBuilder("Unable to Match WooCommerce product to Idempiere product. ");
+		 msg.append("WooCommerce product ID: ");
+		 msg.append(woocommID);
+		 msg.append(" Go to the WooCommerce Defaults window and add a record in the WooCommerce Product Mapping tab.");
+		 log.warning(msg.toString());
+		 String email = mzzWoocommerce.getnotify_email();
+		 if(email != null) WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
+		 log.warning(msg.toString());
+		 throw new AdempiereUserError(msg.toString());
 	}
 	
 
@@ -810,6 +858,17 @@ public final class WcOrder {
 		System.out.println("*********************Shipping Cost: " + orderLine.getPriceActual());
 
 		if (!orderLine.save()) {
+			int orgID = order.getAD_Org_ID();
+			MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
+			String email = mzzWoocommerce.getnotify_email();
+			StringBuilder msg = new StringBuilder("WooCommerce sync encountered a problem. Order: ");
+			msg.append(order.getDocumentNo());
+			msg.append(" had an Orderline save error. ");
+			msg.append(" The error occured in method: createShippingCharge(Map<?, ?> orderWc)");
+			msg.append(" Check logs for the error. ");
+			msg.append(". The WooCommerce sync process may need to be run manually.");
+			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
+			log.warning(msg.toString());
 			throw new IllegalStateException("Could not create Order Line");
 		}
 	}
@@ -866,7 +925,20 @@ public final class WcOrder {
 		posPayment.setC_POSTenderType_ID(POSTENDERTYPE_ID); // credit card
 		posPayment.setTenderType(X_C_Payment.TENDERTYPE_CreditCard); // credit card
 		if (!posPayment.save())
+		{
+			int orgID = order.getAD_Org_ID();
+			MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
+			String email = mzzWoocommerce.getnotify_email();
+			StringBuilder msg = new StringBuilder("POS Payment creation failed for order: ");
+			msg.append(order.getDocumentNo());
+			msg.append(". Please check the order and try and create the payment manually. ");
+			msg.append("Please also check that the order lines have been created as per the WooCommerce order. ");
+			msg.append("The WooCommerce sync process may need to be run manually.");
+			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
+			log.warning(msg.toString());
 			throw new IllegalStateException("Could not create POSPayment");
+		}
+			
 	}
 
 	public static boolean isBlankOrNull(String str) {
@@ -1365,7 +1437,7 @@ public final class WcOrder {
 								 {
 									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
 									 msg.append(field.get("id"));
-									 msg.append(" with label:");
+									 msg.append(" with label: ");
 									 msg.append(field.get("label"));
 									 msg.append(" with value: ");
 									 msg.append(field.get("value"));
@@ -1375,10 +1447,11 @@ public final class WcOrder {
 									 msg.append(wooCommProductName);
 									 msg.append("and Woocommerce product ID: ");
 									 msg.append(wooCommProductID);
-									 msg.append("Empty field mappings have been added automatically, please find them and update as needed. ");
+									 msg.append(". Empty field mappings have been added automatically, please find them and update as needed. ");
 									 msg.append(". Once the mappings are complete, delete order no. ");
 									 msg.append(order.getDocumentNo());
 									 msg.append(" and try running the Woocomerce sync process manually.");
+									 msg.append("\n\n");
 									 
 									 log.warning(msg.toString());
 									 
@@ -1399,6 +1472,7 @@ public final class WcOrder {
 									 description.append(" Please either add appropriate mapping records (child records)");
 									 description.append(" or check the 'Ignore No Child Records' box so the system does not throw an error on this record.");
 									 zzWoocommerceMap.setDescription(description.toString());
+									 zzWoocommerceMap.setwoocommerce_field_label((String)field.get("label"));
 									 zzWoocommerceMap.save(trxName);
 									 
 									 /*TODO: Create behaviour for unmatched WooCommerce fields as follows:
@@ -1417,8 +1491,10 @@ public final class WcOrder {
 										 * */
 									 
 								
-									 throw new AdempiereUserError(msg.toString());
+									 
 								 }
+								 
+								 
 								 masterZzWoocommerceMapList.add(zzWoocommerceMap); //Add all found mappings to List
 								 if(field.get("value") != null)fieldValues.put(zzWoocommerceMap.get_ID(), field.get("value"));
 								 
@@ -1434,6 +1510,15 @@ public final class WcOrder {
 						{
 							System.out.println("Exception thrown.");
 						}
+					 }//End field mapping loop.
+					 if(mapNotFound != null)//There were field mappings from WooCommerce not in the system.
+					 {
+						 int orgID = order.getAD_Org_ID();
+						 MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
+						 String email = mzzWoocommerce.getnotify_email();
+						 WcMailNotify.sendEmail(email, mapNotFound.toString(), "", ctx, trxName);//Email any issues found.
+						 log.warning(mapNotFound.toString());
+						 throw new AdempiereUserError(mapNotFound.toString());
 					 }
 				 } 
 			 }

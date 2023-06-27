@@ -64,7 +64,7 @@ public class MzzWoocommerce extends X_zz_woocommerce {
 	public PO[] getLines (String whereClause, String orderClause)
 	{
 		//red1 - using new Query class from Teo / Victor's MDDOrder.java implementation
-		StringBuilder whereClauseFinal = new StringBuilder(X_ZZ_Woocommerce_Match.COLUMNNAME_zz_woocommerce_ID+"=? ");
+		StringBuilder whereClauseFinal = new StringBuilder(X_ZZ_Woocommerce_Match.COLUMNNAME_zz_woocommerce_ID+"=? " + " AND isactive = 'Y'");
 		if (!Util.isEmpty(whereClause, true))
 			whereClauseFinal.append(whereClause);
 		if (orderClause.length() == 0)
@@ -77,5 +77,4 @@ public class MzzWoocommerce extends X_zz_woocommerce {
 		//
 		return list.toArray(new PO[list.size()]);		
 	}	//	getLines
-
 }

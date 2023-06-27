@@ -23,7 +23,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Interface for zz_woocommerce
  *  @author iDempiere (generated) 
- *  @version Release 7.1
+ *  @version Release 9
  */
 @SuppressWarnings("all")
 public interface I_zz_woocommerce 
@@ -32,7 +32,7 @@ public interface I_zz_woocommerce
     /** TableName=zz_woocommerce */
     public static final String Table_Name = "zz_woocommerce";
 
-    /** AD_Table_ID=1000000 */
+    /** AD_Table_ID=1000074 */
     public static final int Table_ID = MTable.getTable_ID(Table_Name);
 
     KeyNamePair Model = new KeyNamePair(Table_ID, Table_Name);
@@ -80,12 +80,12 @@ public interface I_zz_woocommerce
     /** Column name C_BPartner_ID */
     public static final String COLUMNNAME_C_BPartner_ID = "C_BPartner_ID";
 
-	/** Set Business Partner .
+	/** Set Business Partner.
 	  * Identifies a Business Partner
 	  */
 	public void setC_BPartner_ID (int C_BPartner_ID);
 
-	/** Get Business Partner .
+	/** Get Business Partner.
 	  * Identifies a Business Partner
 	  */
 	public int getC_BPartner_ID();
@@ -135,6 +135,24 @@ public interface I_zz_woocommerce
 	  */
 	public String getCity();
 
+    /** Column name consumerkey */
+    public static final String COLUMNNAME_consumerkey = "consumerkey";
+
+	/** Set consumerkey	  */
+	public void setconsumerkey (String consumerkey);
+
+	/** Get consumerkey	  */
+	public String getconsumerkey();
+
+    /** Column name consumersecret */
+    public static final String COLUMNNAME_consumersecret = "consumersecret";
+
+	/** Set consumersecret	  */
+	public void setconsumersecret (String consumersecret);
+
+	/** Get consumersecret	  */
+	public String getconsumersecret();
+
     /** Column name Created */
     public static final String COLUMNNAME_Created = "Created";
 
@@ -151,30 +169,6 @@ public interface I_zz_woocommerce
 	  */
 	public int getCreatedBy();
 
-    /** Column name DeliveryRule */
-    public static final String COLUMNNAME_DeliveryRule = "DeliveryRule";
-
-	/** Set Delivery Rule.
-	  * Defines the timing of Delivery
-	  */
-	public void setDeliveryRule (String DeliveryRule);
-
-	/** Get Delivery Rule.
-	  * Defines the timing of Delivery
-	  */
-	public String getDeliveryRule();
-
-    /** Column name excl_pricelist_id */
-    public static final String COLUMNNAME_excl_pricelist_id = "excl_pricelist_id";
-
-	/** Set Exclusive Pricelist	  */
-	public void setexcl_pricelist_id (int excl_pricelist_id);
-
-	/** Get Exclusive Pricelist	  */
-	public int getexcl_pricelist_id();
-
-	public org.compiere.model.I_M_PriceList getexcl_pricelist() throws RuntimeException;
-
     /** Column name Help */
     public static final String COLUMNNAME_Help = "Help";
 
@@ -188,16 +182,27 @@ public interface I_zz_woocommerce
 	  */
 	public String getHelp();
 
-    /** Column name incl_pricelist_id */
-    public static final String COLUMNNAME_incl_pricelist_id = "incl_pricelist_id";
+    /** Column name Intl_Excl_PriceList_ID */
+    public static final String COLUMNNAME_Intl_Excl_PriceList_ID = "Intl_Excl_PriceList_ID";
 
-	/** Set Inclusive Pricelist	  */
-	public void setincl_pricelist_id (int incl_pricelist_id);
+	/** Set Intl_Excl_PriceList_ID	  */
+	public void setIntl_Excl_PriceList_ID (int Intl_Excl_PriceList_ID);
 
-	/** Get Inclusive Pricelist	  */
-	public int getincl_pricelist_id();
+	/** Get Intl_Excl_PriceList_ID	  */
+	public int getIntl_Excl_PriceList_ID();
 
-	public org.compiere.model.I_M_PriceList getincl_pricelist() throws RuntimeException;
+	public org.compiere.model.I_M_PriceList getIntl_Excl_PriceList() throws RuntimeException;
+
+    /** Column name Intl_Incl_PriceList_ID */
+    public static final String COLUMNNAME_Intl_Incl_PriceList_ID = "Intl_Incl_PriceList_ID";
+
+	/** Set Intl_Incl_PriceList_ID	  */
+	public void setIntl_Incl_PriceList_ID (int Intl_Incl_PriceList_ID);
+
+	/** Get Intl_Incl_PriceList_ID	  */
+	public int getIntl_Incl_PriceList_ID();
+
+	public org.compiere.model.I_M_PriceList getIntl_Incl_PriceList() throws RuntimeException;
 
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";
@@ -211,6 +216,28 @@ public interface I_zz_woocommerce
 	  * The record is active in the system
 	  */
 	public boolean isActive();
+
+    /** Column name Local_Excl_PriceList_ID */
+    public static final String COLUMNNAME_Local_Excl_PriceList_ID = "Local_Excl_PriceList_ID";
+
+	/** Set Local_Excl_PriceList_ID	  */
+	public void setLocal_Excl_PriceList_ID (int Local_Excl_PriceList_ID);
+
+	/** Get Local_Excl_PriceList_ID	  */
+	public int getLocal_Excl_PriceList_ID();
+
+	public org.compiere.model.I_M_PriceList getLocal_Excl_PriceList() throws RuntimeException;
+
+    /** Column name Local_Incl_PriceList_ID */
+    public static final String COLUMNNAME_Local_Incl_PriceList_ID = "Local_Incl_PriceList_ID";
+
+	/** Set Local_Incl_PriceList_ID	  */
+	public void setLocal_Incl_PriceList_ID (int Local_Incl_PriceList_ID);
+
+	/** Get Local_Incl_PriceList_ID	  */
+	public int getLocal_Incl_PriceList_ID();
+
+	public org.compiere.model.I_M_PriceList getLocal_Incl_PriceList() throws RuntimeException;
 
     /** Column name M_Product_ID */
     public static final String COLUMNNAME_M_Product_ID = "M_Product_ID";
@@ -242,16 +269,25 @@ public interface I_zz_woocommerce
 
 	public org.compiere.model.I_M_Warehouse getM_Warehouse() throws RuntimeException;
 
-    /** Column name standard_tax_id */
-    public static final String COLUMNNAME_standard_tax_id = "standard_tax_id";
+    /** Column name notify_email */
+    public static final String COLUMNNAME_notify_email = "notify_email";
 
-	/** Set Standard Tax	  */
-	public void setstandard_tax_id (int standard_tax_id);
+	/** Set Notify Email	  */
+	public void setnotify_email (String notify_email);
 
-	/** Get Standard Tax	  */
-	public int getstandard_tax_id();
+	/** Get Notify Email	  */
+	public String getnotify_email();
 
-	public org.compiere.model.I_C_Tax getstandard_tax() throws RuntimeException;
+    /** Column name Standard_Tax_ID */
+    public static final String COLUMNNAME_Standard_Tax_ID = "Standard_Tax_ID";
+
+	/** Set Standard_Tax_ID	  */
+	public void setStandard_Tax_ID (int Standard_Tax_ID);
+
+	/** Get Standard_Tax_ID	  */
+	public int getStandard_Tax_ID();
+
+	public org.compiere.model.I_C_Tax getStandard_Tax() throws RuntimeException;
 
     /** Column name Updated */
     public static final String COLUMNNAME_Updated = "Updated";
@@ -269,24 +305,37 @@ public interface I_zz_woocommerce
 	  */
 	public int getUpdatedBy();
 
-    /** Column name zero_tax_id */
-    public static final String COLUMNNAME_zero_tax_id = "zero_tax_id";
+    /** Column name URL */
+    public static final String COLUMNNAME_URL = "URL";
 
-	/** Set Zero Tax	  */
-	public void setzero_tax_id (int zero_tax_id);
+	/** Set URL.
+	  * Full URL address - e.g. http://www.idempiere.org
+	  */
+	public void setURL (String URL);
 
-	/** Get Zero Tax	  */
-	public int getzero_tax_id();
+	/** Get URL.
+	  * Full URL address - e.g. http://www.idempiere.org
+	  */
+	public String getURL();
 
-	public org.compiere.model.I_C_Tax getzero_tax() throws RuntimeException;
+    /** Column name Zero_Tax_ID */
+    public static final String COLUMNNAME_Zero_Tax_ID = "Zero_Tax_ID";
+
+	/** Set Zero_Tax_ID	  */
+	public void setZero_Tax_ID (int Zero_Tax_ID);
+
+	/** Get Zero_Tax_ID	  */
+	public int getZero_Tax_ID();
+
+	public org.compiere.model.I_C_Tax getZero_Tax() throws RuntimeException;
 
     /** Column name zz_woocommerce_ID */
     public static final String COLUMNNAME_zz_woocommerce_ID = "zz_woocommerce_ID";
 
-	/** Set zz_woocommerce_ID	  */
+	/** Set Woocommerce Default Settings	  */
 	public void setzz_woocommerce_ID (int zz_woocommerce_ID);
 
-	/** Get zz_woocommerce_ID	  */
+	/** Get Woocommerce Default Settings	  */
 	public int getzz_woocommerce_ID();
 
     /** Column name zz_woocommerce_UU */
