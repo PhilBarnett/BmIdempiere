@@ -61,9 +61,11 @@ public final class WcOrder {
 	private final String DOC_BASE_TYPE = "SOO";
 	private final String ORDER_TYPE = "POS Order";
 	//private final int POS_ORDER = 135;//Hard coded to Garden World, does not work in all clients.
-	private static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
-	private static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
-	private static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
+	public static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
+	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
+	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
+	public static final String WOOCOMMERCE_MAP_MULTISELECT_PARENT = "10000006";
+	public static final String WOOCOMMERCE_MAP_MULTISELECT_CHILD = "10000007";
 
 	// private final int priceList_ID = 101;
 	final String PAYMENT_RULE = "M";
@@ -385,14 +387,21 @@ public final class WcOrder {
 						 
 						 //System.out.println(values.toString());
 			
-				
-		MAttributeSetInstance lineAttSetIns = new MAttributeSetInstance(ctx, orderLine.getM_AttributeSetInstance_ID(), trxName);	
-		lineAttSetIns.setDescription();
-		lineAttSetIns.save();
+		MProduct lineProduct = MProduct.get(orderLine.getM_Product_ID());		
+		if(lineProduct.getM_AttributeSetInstance_ID() > 0)
+		{
+			MAttributeSetInstance lineAttSetIns = new MAttributeSetInstance(ctx, orderLine.getM_AttributeSetInstance_ID(), trxName);	
+			lineAttSetIns.setDescription();
+			lineAttSetIns.save();
+		}
+		
 		MBLDLineProductSetInstance lineBldInstance = new MBLDLineProductSetInstance(ctx, orderLine.get_ValueAsInt("bld_line_productsetinstance_id"), trxName);
-		lineBldInstance.setDescription(orderLine.getM_Product_ID());
-		lineBldInstance.save();
-		if(sortArrayProducts.size()==0 || sortArrayAttributes.size() ==0)//no duplicate fields, single Orderline
+		if(lineBldInstance != null)
+		{
+			lineBldInstance.setDescription(orderLine.getM_Product_ID());
+			lineBldInstance.save();
+		}
+		if(sortArrayProducts.size()==0 && sortArrayAttributes.size() ==0)//no duplicate fields, single Orderline
 		{
 			//Process single order using masterMapList.
 			ArrayList<ArrayList<MzzWoocommerceMap>> singleOrderLine = new ArrayList<ArrayList<MzzWoocommerceMap>>();
@@ -415,7 +424,15 @@ public final class WcOrder {
 			}
 			if(sortArrayProducts.size() > 0)
 			{
-				filteredMaps = createFilteredMapList(filteredMaps, sortArrayProducts);
+				if(filteredMaps.size() < 1)
+				{
+					filteredMaps = createFilteredMapList(masterZzWoocommerceMapList, sortArrayProducts);
+				}
+				else
+				{
+					filteredMaps = createFilteredMapList(filteredMaps, sortArrayProducts);
+				}
+				
 			}
 			//filteredMaps is now good to use - no conflicting entries
 			
@@ -424,7 +441,7 @@ public final class WcOrder {
 				interimMzzWoocommerceMapListAttributes = createOrderLineMapSubList(sortArrayAttributes, filteredMaps);
 				processOrderLine(orderLine, interimMzzWoocommerceMapListAttributes, trxName);
 			}
-			if(sortArrayProducts.size() > 0 && !(sortArrayAttributes.size() > 0))//Create a list for product related MOrderlIne creation only.
+			if(sortArrayProducts.size() > 0 && !(sortArrayAttributes.size() > 0))//Create a list for product related MOrderline creation only.
 			{
 				interimMzzWoocommerceMapListProduct = createOrderLineMapSubList(sortArrayProducts, filteredMaps);
 				processOrderLine(orderLine, interimMzzWoocommerceMapListProduct , trxName);
@@ -532,20 +549,28 @@ public final class WcOrder {
 		//}
 	}
 	
-	
-	public void processOrderLine(MOrderLine line, ArrayList<ArrayList<MzzWoocommerceMap>> mapList, String trxn /*, List<?> changeItems*/) {
+	/**
+	 * 
+	 * @param line
+	 * @param mapList
+	 * @param trxn
+	 */
+	public void processOrderLine(MOrderLine line, ArrayList<ArrayList<MzzWoocommerceMap>> mapList, String trxn /*, List<?> changeItems*/) {		
 		for(ArrayList<MzzWoocommerceMap> mzzWoocommerceMapList : mapList)
 		{
 			processWooCommMeta(mzzWoocommerceMapList, line, ctx, trxn);
 			System.out.println(mapList.indexOf(mzzWoocommerceMapList));
-			
+			line.saveEx();
 			if(1 + mapList.indexOf(mzzWoocommerceMapList) < mapList.size())//Don't copy the last line.
 			{
 				MOrderLine duplicateOrderLine = new MOrderLine(order);
 				MOrderLine.copyValues(line, duplicateOrderLine);
-				MAttributeSetInstance duplicateMAttributeSetInstance = new MAttributeSetInstance(ctx, 0 ,trxn);
-				duplicateMAttributeSetInstance.save();
-				duplicateOrderLine.setM_AttributeSetInstance_ID(duplicateMAttributeSetInstance.get_ID());
+				if(line.getM_AttributeSetInstance_ID() > 0)
+				{
+						MAttributeSetInstance duplicateMAttributeSetInstance = new MAttributeSetInstance(ctx, 0 ,trxn);
+						duplicateMAttributeSetInstance.save();
+						duplicateOrderLine.setM_AttributeSetInstance_ID(duplicateMAttributeSetInstance.get_ID());
+				}
 				String sql = "SELECT COALESCE(MAX(Line),0)+10 FROM C_OrderLine WHERE C_Order_ID=?";
 				int ii = DB.getSQLValue (trxn, sql, order.getC_Order_ID());
 				duplicateOrderLine.setLine (ii);
@@ -613,7 +638,8 @@ public final class WcOrder {
 			ArrayList<MzzWoocommerceMap> mzzWoocommerceMapLn = new ArrayList<MzzWoocommerceMap>(filteredMap);
 			for(MzzWoocommerceMapLine mzzWoocommerceMapLine : sortedArrayItem)
 			{
-				mzzWoocommerceMapLn.add(new MzzWoocommerceMap(ctx, mzzWoocommerceMapLine.getZZ_Woocommerce_Map_ID(), trxName));
+				MzzWoocommerceMap mapToAdd = new MzzWoocommerceMap(ctx, mzzWoocommerceMapLine.getZZ_Woocommerce_Map_ID(), trxName);
+				if(!mzzWoocommerceMapLn.contains(mapToAdd)) mzzWoocommerceMapLn.add(mapToAdd);
 			}
 			mapToReturn.add(mzzWoocommerceMapLn);
 		}
@@ -989,7 +1015,7 @@ public final class WcOrder {
 		for(MzzWoocommerceMap currentMapItem : mapListToProcess)
 		{
 			String whereClause = "and "+ MzzWoocommerceMapLine.COLUMNNAME_IsActive + "='Y'";
-			String fv = (String) fieldValues.get(currentMapItem.get_ID());
+			//String fv = (String) fieldValues.get(currentMapItem.get_ID());
 			currentMapItem.setFieldValue((String) fieldValues.get(currentMapItem.get_ID()));
 			MzzWoocommerceMapLine[] mzzWoocommerceMapLines = currentMapItem.getMzzWoocommerceMapLines(currentMapItem.get_ID(), ctx, "", whereClause);
 					
@@ -1022,6 +1048,7 @@ public final class WcOrder {
 					mAttributeSetInstance.setM_AttributeSet_ID(mAttributeSetID);
 					int m_AttributeSetInstance_ID = mAttributeSetInstance.get_ID();
 					line.setM_AttributeSetInstance_ID(m_AttributeSetInstance_ID);
+					System.out.println(currentMapItem.getFieldValue());
 					setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, currentMapItem.getFieldValue(), mapType,trxn);
 					//setAttribute(String attributeValueType, MzzWoocommerceMap mzzWoocommerceMap, int m_AttributeSetInstance_ID, Properties field, String trxn)
 	
@@ -1106,7 +1133,8 @@ public final class WcOrder {
 					mAttributeSetInstance.save();
 					MAttributeValue mapAttributeValue = new MAttributeValue(ctx, mzzWoocommerceMapLines[l].getM_Attribute_Product_ID(), trxn);
 					MAttribute mapAttribute = new MAttribute(ctx, mapAttributeValue.getM_Attribute_ID(), trxn);
-					setAttribute(mapAttribute.getAttributeValueType(), mzzWoocommerceMapLines[l], mAttributeSetInstanceID, currentMapItem.getFieldValue(), mapType, trxn);
+					System.out.println(currentMapItem.getFieldValue());
+					setAttribute(mapAttribute.getAttributeValueType(), mzzWoocommerceMapLines[l], mAttributeSetInstanceID, currentMapItem.getwoocommerce_field_value(), mapType, trxn);
 					break;
 				}
 			}
@@ -1186,6 +1214,7 @@ public final class WcOrder {
 			}
 			else
 			{
+				
 				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_ID(), m_AttributeSetInstance_ID, Integer.parseInt(valueOfField), trxn);
 			}
 			
@@ -1236,7 +1265,7 @@ public final class WcOrder {
 		//line.saveEx();
 	}	
 
-	/**
+	/**Handles WooCommerce products that are intended 
 	 * 
 	 * @param mapType
 	 * @param mzzWoocommerceMapLines
@@ -1429,7 +1458,7 @@ public final class WcOrder {
 						{
 							 //System.out.println(fieldItem.getValue());
 							if(fieldItem.getValue().getClass().equals(LinkedHashMap.class)) 
-							{
+							{                        
 								 LinkedHashMap<String, Object> field = (LinkedHashMap<String, Object>) fieldItem.getValue();
 									
 								 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLineProductID,(String)field.get("id"), (String)field.get("value"), ctx);
@@ -1493,9 +1522,40 @@ public final class WcOrder {
 								
 									 
 								 }
+								 /*/Handle multi-select WooCommerce fields. These are fields where the user can select more than one option, like fabric.
+								  * The call field.get("value") returns data like "Snow,Flint".
+								  * with multiple colours selected. It is initially used for fabric sample products.
+								  * Desired behaviour: created multiple orderlines for each colour.
+								  * Throw error if it is more than can be currently handled?
+								  */
+								 
+								//Test to see if this mapping originates from a multi select field.
+								 String multiSelect = zzWoocommerceMap.getzz_woocommerce_m_select_type();
+								 if(multiSelect != null && multiSelect.equalsIgnoreCase(WOOCOMMERCE_MAP_MULTISELECT_PARENT))
+								 {
+									 String fieldContents = ((String) field.get("value"));
+									 String[] values = fieldContents.split(",");
+									 for(int t =0; t < values.length; t++)
+									 {
+										 values[t] = values[t].trim();
+									 }
+									 for(int p = 0; p < values.length; p++)
+									 {
+										 MzzWoocommerceMap zzWoocommerceMapChild = MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID,(String)field.get("id"), values[p], ctx);
+										 masterZzWoocommerceMapList.add(zzWoocommerceMapChild);
+									 }
+								 }
+								 else
+								 {
+									 masterZzWoocommerceMapList.add(zzWoocommerceMap); //Add all found mappings to List
+								 }
+								
+								 //Parse out the different options from the field values.
+								 
+								 //Create separate MzzWoocommerceMap records for each field value?
 								 
 								 
-								 masterZzWoocommerceMapList.add(zzWoocommerceMap); //Add all found mappings to List
+								
 								 if(field.get("value") != null)fieldValues.put(zzWoocommerceMap.get_ID(), field.get("value"));
 								 
 								 System.out.println(field.get("id"));

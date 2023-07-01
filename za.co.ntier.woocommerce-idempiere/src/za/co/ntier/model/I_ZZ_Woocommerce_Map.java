@@ -220,4 +220,13 @@ public interface I_ZZ_Woocommerce_Map
 
 	/** Get ZZ_Woocommerce_Map_UU	  */
 	public String getZZ_Woocommerce_Map_UU();
+
+    /** Column name zz_woocommerce_multi_select_ty */
+    public static final String COLUMNNAME_zz_woocommerce_m_select_type = "zz_woocommerce_m_select_type";
+
+	/** Set zz_woocommerce_multi_select_type	  */
+	public void setzz_woocommerce_m_select_type (String zz_woocommerce_multi_select_ty);
+
+	/** Get zz_woocommerce_multi_select_type	  */
+	public String getzz_woocommerce_m_select_type();
 }

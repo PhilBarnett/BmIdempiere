@@ -31,7 +31,7 @@ public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20230620L;
+	private static final long serialVersionUID = 20230701L;
 
     /** Standard Constructor */
     public X_ZZ_Woocommerce_Map (Properties ctx, int ZZ_Woocommerce_Map_ID, String trxName)
@@ -40,6 +40,7 @@ public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_
       /** if (ZZ_Woocommerce_Map_ID == 0)
         {
 			setignore_no_child_records (false);
+// N
 			setM_Product_ID (0);
 			setZZ_Woocommerce_Map_ID (0);
         } */
@@ -254,5 +255,20 @@ public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_
 	public String getZZ_Woocommerce_Map_UU()
 	{
 		return (String)get_Value(COLUMNNAME_ZZ_Woocommerce_Map_UU);
+	}
+
+	/** Set zz_woocommerce_multi_select_type.
+		@param zz_woocommerce_multi_select_ty zz_woocommerce_multi_select_type
+	*/
+	public void setzz_woocommerce_m_select_type (String zz_woocommerce_multi_select_ty)
+	{
+		set_Value (COLUMNNAME_zz_woocommerce_m_select_type, zz_woocommerce_multi_select_ty);
+	}
+
+	/** Get zz_woocommerce_multi_select_type.
+		@return zz_woocommerce_multi_select_type	  */
+	public String getzz_woocommerce_m_select_type()
+	{
+		return (String)get_Value(COLUMNNAME_zz_woocommerce_m_select_type);
 	}
 }
