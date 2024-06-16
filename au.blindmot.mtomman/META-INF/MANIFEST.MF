@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: AUMadeToMeasure
 Bundle-SymbolicName: au.blindmot.mtomman;singleton:=true
-Bundle-Version: 9.1.7.qualifier
+Bundle-Version: 9.1.8.qualifier
 Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 Require-Bundle: org.adempiere.base,
  org.eclipse.osgi.services;bundle-version="3.6.0",
@@ -12,7 +12,7 @@ Require-Bundle: org.adempiere.base,
  zcommon,
  org.apache.httpcomponents.httpclient
 Bundle-RequiredExecutionEnvironment: JavaSE-11
-Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-INF/ModelFactory.xml,OSGI-INF/ProcessFactory.xml, OSGI-INF/EventHandler2.xml, OSGI-INF/au.blindmot.mtmbtn.action.mtmb.xml,OSGI-INF/DisplayTypeFactory.xml,OSGI-INF/EditorFactory.xml,OSGI-INF/LookupFactory.xml,OSGI-INF/.xml, OSGI-INF/BLDBarcodeLookupFactory.xml
+Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-INF/ModelFactory.xml,OSGI-INF/ProcessFactory.xml, OSGI-INF/EventHandler2.xml, OSGI-INF/au.blindmot.mtmbtn.action.mtmb.xml,OSGI-INF/DisplayTypeFactory.xml,OSGI-INF/EditorFactory.xml,OSGI-INF/LookupFactory.xml, OSGI-INF/BLDBarcodeLookupFactory.xml
 Bundle-ActivationPolicy: lazy
 Import-Package: org.apache.commons.lang;version="2.6.0",
  org.compiere.model,
