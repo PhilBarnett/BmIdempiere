@@ -32,6 +32,7 @@ public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_
 	 *
 	 */
 	private static final long serialVersionUID = 20230701L;
+	
 
     /** Standard Constructor */
     public X_ZZ_Woocommerce_Map (Properties ctx, int ZZ_Woocommerce_Map_ID, String trxName)
@@ -51,6 +52,28 @@ public class X_ZZ_Woocommerce_Map extends PO implements I_ZZ_Woocommerce_Map, I_
     {
       super (ctx, rs, trxName);
     }
+    
+	/** Set Add_To_Duplicate.
+	@param Add_To_Duplicate Add_To_Duplicate
+*/
+public void setAdd_To_Duplicate (boolean Add_To_Duplicate)
+{
+	set_Value (COLUMNNAME_Add_To_Duplicate, Boolean.valueOf(Add_To_Duplicate));
+}
+
+/** Get Add_To_Duplicate.
+	@return Add_To_Duplicate	  */
+public boolean isAdd_To_Duplicate()
+{
+	Object oo = get_Value(COLUMNNAME_Add_To_Duplicate);
+	if (oo != null) 
+	{
+		 if (oo instanceof Boolean) 
+			 return ((Boolean)oo).booleanValue(); 
+		return "Y".equals(oo);
+	}
+	return false;
+}
 
     /** AccessLevel
       * @return 6 - System - Client 

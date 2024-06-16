@@ -14,39 +14,41 @@
  * ComPiere, Inc., 2620 Augustine Dr. #245, Santa Clara, CA 95054, USA        *
  * or via info@compiere.org or http://www.compiere.org/license.html           *
  *****************************************************************************/
-package za.co.ntier.model;
+package au.blindmot.model;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import org.compiere.model.*;
 import org.compiere.util.KeyNamePair;
 
-/** Generated Interface for ZZ_Woocommerce_Map
+/** Generated Interface for BLD_MTM_Product_Bom_Trigger
  *  @author iDempiere (generated) 
- *  @version Release 9
+ *  @version Release 6.2
  */
 @SuppressWarnings("all")
-public interface I_ZZ_Woocommerce_Map 
+public interface I_BLD_MTM_Product_Bom_Trigger 
 {
 
-    /** TableName=ZZ_Woocommerce_Map */
-    public static final String Table_Name = "ZZ_Woocommerce_Map";
+    /** TableName=BLD_MTM_Product_Bom_Trigger */
+    public static final String Table_Name = "BLD_MTM_Product_Bom_Trigger";
 
-    /** AD_Table_ID=1000076 */
+    /** AD_Table_ID=1000064 */
     public static final int Table_ID = MTable.getTable_ID(Table_Name);
 
     KeyNamePair Model = new KeyNamePair(Table_ID, Table_Name);
 
-    /** AccessLevel = 6 - System - Client 
+    /** AccessLevel = 7 - System - Client - Org 
      */
-    BigDecimal accessLevel = BigDecimal.valueOf(6);
+    BigDecimal accessLevel = BigDecimal.valueOf(7);
 
     /** Load Meta Data */
 
     /** Column name AD_Client_ID */
     public static final String COLUMNNAME_AD_Client_ID = "AD_Client_ID";
     
-    public static final String COLUMNNAME_Add_To_Duplicate = "add_to_duplicate";
+    /** Column name PP_Product_Bomline_ID */
+    public static final String COLUMNNAME_PP_Product_Bomline_ID = "PP_Product_Bomline_ID";
+   
 
 	/** Get Client.
 	  * Client/Tenant for this installation.
@@ -65,6 +67,24 @@ public interface I_ZZ_Woocommerce_Map
 	  * Organizational entity within client
 	  */
 	public int getAD_Org_ID();
+
+    /** Column name BLD_MTM_Product_Bom_Trigger_ID */
+    public static final String COLUMNNAME_BLD_MTM_Product_Bom_Trigger_ID = "BLD_MTM_Product_Bom_Trigger_ID";
+
+	/** Set BLD_MTM_Product_Bom_Trigger_ID	  */
+	public void setBLD_MTM_Product_Bom_Trigger_ID (int BLD_MTM_Product_Bom_Trigger_ID);
+
+	/** Get BLD_MTM_Product_Bom_Trigger_ID	  */
+	public int getBLD_MTM_Product_Bom_Trigger_ID();
+
+    /** Column name BLD_MTM_Product_Bom_Trigger_UU */
+    public static final String COLUMNNAME_BLD_MTM_Product_Bom_Trigger_UU = "BLD_MTM_Product_Bom_Trigger_UU";
+
+	/** Set BLD_MTM_Product_Bom_Trigger_UU	  */
+	public void setBLD_MTM_Product_Bom_Trigger_UU (String BLD_MTM_Product_Bom_Trigger_UU);
+
+	/** Get BLD_MTM_Product_Bom_Trigger_UU	  */
+	public String getBLD_MTM_Product_Bom_Trigger_UU();
 
     /** Column name Created */
     public static final String COLUMNNAME_Created = "Created";
@@ -108,19 +128,6 @@ public interface I_ZZ_Woocommerce_Map
 	  */
 	public String getHelp();
 
-    /** Column name ignore_no_child_records */
-    public static final String COLUMNNAME_ignore_no_child_records = "ignore_no_child_records";
-
-	/** Set Ignore No Child Records.
-	  * Tells the system that a record without mapping lines (child records) is OK.
-	  */
-	public void setignore_no_child_records (boolean ignore_no_child_records);
-
-	/** Get Ignore No Child Records.
-	  * Tells the system that a record without mapping lines (child records) is OK.
-	  */
-	public boolean isignore_no_child_records();
-
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";
 
@@ -134,33 +141,38 @@ public interface I_ZZ_Woocommerce_Map
 	  */
 	public boolean isActive();
 
-    /** Column name Line */
-    public static final String COLUMNNAME_Line = "Line";
+    /** Column name IsTriggerDelete */
+    public static final String COLUMNNAME_IsTriggerDelete = "IsTriggerDelete";
 
-	/** Set Line No.
-	  * Unique line for this document
+	/** Set IsTriggerDelete	  */
+	public void setIsTriggerDelete (boolean IsTriggerDelete);
+
+	/** Get IsTriggerDelete	  */
+	public boolean isTriggerDelete();
+
+    /** Column name M_Product_BOM_ID */
+    public static final String COLUMNNAME_M_Product_BOM_ID = "M_Product_BOM_ID";
+
+	/** Set BOM Line	  */
+	public void setM_Product_BOM_ID (int M_Product_BOM_ID);
+
+	/** Get BOM Line	  */
+	public int getM_Product_BOM_ID();
+
+	public org.compiere.model.I_M_Product_BOM getM_Product_BOM() throws RuntimeException;
+
+    /** Column name Name */
+    public static final String COLUMNNAME_Name = "Name";
+
+	/** Set Name.
+	  * Alphanumeric identifier of the entity
 	  */
-	public void setLine (int Line);
+	public void setName (String Name);
 
-	/** Get Line No.
-	  * Unique line for this document
+	/** Get Name.
+	  * Alphanumeric identifier of the entity
 	  */
-	public int getLine();
-
-    /** Column name M_Product_ID */
-    public static final String COLUMNNAME_M_Product_ID = "M_Product_ID";
-
-	/** Set Product.
-	  * Product, Service, Item
-	  */
-	public void setM_Product_ID (int M_Product_ID);
-
-	/** Get Product.
-	  * Product, Service, Item
-	  */
-	public int getM_Product_ID();
-
-	public org.compiere.model.I_M_Product getM_Product() throws RuntimeException;
+	public String getName();
 
     /** Column name Updated */
     public static final String COLUMNNAME_Updated = "Updated";
@@ -178,57 +190,25 @@ public interface I_ZZ_Woocommerce_Map
 	  */
 	public int getUpdatedBy();
 
-    /** Column name woocommerce_field_key */
-    public static final String COLUMNNAME_woocommerce_field_key = "woocommerce_field_key";
+    /** Column name Value */
+    public static final String COLUMNNAME_Value = "Value";
 
-	/** Set woocommerce_field_key	  */
-	public void setwoocommerce_field_key (String woocommerce_field_key);
+	/** Set Search Key.
+	  * Search key for the record in the format required - must be unique
+	  */
+	public void setValue (String Value);
 
-	/** Get woocommerce_field_key	  */
-	public String getwoocommerce_field_key();
+	/** Get Search Key.
+	  * Search key for the record in the format required - must be unique
+	  */
+	public String getValue();
+	
+	/** Column name M_Product_BOM_ID */
+    public static final String COLUMNNAME_M_Product_ID = "M_Product_ID";
 
-    /** Column name woocommerce_field_label */
-    public static final String COLUMNNAME_woocommerce_field_label = "woocommerce_field_label";
+	/** Set BOM Line	  */
+	public void setM_Product_ID (int M_Product_ID);
 
-	/** Set woocommerce_field_label	  */
-	public void setwoocommerce_field_label (String woocommerce_field_label);
-
-	/** Get woocommerce_field_label	  */
-	public String getwoocommerce_field_label();
-
-    /** Column name woocommerce_field_value */
-    public static final String COLUMNNAME_woocommerce_field_value = "woocommerce_field_value";
-
-	/** Set woocommerce_field_value	  */
-	public void setwoocommerce_field_value (String woocommerce_field_value);
-
-	/** Get woocommerce_field_value	  */
-	public String getwoocommerce_field_value();
-
-    /** Column name ZZ_Woocommerce_Map_ID */
-    public static final String COLUMNNAME_ZZ_Woocommerce_Map_ID = "ZZ_Woocommerce_Map_ID";
-
-	/** Set Woocommerce Map	  */
-	public void setZZ_Woocommerce_Map_ID (int ZZ_Woocommerce_Map_ID);
-
-	/** Get Woocommerce Map	  */
-	public int getZZ_Woocommerce_Map_ID();
-
-    /** Column name ZZ_Woocommerce_Map_UU */
-    public static final String COLUMNNAME_ZZ_Woocommerce_Map_UU = "ZZ_Woocommerce_Map_UU";
-
-	/** Set ZZ_Woocommerce_Map_UU	  */
-	public void setZZ_Woocommerce_Map_UU (String ZZ_Woocommerce_Map_UU);
-
-	/** Get ZZ_Woocommerce_Map_UU	  */
-	public String getZZ_Woocommerce_Map_UU();
-
-    /** Column name zz_woocommerce_multi_select_ty */
-    public static final String COLUMNNAME_zz_woocommerce_m_select_type = "zz_woocommerce_m_select_type";
-
-	/** Set zz_woocommerce_multi_select_type	  */
-	public void setzz_woocommerce_m_select_type (String zz_woocommerce_multi_select_ty);
-
-	/** Get zz_woocommerce_multi_select_type	  */
-	public String getzz_woocommerce_m_select_type();
+	/** Get BOM Line	  */
+	public int getM_Product_ID();
 }

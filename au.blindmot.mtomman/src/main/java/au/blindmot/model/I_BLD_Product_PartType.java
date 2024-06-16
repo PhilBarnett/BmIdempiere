@@ -14,39 +14,37 @@
  * ComPiere, Inc., 2620 Augustine Dr. #245, Santa Clara, CA 95054, USA        *
  * or via info@compiere.org or http://www.compiere.org/license.html           *
  *****************************************************************************/
-package za.co.ntier.model;
+package au.blindmot.model;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import org.compiere.model.*;
 import org.compiere.util.KeyNamePair;
 
-/** Generated Interface for ZZ_Woocommerce_Map
+/** Generated Interface for BLD_Product_PartType
  *  @author iDempiere (generated) 
- *  @version Release 9
+ *  @version Release 5.1
  */
 @SuppressWarnings("all")
-public interface I_ZZ_Woocommerce_Map 
+public interface I_BLD_Product_PartType 
 {
 
-    /** TableName=ZZ_Woocommerce_Map */
-    public static final String Table_Name = "ZZ_Woocommerce_Map";
+    /** TableName=BLD_Product_PartType */
+    public static final String Table_Name = "BLD_Product_PartType";
 
-    /** AD_Table_ID=1000076 */
+    /** AD_Table_ID=1000059 */
     public static final int Table_ID = MTable.getTable_ID(Table_Name);
 
     KeyNamePair Model = new KeyNamePair(Table_ID, Table_Name);
 
-    /** AccessLevel = 6 - System - Client 
+    /** AccessLevel = 7 - System - Client - Org 
      */
-    BigDecimal accessLevel = BigDecimal.valueOf(6);
+    BigDecimal accessLevel = BigDecimal.valueOf(7);
 
     /** Load Meta Data */
 
     /** Column name AD_Client_ID */
     public static final String COLUMNNAME_AD_Client_ID = "AD_Client_ID";
-    
-    public static final String COLUMNNAME_Add_To_Duplicate = "add_to_duplicate";
 
 	/** Get Client.
 	  * Client/Tenant for this installation.
@@ -65,6 +63,54 @@ public interface I_ZZ_Woocommerce_Map
 	  * Organizational entity within client
 	  */
 	public int getAD_Org_ID();
+
+    /** Column name BLD_Product_PartType_ID */
+    public static final String COLUMNNAME_BLD_Product_PartType_ID = "BLD_Product_PartType_ID";
+    
+    /** Column name BLD_Product_PartType_ID */
+    public static final String COLUMNNAME_M_Product__ID = "M_Product_ID";
+    
+    /** Column name Is_Select_Other_BLD_Parttype; */
+    public static final String COLUMNNAME_Is_Select_Other_BLD_Parttype="Is_Select_Other_BLD_Parttype";
+    
+    /** Set Is Select Other BLDParttype	  */
+	public void setIs_Select_Other_BLD_Parttype (boolean Is_Select_Other_BLD_Parttype);
+	
+	 /** Get Is Select Other BLDParttype	  */
+	public boolean isSelectOtherBLDParttype ();
+	
+    /** Column name Is_Select_Other_BLD_Parttype; */
+    public static final String COLUMNNAME_Otherbom_M_Parttpe_ID = "Otherbom_M_Parttype_ID";
+    
+	/** Set Otherbom_M_Product_ID	  */
+	public void setOtherbomMParttypeID (int Otherbom_M_PartType_ID);
+
+	/** Get Otherbom_M_Parttype_ID	  */
+	public int getOtherbomMParttypeID();
+
+	/** Set BLD Product PartType	  */
+	public void setBLDProductPartTypeID (int BLD_Product_PartType_ID);
+
+	/** Get BLD Product PartType	  */
+	public int getBLD_Product_PartType_ID();
+	
+	/**Column name COLUMNNAME_BLD__M_PartType_ID */
+	public static final String COLUMNNAME_BLD_M_PartType_ID = "M_PartType_ID";
+	
+	/**Set BLD_M_PartType_ID */
+	public void setBLD_M_PartType_ID (int BLD_M_PartType_ID);
+	
+	/**Get BLD_M_PartType_ID */
+	public int getBLD_M_PartType_ID();
+
+    /** Column name BLD_Product_PartType_UU */
+    public static final String COLUMNNAME_BLD_Product_PartType_UU = "BLD_Product_PartType_UU";
+
+	/** Set BLD_Product_PartType_UU	  */
+	public void setBLD_Product_PartType_UU (String BLD_Product_PartType_UU);
+
+	/** Get BLD_Product_PartType_UU	  */
+	public String getBLD_Product_PartType_UU();
 
     /** Column name Created */
     public static final String COLUMNNAME_Created = "Created";
@@ -95,32 +141,6 @@ public interface I_ZZ_Woocommerce_Map
 	  */
 	public String getDescription();
 
-    /** Column name Help */
-    public static final String COLUMNNAME_Help = "Help";
-
-	/** Set Comment/Help.
-	  * Comment or Hint
-	  */
-	public void setHelp (String Help);
-
-	/** Get Comment/Help.
-	  * Comment or Hint
-	  */
-	public String getHelp();
-
-    /** Column name ignore_no_child_records */
-    public static final String COLUMNNAME_ignore_no_child_records = "ignore_no_child_records";
-
-	/** Set Ignore No Child Records.
-	  * Tells the system that a record without mapping lines (child records) is OK.
-	  */
-	public void setignore_no_child_records (boolean ignore_no_child_records);
-
-	/** Get Ignore No Child Records.
-	  * Tells the system that a record without mapping lines (child records) is OK.
-	  */
-	public boolean isignore_no_child_records();
-
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";
 
@@ -133,8 +153,8 @@ public interface I_ZZ_Woocommerce_Map
 	  * The record is active in the system
 	  */
 	public boolean isActive();
-
-    /** Column name Line */
+	
+	   /** Column name Line */
     public static final String COLUMNNAME_Line = "Line";
 
 	/** Set Line No.
@@ -146,6 +166,19 @@ public interface I_ZZ_Woocommerce_Map
 	  * Unique line for this document
 	  */
 	public int getLine();
+
+    /** Column name IsMandatory */
+    public static final String COLUMNNAME_IsMandatory = "IsMandatory";
+
+	/** Set Mandatory.
+	  * Data entry is required in this column
+	  */
+	public void setIsMandatory (boolean IsMandatory);
+
+	/** Get Mandatory.
+	  * Data entry is required in this column
+	  */
+	public boolean isMandatory();
 
     /** Column name M_Product_ID */
     public static final String COLUMNNAME_M_Product_ID = "M_Product_ID";
@@ -177,58 +210,28 @@ public interface I_ZZ_Woocommerce_Map
 	  * User who updated this records
 	  */
 	public int getUpdatedBy();
+	
+	/**COLUMN NAME_m_parttype_id*/
+	public static final String COLUMNNAME_MPartTypeID = "m_parttype_id";
+	
+	/**
+	 * Get MPartype ID
+	 * @return
+	 */
+	public int getM_PartTypeID();
+	
+	/**
+	 * Set MPrtType ID
+	 * 
+	 */
+	public void setMPartTypeID(int mPartTypeID);
+	
+	/** Column name is_user_select */
+    public static final String COLUMNNAME_is_user_select = "is_user_select";
 
-    /** Column name woocommerce_field_key */
-    public static final String COLUMNNAME_woocommerce_field_key = "woocommerce_field_key";
+	/** Set is_user_select	  */
+	public void setIsUserSelect (boolean is_user_select);
 
-	/** Set woocommerce_field_key	  */
-	public void setwoocommerce_field_key (String woocommerce_field_key);
-
-	/** Get woocommerce_field_key	  */
-	public String getwoocommerce_field_key();
-
-    /** Column name woocommerce_field_label */
-    public static final String COLUMNNAME_woocommerce_field_label = "woocommerce_field_label";
-
-	/** Set woocommerce_field_label	  */
-	public void setwoocommerce_field_label (String woocommerce_field_label);
-
-	/** Get woocommerce_field_label	  */
-	public String getwoocommerce_field_label();
-
-    /** Column name woocommerce_field_value */
-    public static final String COLUMNNAME_woocommerce_field_value = "woocommerce_field_value";
-
-	/** Set woocommerce_field_value	  */
-	public void setwoocommerce_field_value (String woocommerce_field_value);
-
-	/** Get woocommerce_field_value	  */
-	public String getwoocommerce_field_value();
-
-    /** Column name ZZ_Woocommerce_Map_ID */
-    public static final String COLUMNNAME_ZZ_Woocommerce_Map_ID = "ZZ_Woocommerce_Map_ID";
-
-	/** Set Woocommerce Map	  */
-	public void setZZ_Woocommerce_Map_ID (int ZZ_Woocommerce_Map_ID);
-
-	/** Get Woocommerce Map	  */
-	public int getZZ_Woocommerce_Map_ID();
-
-    /** Column name ZZ_Woocommerce_Map_UU */
-    public static final String COLUMNNAME_ZZ_Woocommerce_Map_UU = "ZZ_Woocommerce_Map_UU";
-
-	/** Set ZZ_Woocommerce_Map_UU	  */
-	public void setZZ_Woocommerce_Map_UU (String ZZ_Woocommerce_Map_UU);
-
-	/** Get ZZ_Woocommerce_Map_UU	  */
-	public String getZZ_Woocommerce_Map_UU();
-
-    /** Column name zz_woocommerce_multi_select_ty */
-    public static final String COLUMNNAME_zz_woocommerce_m_select_type = "zz_woocommerce_m_select_type";
-
-	/** Set zz_woocommerce_multi_select_type	  */
-	public void setzz_woocommerce_m_select_type (String zz_woocommerce_multi_select_ty);
-
-	/** Get zz_woocommerce_multi_select_type	  */
-	public String getzz_woocommerce_m_select_type();
+	/** Get is_user_select	  */
+	public boolean isUserSelect();
 }

@@ -14,39 +14,37 @@
  * ComPiere, Inc., 2620 Augustine Dr. #245, Santa Clara, CA 95054, USA        *
  * or via info@compiere.org or http://www.compiere.org/license.html           *
  *****************************************************************************/
-package za.co.ntier.model;
+package au.blindmot.model;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import org.compiere.model.*;
 import org.compiere.util.KeyNamePair;
 
-/** Generated Interface for ZZ_Woocommerce_Map
+/** Generated Interface for BLD_Mtom_Item_Detail
  *  @author iDempiere (generated) 
- *  @version Release 9
+ *  @version Release 8.2
  */
 @SuppressWarnings("all")
-public interface I_ZZ_Woocommerce_Map 
+public interface I_BLD_Mtom_Item_Detail 
 {
 
-    /** TableName=ZZ_Woocommerce_Map */
-    public static final String Table_Name = "ZZ_Woocommerce_Map";
+    /** TableName=BLD_Mtom_Item_Detail */
+    public static final String Table_Name = "BLD_Mtom_Item_Detail";
 
-    /** AD_Table_ID=1000076 */
+    /** AD_Table_ID=1000073 */
     public static final int Table_ID = MTable.getTable_ID(Table_Name);
 
     KeyNamePair Model = new KeyNamePair(Table_ID, Table_Name);
 
-    /** AccessLevel = 6 - System - Client 
+    /** AccessLevel = 3 - Client - Org 
      */
-    BigDecimal accessLevel = BigDecimal.valueOf(6);
+    BigDecimal accessLevel = BigDecimal.valueOf(3);
 
     /** Load Meta Data */
 
     /** Column name AD_Client_ID */
     public static final String COLUMNNAME_AD_Client_ID = "AD_Client_ID";
-    
-    public static final String COLUMNNAME_Add_To_Duplicate = "add_to_duplicate";
 
 	/** Get Client.
 	  * Client/Tenant for this installation.
@@ -65,6 +63,35 @@ public interface I_ZZ_Woocommerce_Map
 	  * Organizational entity within client
 	  */
 	public int getAD_Org_ID();
+
+    /** Column name BLD_Mtom_Item_Detail_ID */
+    public static final String COLUMNNAME_BLD_Mtom_Item_Detail_ID = "BLD_Mtom_Item_Detail_ID";
+
+	/** Set Made to measure item detail	  */
+	public void setBLD_Mtom_Item_Detail_ID (int BLD_Mtom_Item_Detail_ID);
+
+	/** Get Made to measure item detail	  */
+	public int getBLD_Mtom_Item_Detail_ID();
+
+    /** Column name BLD_Mtom_Item_Detail_UU */
+    public static final String COLUMNNAME_BLD_Mtom_Item_Detail_UU = "BLD_Mtom_Item_Detail_UU";
+
+	/** Set BLD_Mtom_Item_Detail_UU	  */
+	public void setBLD_Mtom_Item_Detail_UU (String BLD_Mtom_Item_Detail_UU);
+
+	/** Get BLD_Mtom_Item_Detail_UU	  */
+	public String getBLD_Mtom_Item_Detail_UU();
+
+    /** Column name bld_mtom_item_line_ID */
+    public static final String COLUMNNAME_bld_mtom_item_line_ID = "bld_mtom_item_line_ID";
+
+	/** Set Made to measure items	  */
+	public void setbld_mtom_item_line_ID (int bld_mtom_item_line_ID);
+
+	/** Get Made to measure items	  */
+	public int getbld_mtom_item_line_ID();
+
+	public I_BLD_Mtom_Item_Line getbld_mtom_item_line() throws RuntimeException;
 
     /** Column name Created */
     public static final String COLUMNNAME_Created = "Created";
@@ -95,31 +122,14 @@ public interface I_ZZ_Woocommerce_Map
 	  */
 	public String getDescription();
 
-    /** Column name Help */
-    public static final String COLUMNNAME_Help = "Help";
+    /** Column name description2 */
+    public static final String COLUMNNAME_description2 = "description_other";
 
-	/** Set Comment/Help.
-	  * Comment or Hint
-	  */
-	public void setHelp (String Help);
+	/** Set Description2	  */
+	public void setdescriptionOther (String description2);
 
-	/** Get Comment/Help.
-	  * Comment or Hint
-	  */
-	public String getHelp();
-
-    /** Column name ignore_no_child_records */
-    public static final String COLUMNNAME_ignore_no_child_records = "ignore_no_child_records";
-
-	/** Set Ignore No Child Records.
-	  * Tells the system that a record without mapping lines (child records) is OK.
-	  */
-	public void setignore_no_child_records (boolean ignore_no_child_records);
-
-	/** Get Ignore No Child Records.
-	  * Tells the system that a record without mapping lines (child records) is OK.
-	  */
-	public boolean isignore_no_child_records();
+	/** Get Description2	  */
+	public String getdescriptionOther();
 
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";
@@ -162,6 +172,19 @@ public interface I_ZZ_Woocommerce_Map
 
 	public org.compiere.model.I_M_Product getM_Product() throws RuntimeException;
 
+    /** Column name Name */
+    public static final String COLUMNNAME_Name = "Name";
+
+	/** Set Name.
+	  * Alphanumeric identifier of the entity
+	  */
+	public void setName (String Name);
+
+	/** Get Name.
+	  * Alphanumeric identifier of the entity
+	  */
+	public String getName();
+
     /** Column name Updated */
     public static final String COLUMNNAME_Updated = "Updated";
 
@@ -178,57 +201,18 @@ public interface I_ZZ_Woocommerce_Map
 	  */
 	public int getUpdatedBy();
 
-    /** Column name woocommerce_field_key */
-    public static final String COLUMNNAME_woocommerce_field_key = "woocommerce_field_key";
+  
+	/** Column name Value */
+   /* public static final String COLUMNNAME_Value = "Value";
 
-	/** Set woocommerce_field_key	  */
-	public void setwoocommerce_field_key (String woocommerce_field_key);
+	/** Set Search Key.
+	  * Search key for the record in the format required - must be unique
+	  */
+	/*public void setValue (String Value);
 
-	/** Get woocommerce_field_key	  */
-	public String getwoocommerce_field_key();
-
-    /** Column name woocommerce_field_label */
-    public static final String COLUMNNAME_woocommerce_field_label = "woocommerce_field_label";
-
-	/** Set woocommerce_field_label	  */
-	public void setwoocommerce_field_label (String woocommerce_field_label);
-
-	/** Get woocommerce_field_label	  */
-	public String getwoocommerce_field_label();
-
-    /** Column name woocommerce_field_value */
-    public static final String COLUMNNAME_woocommerce_field_value = "woocommerce_field_value";
-
-	/** Set woocommerce_field_value	  */
-	public void setwoocommerce_field_value (String woocommerce_field_value);
-
-	/** Get woocommerce_field_value	  */
-	public String getwoocommerce_field_value();
-
-    /** Column name ZZ_Woocommerce_Map_ID */
-    public static final String COLUMNNAME_ZZ_Woocommerce_Map_ID = "ZZ_Woocommerce_Map_ID";
-
-	/** Set Woocommerce Map	  */
-	public void setZZ_Woocommerce_Map_ID (int ZZ_Woocommerce_Map_ID);
-
-	/** Get Woocommerce Map	  */
-	public int getZZ_Woocommerce_Map_ID();
-
-    /** Column name ZZ_Woocommerce_Map_UU */
-    public static final String COLUMNNAME_ZZ_Woocommerce_Map_UU = "ZZ_Woocommerce_Map_UU";
-
-	/** Set ZZ_Woocommerce_Map_UU	  */
-	public void setZZ_Woocommerce_Map_UU (String ZZ_Woocommerce_Map_UU);
-
-	/** Get ZZ_Woocommerce_Map_UU	  */
-	public String getZZ_Woocommerce_Map_UU();
-
-    /** Column name zz_woocommerce_multi_select_ty */
-    public static final String COLUMNNAME_zz_woocommerce_m_select_type = "zz_woocommerce_m_select_type";
-
-	/** Set zz_woocommerce_multi_select_type	  */
-	public void setzz_woocommerce_m_select_type (String zz_woocommerce_multi_select_ty);
-
-	/** Get zz_woocommerce_multi_select_type	  */
-	public String getzz_woocommerce_m_select_type();
+	/** Get Search Key.
+	  * Search key for the record in the format required - must be unique
+	  */
+	/*public String getValue(); 
+	*/
 }

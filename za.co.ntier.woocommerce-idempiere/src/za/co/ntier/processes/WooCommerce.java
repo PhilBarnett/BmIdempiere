@@ -52,11 +52,12 @@ public class WooCommerce extends SvrProcess {
 			params.put("offset", "0");
 			params.put("meta_key", "syncedToIdempiere");
 			params.put("meta_value", "no");
-			params.put("status", "completed");
+			params.put("status", "completed");//TODO: Consider pulling 'processing' status instead of 'completed'
 
 			List<?> wcOrders = wooCommerce.getAll(EndpointBaseType.ORDERS.getValue(), params);
 			// Iterate through each order
-			for (int i = 0; i < wcOrders.size(); i++) {
+			for (int i = 0; i < wcOrders.size(); i++) 
+			{
 				Map<?, ?> order = (Map<?, ?>) wcOrders.get(i);
 				int id = (int) order.get("id");
 				System.out.println("Order- " + order.get("id") + ": " + order);
@@ -65,7 +66,8 @@ public class WooCommerce extends SvrProcess {
 
 				// Iterate through each order Line
 				List<?> lines = (List<?>) order.get("line_items");
-				for (int j = 0; j < lines.size(); j++) {
+				for (int j = 0; j < lines.size(); j++) 
+				{
 					Map<?, ?> line = (Map<?, ?>) lines.get(j);
 					wcOrder.createOrderLine(line, order);
 					Object name = line.get("name");
@@ -76,11 +78,13 @@ public class WooCommerce extends SvrProcess {
 				wcOrder.completeOrder();
 
 				// Update syncedToIdempiere to 'yes'
+				//PB 06062024 Will not get executed if 'wcOrder.completeOrder()' has been disabled.
 				Map<String, Object> body = new HashMap<>();
 				List<Map<String, String>> listOfMetaData = new ArrayList();
 				Map<String, String> metaData = new HashMap<>();
 				metaData.put("key", "syncedToIdempiere");
 				metaData.put("value", "yes");
+				//TODO consider adding: metaData.put("status", "completed"); this will automate the process.
 				listOfMetaData.add(metaData);
 
 				body.put("meta_data", listOfMetaData);
