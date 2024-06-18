@@ -4,11 +4,14 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
+import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
+import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MAttributeValue;
 import org.compiere.model.MProduct;
@@ -188,17 +191,34 @@ public class RollerBlind extends MadeToMeasureProduct{
 	
 
 	private void checkChainLength() {
-		if(chainID > 0)
-		{
-			//chainID = chain.get(0).getKey();//get(0) assumes there's only one chain.
+		if(chainID > 0)//Do we have a chain?
+	{
+			log.warning("---------In checkChainLength()");
+			Properties ctx = Env.getCtx();
+			MProduct chain = new MProduct(ctx, chainID, trxName);
+			MAttributeSet chainAttributeSet = chain.getAttributeSet();
+			boolean hasChainLengthAttribute = false;
+			if(chainAttributeSet != null)
+			{
+				MAttribute[] attributes = chainAttributeSet.getMAttributes(true);
+				for(int i = 0; i < attributes.length; i++)
+				{
+					if(attributes[i].getName().equalsIgnoreCase(CHAIN_LENGTH))
+					{
+						hasChainLengthAttribute = true;
+						break;
+					}
+				}
+				
+				if(hasChainLengthAttribute) 
+			{
 			//Check if there is a chain length set.
+			
 			 String chainLength = MtmUtils.getAttributeLineProductInstance(mBLDMtomItemLine.getC_OrderLine_ID(), CHAIN_LENGTH);
 			 if(chainLength.equalsIgnoreCase("0")) //If no chain length set, set chain length based on drop.
 			 {
 				 int attributeValueID = MtmUtils.getChainAttributeIDByLength(high);
 				 int attributeSetInstanceID = getAttributeSetInstanceIDChain();
-				 Properties ctx = Env.getCtx();
-				 MProduct chain = new MProduct(ctx, chainID, trxName);
 				 MAttributeSetInstance mAttributeSetInstance = null;
 				 if (attributeSetInstanceID == 0)//Should be 0 as there was no chain length set.
 				 {
@@ -234,8 +254,10 @@ public class RollerBlind extends MadeToMeasureProduct{
 					 mAttributeSetInstance.setDescription();
 					 mAttributeSetInstance.saveEx();
 				 }
-			 }
-		}
+			  }
+			}
+		  }
+	   }
 	}
 
 	@Override
@@ -246,9 +268,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 * 1. the list of actual ProductIDs from the mtmInstanceParts field which is set when getMAttributeSetInstance() is called.
 		 * 2. The attribute pairs from the getMAttributeSetInstance() method which returns an array of MAttributePairs which will need to matched to parts
 		 * The following partypes need to be determined then records added to the bld_mtom_bomderived table:
-		 * Chain (direct from mtmInstanceParts)
-		 * Bottom bar (direct from mtmInstanceParts)
-		 * Fabric(direct from mtmInstanceParts)
 		 * Tubular blind control
 		 * Roller bracket
 		 * TNCN - tubular non control mech
