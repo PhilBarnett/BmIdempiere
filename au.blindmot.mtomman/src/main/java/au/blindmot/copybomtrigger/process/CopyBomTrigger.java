@@ -146,7 +146,7 @@ public class CopyBomTrigger extends SvrProcess {
 				/*Next line causes products to be copied with parent M_Product_BOM_ID, 
 				 * should be destination M_Product_BOM_ID*/
 				int destMProductBomId = getDestinationMProductBomId(fromBomTriggers[i]);
-				toMBLDMtmProductBomTrigger.setM_Product_BOM_ID(destMProductBomId);
+				toMBLDMtmProductBomTrigger.setPP_Product_Bomline_ID(destMProductBomId);
 				toMBLDMtmProductBomTrigger.setM_Product_ID(toProductID);
 				toMBLDMtmProductBomTrigger.setIsActive(fromBomTriggers[i].isActive());
 				toMBLDMtmProductBomTrigger.setIsTriggerDelete(fromBomTriggers[i].isTriggerDelete());
@@ -158,20 +158,23 @@ public class CopyBomTrigger extends SvrProcess {
 				{
 					//Check if each BOM Derived Modified is on the destination product BOM. If it's not, add it.
 					MPPProductBOMLine bomLineFrom = new MPPProductBOMLine(Env.getCtx(), fromAddLines[g].getPP_Product_Bomline_ID(), trx);
+					//System.out.println("From Lines fromAddLines[g].getPP_Product_Bomline_ID(): "+ fromAddLines[g].getPP_Product_Bomline_ID());
 						BigDecimal newProductToCheck = new BigDecimal(bomLineFrom.getM_Product_ID());
 						boolean isPicklist = bomLineFrom.get_ValueAsBoolean("picklist");
 						BigDecimal newProductBOMQty = getBOMQty(fromBomLines, newProductToCheck);
 						
 						if(newProductToCheck.compareTo(Env.ZERO) > 0 && !isOnDestinationBOM(newProductToCheck.intValue()))
 						{
+							//Add products to destination BOM if they aren't there already.
 							addToDestinationBOM(newProductToCheck.intValue(), newProductBOMQty, isPicklist);
 						}
 					//Add the lines
 					MBLDMtmProductBomAdd toMBLDMtmProductBomAddLine = new MBLDMtmProductBomAdd(Env.getCtx(), 0, trx);
-					
+					log.warning("---------Adding BOM trigger lines");
 					toMBLDMtmProductBomAddLine.setBLD_MTM_Product_Bom_Trigger_ID(toMBLDMtmProductBomTrigger.get_ID());
 					
-					toMBLDMtmProductBomAddLine.setM_Product_BOM_ID(getDestinationMProductBomId(fromAddLines[g]));
+					//toMBLDMtmProductBomAddLine.setM_Product_BOM_ID(getDestinationMProductBomId(fromAddLines[g]));
+					toMBLDMtmProductBomAddLine.setPP_Product_Bomline_ID(getDestinationMProductBomId(fromAddLines[g]));
 					toMBLDMtmProductBomAddLine.setHelp(fromAddLines[g].getHelp());
 					toMBLDMtmProductBomAddLine.setQty(fromAddLines[g].getQty());
 					toMBLDMtmProductBomAddLine.setIsActive(fromAddLines[g].isActive());
@@ -261,7 +264,7 @@ public class CopyBomTrigger extends SvrProcess {
 			toBomLine.saveEx(trxName);
 		}
 		
-		private int getToMProductBOMID(Object object) {
+	/*	private int getToMProductBOMID(Object object) {
 			MPPProductBOMLine[] destBomProducts = MPPProductBOMLine.getBOMLines(MProduct.get(toProductID));
 			BigDecimal bigObject = (BigDecimal)object;
 			int iD = bigObject.intValue();
@@ -275,7 +278,7 @@ public class CopyBomTrigger extends SvrProcess {
 			
 			return 0;
 			
-		}
+		}*/
 
 		/**
 		 * Post process actions (outside trx).
