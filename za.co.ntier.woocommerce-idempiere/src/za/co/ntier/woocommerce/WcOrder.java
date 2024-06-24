@@ -256,7 +256,7 @@ public final class WcOrder {
 
 	//Consider not running this method - at least until the system is stable.
 	public void completeOrder() {
-		throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");
+		throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");//Comment out to run method as below
 		/*
 		
 		order.setDateOrdered(new Timestamp(System.currentTimeMillis()));

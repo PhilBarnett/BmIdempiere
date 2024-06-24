@@ -52,7 +52,11 @@ public class WooCommerce extends SvrProcess {
 			params.put("offset", "0");
 			params.put("meta_key", "syncedToIdempiere");
 			params.put("meta_value", "no");
-			params.put("status", "completed");//TODO: Consider pulling 'processing' status instead of 'completed'
+			params.put("status", "completed");//See comment below
+			/*
+			 * /TODO: Consider pulling 'processing' status instead of 'completed', 
+			 * as 'completed' status has to be changed manually in the Woocomm backend.
+			 */
 
 			List<?> wcOrders = wooCommerce.getAll(EndpointBaseType.ORDERS.getValue(), params);
 			// Iterate through each order
@@ -60,7 +64,7 @@ public class WooCommerce extends SvrProcess {
 			{
 				Map<?, ?> order = (Map<?, ?>) wcOrders.get(i);
 				int id = (int) order.get("id");
-				System.out.println("Order- " + order.get("id") + ": " + order);
+				log.warning("Order- " + order.get("id") + ": " + order);
 				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
 				wcOrder.createOrder(order);
 
@@ -71,25 +75,27 @@ public class WooCommerce extends SvrProcess {
 					Map<?, ?> line = (Map<?, ?>) lines.get(j);
 					wcOrder.createOrderLine(line, order);
 					Object name = line.get("name");
-					System.out.println("Name of Product = " + name.toString());
+					log.warning("Name of Product = " + name.toString());
 				}
 				wcOrder.createShippingCharge(order);
 				wcOrder.createPosPayment(order);
-				wcOrder.completeOrder();
+				wcOrder.completeOrder();//PB 06062024 wcOrder.completeOrder()' has been disabled for testing.
 
 				// Update syncedToIdempiere to 'yes'
 				//PB 06062024 Will not get executed if 'wcOrder.completeOrder()' has been disabled.
 				Map<String, Object> body = new HashMap<>();
-				List<Map<String, String>> listOfMetaData = new ArrayList();
+				List<Map<String, String>> listOfMetaData = new ArrayList<Map<String, String>>();
 				Map<String, String> metaData = new HashMap<>();
 				metaData.put("key", "syncedToIdempiere");
 				metaData.put("value", "yes");
 				//TODO consider adding: metaData.put("status", "completed"); this will automate the process.
+				//metaData.put("status", "completed");
 				listOfMetaData.add(metaData);
 
 				body.put("meta_data", listOfMetaData);
 				Map<?, ?> response = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body);
 				System.out.println(response.toString());
+				log.warning("---------Response from WooCommerce: " + response.toString());
 
 			}
 		}
