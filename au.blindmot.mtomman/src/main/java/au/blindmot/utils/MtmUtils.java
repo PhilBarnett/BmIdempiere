@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -275,14 +276,14 @@ public class MtmUtils {
 		sql.append("JOIN m_attribute ma ON ma.m_attribute_id = mai.m_attribute_id ");
 		sql.append("WHERE col.c_orderline_id = ");
 		sql.append(cOrderLineID);
-		sql.append("AND ma.name = '");
+		sql.append("AND ma.name LIKE '%");
 		sql.append(attributeName);
-		sql.append("'");
+		sql.append("%'");
 				
 		String attributeValue = DB.getSQLValueString(null, sql.toString());		
 		if (attributeValue == null)
 			{
-				log.warning("------getDeduction returned: NULL") ;
+				log.warning("------getAttributeLineProductInstance returned: NULL") ;
 				return "0";
 			}
 		return attributeValue;
@@ -293,8 +294,23 @@ public class MtmUtils {
 		Query q = new Query(Env.getCtx(), I_M_AttributeValue.Table_Name, 
 				"m_attributevalue.m_attribute_id = (SELECT m_attribute_id FROM m_attribute WHERE m_attribute.name = " 
 				+ "'"+ CHAIN_LENGTH + "'" + ")",null);
-		List<MAttributeValue> chainLengths = q.list();
-		int attributeValueID = 0;
+		List<MAttributeValue> chainLengths = q.list();		int attributeValueID = 0;
+		MAttributeValue[] mAttributeValueArray = chainLengths.toArray(new MAttributeValue[chainLengths.size()]);
+		
+		//Bubblesort the List
+		int n = mAttributeValueArray.length;
+        for (int i = 0; i < n - 1; i++) {
+            for (int j = 0; j < n - i - 1; j++) {
+                if (Integer.parseInt(mAttributeValueArray[j].getName()) > Integer.parseInt(mAttributeValueArray[j + 1].getName())) {
+                    // Swap myArray[j] and myArray[j+1]
+                	MAttributeValue temp = mAttributeValueArray[j];
+                    mAttributeValueArray[j] = mAttributeValueArray[j + 1];
+                    mAttributeValueArray[j + 1] = temp;
+                }
+            }
+        }//end Bubble Alg.
+        
+        chainLengths = Arrays.asList(mAttributeValueArray);
 		double targetLength = drop*.75;
 		int i = 0;
 		for(MAttributeValue attributeValue : chainLengths)
@@ -308,8 +324,17 @@ public class MtmUtils {
 			else if (length >= targetLength && length > drop)//We have overshot the drop with chain length
 			{
 				//Use the value from the previous iteration
-				attributeValueID = chainLengths.get(i-1).get_ID();
-				break;
+				if(i > 0)
+				{
+					attributeValueID = chainLengths.get(i-1).get_ID();
+					break;
+				}
+				else 
+				{
+					attributeValueID = chainLengths.get(i).get_ID();
+					break;
+				}
+				
 			}
 			i++;
 		}

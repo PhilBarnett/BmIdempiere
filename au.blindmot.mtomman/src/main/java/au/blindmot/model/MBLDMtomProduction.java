@@ -2,6 +2,7 @@ package au.blindmot.model;
 
 import java.io.File;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -35,6 +36,8 @@ import org.compiere.util.Util;
 import org.eevolution.model.MPPProductBOM;
 import org.eevolution.model.MPPProductBOMLine;
 
+import au.blindmot.utils.MtmUtils;
+
 public class MBLDMtomProduction extends X_BLD_mtom_production implements DocAction, DocOptions {
 
 	/**
@@ -43,6 +46,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 	private static final long serialVersionUID = 2339407400844279640L;
 	private static final String ADD_AS_MTMPRODUCTION_LINE ="addasmtmproductionline";
 	private static final String BLD_LINE_PRODUCTSETINSTANCE_ID = "bld_line_productsetinstance_id";
+	private static final String ALLOW_MULTIPLE = "Allow Multiple In Production";
 	private int mOrder_id = 0;
 	private MOrder mOrder = null;
 	private MBLDMtomItemLine[] m_lines = null;
@@ -660,38 +664,48 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			//MOrderLine line = orderLines[i];
 			MProduct mProduct = new MProduct(getCtx(), orderLines[i].getM_Product_ID(),get_TrxName());
 			//Products MUST be 'made to measure' and 'manufactured' to make it to a production Order.
-			if(mProduct.get_ValueAsBoolean("ismadetomeasure") && mProduct.isManufactured())
+			String allowMultiple = (String) MtmUtils.getMattributeInstanceValue(mProduct.get_ID(), ALLOW_MULTIPLE, null);
+			int orderLineQty = theOrderLine.getQtyEntered().setScale(0, RoundingMode.HALF_UP).intValueExact();
+			if(allowMultiple == null || allowMultiple.equalsIgnoreCase("N"))
 			{
-				if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+orderLines[i].toString()+" to production items for production " + mtmProdID);
-				final String trxn = get_TrxName();
-				System.out.println("trxn: " + trxn + " get_TrxName(): " + get_TrxName());
-				
-				//Get any BOM line items from the orderLine product that are to be added to the production
-				Integer additionalMProductIDs[] = getadditionalMProductIDs(mProduct, theOrderLine);
-				if(additionalMProductIDs.length > 0)
+				orderLineQty = 1;
+			}
+			for(int d = 0; d < orderLineQty; d++)
+			{
+				if(mProduct.get_ValueAsBoolean("ismadetomeasure") && mProduct.isManufactured())
 				{
-					for(int j = 0; j < additionalMProductIDs.length; j++)
+					//
+					if (log.isLoggable(Level.FINE)||log.isLoggable(Level.FINER)) log.info("Adding:"+orderLines[i].toString()+" to production items for production " + mtmProdID);
+					final String trxn = get_TrxName();
+					System.out.println("trxn: " + trxn + " get_TrxName(): " + get_TrxName());
+					
+					//Get any BOM line items from the orderLine product that are to be added to the production
+					Integer additionalMProductIDs[] = getadditionalMProductIDs(mProduct, theOrderLine);
+					if(additionalMProductIDs.length > 0)
 					{
-						if(!isMTMandisManufactured(additionalMProductIDs[j]))
+						for(int j = 0; j < additionalMProductIDs.length; j++)
 						{
-							throw new AdempiereUserError(MProduct.get(additionalMProductIDs[j]).toString() + " is not Made to Measure and/or not manufactured, check product setup.");
+							if(!isMTMandisManufactured(additionalMProductIDs[j]))
+							{
+								throw new AdempiereUserError(MProduct.get(additionalMProductIDs[j]).toString() + " is not Made to Measure and/or not manufactured, check product setup.");
+							}
+							
+							MBLDMtomItemLine extraLine = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
+							extraLine.setFromOrderLine(theOrderLine, additionalMProductIDs[j].intValue());
+							extraLine.saveEx();
+							extraLine.set_Barcode();
+							extraLine.saveEx();
 						}
-						
-						MBLDMtomItemLine extraLine = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
-						extraLine.setFromOrderLine(theOrderLine, additionalMProductIDs[j].intValue());
-						extraLine.saveEx();
-						extraLine.set_Barcode();
-						extraLine.saveEx();
 					}
-				}
-				
-				MBLDMtomItemLine Line = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
-				Line.setFromOrderLine(theOrderLine);
-				Line.saveEx();
-				Line.set_Barcode();
-				Line.saveEx();
-	
-					}
+					
+					MBLDMtomItemLine Line = new MBLDMtomItemLine(getCtx(), 0, mtmProdID, trxn);
+					Line.setFromOrderLine(theOrderLine);
+					Line.saveEx();
+					Line.set_Barcode();
+					Line.saveEx();
+		
+						}//end if
+			}
 			}
 	}
 	

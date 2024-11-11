@@ -167,7 +167,7 @@ public static PO  getMBLDProductPartType  (int mPartTypeID, int mProductID, Prop
  * @return
  */
 public static MBLDProductPartType [] getMBLDProductPartTypes(Properties ctx, int mProductID, String trxName) {
-	final String whereClause = I_BLD_Product_PartType.COLUMNNAME_M_Product_ID +"=?";
+	final String whereClause = I_BLD_Product_PartType.COLUMNNAME_M_Product_ID +"=? AND isactive = 'Y'";
 	List<MBLDProductPartType> retValue = new Query(ctx,I_BLD_Product_PartType.Table_Name, whereClause,trxName)
 	.setParameters(mProductID)
 	.list();

@@ -16,6 +16,7 @@ import au.blindmot.make.MadeToMeasureProduct;
 import au.blindmot.make.PanelGlide;
 import au.blindmot.make.Pelmet;
 import au.blindmot.make.RollerBlind;
+import au.blindmot.make.Sample;
 import au.blindmot.make.SideRetainedBlind;
 
 /**
@@ -41,6 +42,7 @@ public class BLDMtomMakeFactory {
 	public static String PELMET = "Pelmet";
 	public static String FOLDING_ARM_AWNING = "FA Awning";
 	public static String CURTAIN = "Curtain";
+	public static String SAMPLE = "Sample";
 	private static final String CURTAIN_TRACK = "Curtain Track";
 	
 	
@@ -86,6 +88,8 @@ public class BLDMtomMakeFactory {
 			return new Curtain(mProduct_ID, mtom_item_line_id, trxnName);
 		else if ( classification.equals("curtaintrack") || productCategory.equals(CURTAIN_TRACK))
 			return new CurtainTrack(mProduct_ID, mtom_item_line_id, trxnName);
+		else if ( classification.equals("sample") || productCategory.equals(SAMPLE))
+			return new Sample(mProduct_ID, mtom_item_line_id, trxnName);
 	    
 	    return null;
 	  }

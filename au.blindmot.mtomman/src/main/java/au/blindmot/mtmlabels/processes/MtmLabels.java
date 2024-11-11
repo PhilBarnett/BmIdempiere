@@ -13,6 +13,8 @@ import javax.sql.RowSet;
 
 import org.apache.commons.lang.StringUtils;
 import org.compiere.model.MBPartner;
+import org.compiere.model.MBPartnerLocation;
+import org.compiere.model.MLocation;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductCategory;
 import org.compiere.model.X_M_PartType;
@@ -52,13 +54,25 @@ public class MtmLabels extends SvrProcess{
 	public static final String PRINT_QUALITY = "^PQ1,0,1,Y";
 	public static final String END_FORMAT = "^XZ";
 	public static final String FABRIC = "Fabric";
+	public static final String PHONE = "1300 998 442";
+	public static final String ONLINE_LOGO = "^MMT\n"
+			+ "^PW799\n"
+			+ "^LL0200\n"
+			+ "^LS0\n"
+			+ "^FO0,0^GFA,04608,04608,00036,:Z64:\n"
+			+ "eJztlk9r1EAYhydhY0M9NAsbPCg01EvZg3qsrNBZSPG6hQ091k+gLbY3pUNPBaF+AaFreyn7CYp7VXv0JB4teumhbCxF6mHX+L7zL5ndJHvQm/tCZidp5uGZ38yEEjKtaU3r/yoriqLWhHdmu1Cs9BVnmxediIGaYMOrRMnudieCbq2pahe+U+9OBGmdEiNbDC8FOdtcI+IZFYDqx5pXCNISJUbpUOQc5+qkofCMaM47diejVgDyFQ8APhrlvOPK31kmQZ3xdzYUDztO/j4KlEtHGY2BLNURyTgFRlkOB7Gid9ZEwg5EVAiSnFKQT8VvuZECjoMsHP8g8wAj2hoZh2OCzH0wnhHneJkHnjVuxOoMObbNd1KdBfzcGiBrJWwjZ+aGs9IiTtj2eEbmPtoltuAEZBG68CM+AFlOG9YMOFalRWrQsTx15Mx54dRsmwkgmvAzIpRsbJ4QQnGsg5uAyg3FT1vUDsNoS3ICMS/oM5UVhHSstTAfj/vAZemsQKnt6/PGxJ4WHJJmzjkdnXON5wP9Zpp5he8kquflKp/dlKPOC+cQweE+yKnWIDKf+lVCfVqNDB+iOMy1BYevIypiJBXJIStwbTZbFqUVuG3SWo3QXB/WgWe2y9GLXM/KcrgPDG3yZQvxD16uj7jhPjYx88lyQo4NkeaN+qj1gv6eWEnN8Yx8BIeMcIjySdcdOXs6aOBswPly0IfCzWa+T7p/AsFZIGKWtvaxqPLBjsynQipN3ATaR3Nc7DMRjcvU+gPHwZcf4/6hM4SsAgfWCw4LrJfmBGRhoX4o9mGHc1AQFi4IpE8Em61arcoPYxSt4vzga+Tjt9szPgV/Xf3yOkefJEk+w3U9hOYLXMlXbHagHUY7SfILOb1ejzV6vbcn0HnVk82729CekAY2nPP7znKSXA5g9KnmzEM7QM4AOXHcvz8Xx2fncRyfwhW/hqs/B+3FM+hJn8HOQZL8eKk4B9jMIAcwyucEFQ6XDJ+76IN30meYfIJ5PTJ8nhs+EEF/v9//5kIYHzGRfWwCaC/IU53PEIdevTF8Hub5HO0ZPkvo00h9+Lyu3xs+L9YlR+VzD/L5fmbkg4+y+SSY89UldD6sK5/leTmv7HodYRrspvJpjKxXuu4/17Prnuh8uuWV+4/MtKY1rX9UfwBZiW3o:FB1A\n"
+			+ "^PQ1,0,1,Y^FS";
 	private int bLDMtomProduction_ID = 0;
 	private boolean finishedItemOnly = false;
+	private boolean fabricSample = false;
 	private int finishedLabelCopies = 2;
 	private int labelCopies = 1;
+	private String windowName = "";
+	private int cBPartnerLocationID = 0;
 	private StringBuilder productOutput = new StringBuilder();
 	private StringBuilder fabricOutput = new StringBuilder();
 	private StringBuilder cutItemOutput = new StringBuilder();
+	private StringBuilder addressOutput = new StringBuilder();
 	/*
 	 * (non-Javadoc)
 	 * @see org.compiere.process.SvrProcess#prepare()
@@ -78,6 +92,12 @@ public class MtmLabels extends SvrProcess{
 				bLDMtomProduction_ID = para.getParameterAsInt();
 			else if(paraName.equalsIgnoreCase("FinishedItemOnly"))
 				finishedItemOnly = para.getParameterAsBoolean(); 
+			else if(paraName.equalsIgnoreCase("FabricSample"))
+				fabricSample = para.getParameterAsBoolean(); 
+			else if(paraName.equalsIgnoreCase("WindowName"))
+				windowName = para.getParameterAsString(); 
+			else if(paraName.equalsIgnoreCase("C_BPartner_Location_ID"))
+				cBPartnerLocationID = para.getParameterAsInt(); 
 			else if(paraName.equalsIgnoreCase("LabelCopies"))
 			{
 				int copies = para.getParameterAsInt();
@@ -127,7 +147,7 @@ public class MtmLabels extends SvrProcess{
 		 * 
 		 * ^XA^LH0,0^PRB,D^MD20^JMA^FS^BY2,2.7,13^FO506,20^B2N,132,Y,N,N^SN0016593650060001,N,Y^FS^FO20,20^A0N,28,37^CI13^FD14/9/2017^FS^FO220,20^A0N,41,48^CI13^FD16593A/006^FS^FO20,55^A0N,30,30^CI13^FDShahzad, Anwar^FS^FO20,95^A0N,30,30^CI13^FDExtra rollers^FS^FO20,135^A0N,30,30^CI13^FDROLL LeReve TRANS Marble^FS^FO20,175^A0N,30,30^CI13^FDWIR^FS^FO300,175^A0N,30,30^CI13^FDW:848 H:900^PQ1,0,1,Y^XZ
 		 */
-		if(bLDMtomProduction_ID == 0)
+		if(bLDMtomProduction_ID == 0 && !(windowName.equalsIgnoreCase("Sales Order")))
 		{
 			throw new AdempiereUserError("No MTM production (bLDMtomProduction_ID ==0) to create labels for. Is this an unsaved or new record?"); 
 		}
@@ -136,54 +156,92 @@ public class MtmLabels extends SvrProcess{
 		MBLDMtomItemLine[] lines = mBLDMtomProduction.getLines();
 		StringBuilder outputStringBuilder = new StringBuilder();
 		
-		for(int numCopies = 0; numCopies < labelCopies; numCopies++)
+		if(!fabricSample && !(windowName.equalsIgnoreCase("Sales Order")))
 		{
-			for(int i = 0; i < lines.length; i++)
+			for(int numCopies = 0; numCopies < labelCopies; numCopies++)
 			{
-				StringBuilder label = new StringBuilder();
-				StringBuilder productToAdd = getFinishedItem(lines[i], mBLDMtomProduction);
-				
-				//Add the finished item label as many times as required.
-				for(int a = 0; a < finishedLabelCopies; a++)
+				for(int i = 0; i < lines.length; i++)
 				{
-					productOutput.append(productToAdd);
-				}
-				/*
-				 *Do other items only if finishedItemOnly is false
-				 */
-				
-					MBLDMtomCuts[] cuts = lines[i].getCutLines(getCtx(), lines[i].getbld_mtom_item_line_ID());
-					//boolean fabricHasBeenCut = false;
+					//StringBuilder label = new StringBuilder();
+					StringBuilder productToAdd = getFinishedItem(lines[i], mBLDMtomProduction);
 					
-					for(int x =0; x < cuts.length; x++)
+					//Add the finished item label as many times as required.
+					for(int a = 0; a < finishedLabelCopies; a++)
 					{
-						boolean isItFabric = isFabric(cuts[x].getM_Product_ID());
-						
-						
-						if(!finishedItemOnly && isItFabric)//If it's fabric skip if already cut -> functionality removed, delete after testing.
-						{
-							StringBuilder fabric = addCuts(cuts[x], lines[i], mBLDMtomProduction, true);
-							fabricOutput.append(fabric);
-							//fabricHasBeenCut = true;
-						}
-						
-						if(!finishedItemOnly && !isItFabric)
-						{
-							StringBuilder otherCut = addCuts(cuts[x], lines[i], mBLDMtomProduction, false);
-							cutItemOutput.append(otherCut);
-						}
-						isItFabric = false;
+						productOutput.append(productToAdd);
 					}
-				
+					/*
+					 *Do other items only if finishedItemOnly is false
+					 */
+					
+						MBLDMtomCuts[] cuts = lines[i].getCutLines(getCtx(), lines[i].getbld_mtom_item_line_ID());
+						//boolean fabricHasBeenCut = false;
+						
+						for(int x =0; x < cuts.length; x++)
+						{
+							boolean isItFabric = isFabric(cuts[x].getM_Product_ID());
+							
+							
+							if(!finishedItemOnly && isItFabric)//If it's fabric skip if already cut -> functionality removed, delete after testing.
+							{
+								StringBuilder fabric = addCuts(cuts[x], lines[i], mBLDMtomProduction, true);
+								fabricOutput.append(fabric);
+								//fabricHasBeenCut = true;
+							}
+							
+							if(!finishedItemOnly && !isItFabric)
+							{
+								StringBuilder otherCut = addCuts(cuts[x], lines[i], mBLDMtomProduction, false);
+								cutItemOutput.append(otherCut);
+							}
+							isItFabric = false;
+						}
+					
+				}
+			}//end for
+		}
+		else
+		if(fabricSample)
+		{
+			for(int numCopies = 0; numCopies < labelCopies; numCopies++)
+			{
+				for(int i = 0; i < lines.length; i++)
+				{
+					productOutput.append(getFabricSample(lines[i], mBLDMtomProduction));
+				}
+			}
+		}
+		else if (windowName.equalsIgnoreCase("Sales Order"))
+		{
+			if(cBPartnerLocationID == 0)
+			{
+				throw new AdempiereUserError("No address details (cBPartnerLocationID ==0) to create labels for. Is this an unsaved or new record?"); 
+			}
+			MBPartnerLocation mBPartnerLocation = new MBPartnerLocation(getCtx(), cBPartnerLocationID, null);
+			String address = getAddress(mBPartnerLocation);
+			for(int h = 0; h < labelCopies; h++)
+			{
+				addressOutput.append(address);
 			}
 		}
 		
-		String filenameForDownload = mBLDMtomProduction.getDocumentNo() + ".buz";
+		String filenameForDownload = "";
+		if(mBLDMtomProduction.get_ID() > 0)
+		{
+			filenameForDownload = mBLDMtomProduction.getDocumentNo() + ".buz";
+		}	
+		else
+		{
+			filenameForDownload = Integer.toString(cBPartnerLocationID) + ".buz";
+		}
+			
+		
 		File tempFile = new File(filenameForDownload);
 		FileWriter fw = new FileWriter(tempFile);
 		outputStringBuilder.append(productOutput);
 		outputStringBuilder.append(fabricOutput);
-		outputStringBuilder.append(cutItemOutput);
+		outputStringBuilder.append(cutItemOutput); 
+		outputStringBuilder.append(addressOutput);
 		fw.write(outputStringBuilder.toString());
 		processUI.download(tempFile);
 	
@@ -194,9 +252,135 @@ public class MtmLabels extends SvrProcess{
 		return null;
 	}
 	
+	private String getAddress(MBPartnerLocation mBPartnerLocation) {
+		MLocation mLocation = mBPartnerLocation.getLocation(false);
+		StringBuilder address = new StringBuilder();
+		address.append(START_FORMAT);
+		address.append(LABEL_HOME);
+		address.append(PRINT_RATE);
+		address.append(MEDIA_DARKNESS);
+		address.append(DOTS_PER_MM);
+		address.append(FIELD_ORIGIN + "130,30");
+		address.append(SCALABLE_FONT_ROTATION + ",40,40");
+		address.append(CHANGE_INTERNAT_FONT + "13");
+		address.append(FORMAT_DATA);
+		address.append(mBPartnerLocation.getC_BPartner().getName());
+		address.append(FIELD_SEPARATOR);
+		address.append(SCALABLE_FONT_ROTATION + ",40,40");
+		address.append(CHANGE_INTERNAT_FONT + "13");
+		address.append(FIELD_ORIGIN + "130,75");
+		address.append(FORMAT_DATA);
+		address.append(mLocation.getAddress1());
+		address.append(" " + mLocation.getAddress2());
+		address.append(FIELD_SEPARATOR);
+		address.append(SCALABLE_FONT_ROTATION + ",40,40");
+		address.append(CHANGE_INTERNAT_FONT + "13");
+		address.append(FIELD_ORIGIN + "130,120");
+		address.append(FORMAT_DATA);
+		address.append(mLocation.getCity());
+		address.append(" " + mLocation.getPostal());
+		address.append(FIELD_SEPARATOR);
+		address.append(END_FORMAT);
+		address.append("\n");
+		return address.toString();
+	}
+
+	private String getFabricParentProduct(int fabricProductID) {
+		StringBuffer sql = new StringBuffer	("SELECT ");
+		sql.append("mpc.name ");
+		sql.append("FROM m_product mp ");
+		sql.append("JOIN m_product_category mpc ON mp.m_product_category_id = mpc.m_product_category_id ");
+		sql.append("JOIN pp_product_bom ppp ON ppp.m_product_id = mp.m_product_id ");
+		sql.append("JOIN pp_product_bomline ppb ON ppb.pp_product_bom_id = ppp.pp_product_bom_id ");
+		sql.append("WHERE ppb.m_product_id =  ");
+		sql.append(fabricProductID);
+		sql.append(" AND mpc.name != 'Sample' ");
+		sql.append("FETCH FIRST 1 ROWS ONLY");
+				
+		String categoryName = DB.getSQLValueString(null, sql.toString());		
+		if (categoryName == null)
+			{
+				log.warning("------getAttributeLineProductInstance returned: NULL") ;
+				return "0";
+			}
+		return categoryName;
+	}
+	
+	private StringBuilder getFabricSample(MBLDMtomItemLine line, MBLDMtomProduction mBLDMtomPrdctn) {
+		MProduct bomFabric = getBomFabric(line);
+		String parentProductCategory = getFabricParentProduct(bomFabric.get_ID());
+		StringBuilder productLabel = new StringBuilder();
+		productLabel.append(START_FORMAT);
+		productLabel.append(LABEL_HOME);
+		productLabel.append(PRINT_RATE);
+		productLabel.append(MEDIA_DARKNESS);
+		productLabel.append(DOTS_PER_MM);
+		productLabel.append(ONLINE_LOGO);
+		productLabel.append(FIELD_ORIGIN + "330,10");
+		productLabel.append(SCALABLE_FONT_ROTATION + ",30,30");
+		productLabel.append(CHANGE_INTERNAT_FONT + "13");
+		productLabel.append(FORMAT_DATA + "Fabric:");
+		productLabel.append(FIELD_SEPARATOR);
+		productLabel.append(FIELD_ORIGIN + "450,10");
+		productLabel.append(SCALABLE_FONT_ROTATION + ",30,30");
+		productLabel.append(CHANGE_INTERNAT_FONT + "13");
+		productLabel.append(FORMAT_DATA + bomFabric.getName());
+		productLabel.append(FIELD_SEPARATOR);
+		productLabel.append(FIELD_ORIGIN + "330,45");
+		productLabel.append(SCALABLE_FONT_ROTATION + ",30,30");
+		productLabel.append(CHANGE_INTERNAT_FONT + "13");
+		productLabel.append(FORMAT_DATA + "Colour:");
+		productLabel.append(FIELD_SEPARATOR);
+		productLabel.append(FIELD_ORIGIN + "450,45");
+		productLabel.append(SCALABLE_FONT_ROTATION + ",30,30");
+		productLabel.append(CHANGE_INTERNAT_FONT + "13");
+		productLabel.append(FORMAT_DATA + MtmUtils.getAttributeLineProductInstance(line.getC_OrderLine_ID(), "Colour"));//Will this work??
+		productLabel.append(FIELD_SEPARATOR);
+		if(parentProductCategory != "0")//Adds parent product
+		{
+			productLabel.append(FIELD_ORIGIN + "330,80");
+			productLabel.append(SCALABLE_FONT_ROTATION + ",30,30");
+			productLabel.append(CHANGE_INTERNAT_FONT + "13");
+			productLabel.append(FORMAT_DATA + "Product:");
+			productLabel.append(FIELD_SEPARATOR);
+			productLabel.append(FIELD_ORIGIN + "450,80");
+			productLabel.append(SCALABLE_FONT_ROTATION + ",30,30");
+			productLabel.append(CHANGE_INTERNAT_FONT + "13");
+			productLabel.append(FORMAT_DATA + parentProductCategory);
+			productLabel.append(FIELD_SEPARATOR);
+		}
+		productLabel.append(BARCODE_DEFAULTS);
+		productLabel.append(addFabricSampleBarcode(line.getbarcode()));
+		productLabel.append(FIELD_ORIGIN + "20,135");
+		productLabel.append(SCALABLE_FONT_ROTATION + ",30,30");
+		productLabel.append(CHANGE_INTERNAT_FONT + "13");
+		productLabel.append(FORMAT_DATA + "online.blindmotion.com.au");
+		productLabel.append(FIELD_SEPARATOR);
+		productLabel.append(FIELD_ORIGIN + "20,170");
+		productLabel.append(SCALABLE_FONT_ROTATION + ",30,30");
+		productLabel.append(CHANGE_INTERNAT_FONT + "13");
+		productLabel.append(FORMAT_DATA);
+		productLabel.append(PHONE);
+		productLabel.append(FIELD_SEPARATOR);
+		productLabel.append(END_FORMAT);
+		productLabel.append("\n");
+		return productLabel;
+	}
+	
 	private String addBarcode(String barcode) {
 		StringBuilder bc = new StringBuilder();
 		bc.append(FIELD_ORIGIN + "450,20");
+		bc.append(BARCODE_30F9);
+		bc.append(SERIAL_START);
+		if(bc != null)bc.append(barcode);
+		bc.append(SERIAL_END);
+		bc.append(FIELD_SEPARATOR);
+		return bc.toString();
+	}
+	
+	private String addFabricSampleBarcode(String barcode) {
+		StringBuilder bc = new StringBuilder();
+		bc.append(FIELD_ORIGIN + "450,135");
 		bc.append(BARCODE_30F9);
 		bc.append(SERIAL_START);
 		if(bc != null)bc.append(barcode);
@@ -236,7 +420,7 @@ public class MtmLabels extends SvrProcess{
 	private String addOrderInfo(int lineNo, String string) {
 		StringBuilder orderInfo = new StringBuilder();
 		orderInfo.append(FIELD_ORIGIN + "200,20");
-		orderInfo.append(SCALABLE_FONT_ROTATION + "35,35");
+		orderInfo.append(SCALABLE_FONT_ROTATION + ",35,35");
 		orderInfo.append(CHANGE_INTERNAT_FONT + "13");
 		orderInfo.append(FORMAT_DATA);
 		orderInfo.append(string + "->" + lineNo);
@@ -252,7 +436,7 @@ public class MtmLabels extends SvrProcess{
 		String bpName2 = bPartner.getName2();
 		StringBuilder name = new StringBuilder();
 		name.append(FIELD_ORIGIN + "20,55");
-		name.append(SCALABLE_FONT_ROTATION + "30,30");
+		name.append(SCALABLE_FONT_ROTATION + ",30,30");
 		name.append(CHANGE_INTERNAT_FONT + "13");
 		name.append(FORMAT_DATA);
 		if(bpName2 != null)name.append(bpName2 + ", ");
@@ -273,7 +457,7 @@ public class MtmLabels extends SvrProcess{
 		}
 		StringBuilder desc = new StringBuilder();
 		desc.append(FIELD_ORIGIN + "20,95");
-		desc.append(SCALABLE_FONT_ROTATION + "30,30");
+		desc.append(SCALABLE_FONT_ROTATION + ",30,30");
 		desc.append(CHANGE_INTERNAT_FONT + "13");
 		desc.append(FORMAT_DATA);
 		desc.append(smallDesc);
@@ -289,7 +473,7 @@ public class MtmLabels extends SvrProcess{
 		String fieldOrigin = "20,135";
 		if(isEndProd) fieldOrigin ="320,95";
 		nameToRet.append(FIELD_ORIGIN + fieldOrigin);
-		nameToRet.append(SCALABLE_FONT_ROTATION + "30,30");
+		nameToRet.append(SCALABLE_FONT_ROTATION + ",30,30");
 		nameToRet.append(CHANGE_INTERNAT_FONT + "13");
 		nameToRet.append(FORMAT_DATA);
 		if(cutName != null)nameToRet.append(cutName);
@@ -304,7 +488,7 @@ public class MtmLabels extends SvrProcess{
 		String length = cutLength.toString();
 		StringBuilder cutToRet = new StringBuilder();
 		cutToRet.append(FIELD_ORIGIN + "300,175");
-		cutToRet.append(SCALABLE_FONT_ROTATION + "30,30");
+		cutToRet.append(SCALABLE_FONT_ROTATION + ",30,30");
 		cutToRet.append(CHANGE_INTERNAT_FONT + "13");
 		cutToRet.append(FORMAT_DATA);
 		if(length != null) cutToRet.append("Cut length: " + length + "mm");
@@ -319,7 +503,7 @@ public class MtmLabels extends SvrProcess{
 		String width = cutWidth.toString();
 		StringBuilder cutToRet = new StringBuilder();
 		cutToRet.append(FIELD_ORIGIN + "20,175");
-		cutToRet.append(SCALABLE_FONT_ROTATION + "30,30");
+		cutToRet.append(SCALABLE_FONT_ROTATION + ",30,30");
 		cutToRet.append(CHANGE_INTERNAT_FONT + "13");
 		cutToRet.append(FORMAT_DATA);
 		if(width != null) cutToRet.append("Cut width: " + width + "mm");
@@ -327,10 +511,31 @@ public class MtmLabels extends SvrProcess{
 		return cutToRet.toString();
 	}
 	
+	private MProduct getBomFabric(MBLDMtomItemLine line) {
+	
+		MProduct bomProduct = null;
+		MBLDBomDerived[] bomLines = line.getBomDerivedLines (getCtx(), line.get_ID());
+		for(int y = 0; y < bomLines.length; y++)
+		{
+			int mProductBomID = bomLines[y].getM_Product_ID();
+			bomProduct = new MProduct(Env.getCtx(), mProductBomID, null);
+			X_M_PartType bomPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
+			if(bomPartType != null)
+				{
+					if(bomPartType.getName().equalsIgnoreCase(FABRIC))
+					{
+						break;
+					}
+				}
+				
+		}
+		return bomProduct;
+	}
 	
 	private String addFabric(MBLDMtomItemLine line) {
 		
 		int fabID = 0;
+		int mBLDBomDerivedID = 0;
 		MProduct bomProduct = null;
 		MBLDBomDerived[] bomLines = line.getBomDerivedLines (getCtx(), line.get_ID());
 		for(int y = 0; y < bomLines.length; y++)
@@ -343,6 +548,7 @@ public class MtmLabels extends SvrProcess{
 					if(bomPartType.getName().equalsIgnoreCase(FABRIC))
 					{
 						fabID = mProductBomID;
+						mBLDBomDerivedID = bomLines[y].get_ID();
 						break;
 					}
 				}
@@ -354,7 +560,7 @@ public class MtmLabels extends SvrProcess{
 			}
 		
 		String name = bomProduct.getName();
-		String desc = bomProduct.getDescription();
+		String colour = getAttributeColour(mBLDBomDerivedID);
 		
 		List<Object> params = new  ArrayList<Object>();
 		params.add(fabID);
@@ -369,12 +575,12 @@ public class MtmLabels extends SvrProcess{
 		
 		StringBuilder fabricDesc = new StringBuilder("");
 		if(name != null)fabricDesc.append(name + " ");
-		if(desc != null)fabricDesc.append(desc + " ");
+		if(colour != null)fabricDesc.append(colour + " ");
 		if(fabType != null)fabricDesc.append(fabType);
 		
 		StringBuilder fab = new StringBuilder();
 		fab.append(FIELD_ORIGIN + "20,135");
-		fab.append(SCALABLE_FONT_ROTATION + "30,30");
+		fab.append(SCALABLE_FONT_ROTATION + ",30,30");
 		fab.append(CHANGE_INTERNAT_FONT + "13");
 		fab.append(FORMAT_DATA);
 		fab.append(fabricDesc);
@@ -396,7 +602,7 @@ public class MtmLabels extends SvrProcess{
 		
 		StringBuilder locToReturn = new StringBuilder();
 		locToReturn.append(FIELD_ORIGIN + "20,175");
-		locToReturn.append(SCALABLE_FONT_ROTATION + "30,30");
+		locToReturn.append(SCALABLE_FONT_ROTATION + ",30,30");
 		locToReturn.append(CHANGE_INTERNAT_FONT + "13");
 		locToReturn.append(FORMAT_DATA);
 		if(location != null)locToReturn.append(location);
@@ -430,7 +636,7 @@ public class MtmLabels extends SvrProcess{
 		
 		StringBuilder retSize = new StringBuilder();
 		retSize.append(FIELD_ORIGIN + "450,175");
-		retSize.append(SCALABLE_FONT_ROTATION + "30,30");
+		retSize.append(SCALABLE_FONT_ROTATION + ",30,30");
 		retSize.append(CHANGE_INTERNAT_FONT + "13");
 		retSize.append(FORMAT_DATA);
 		if(finSize != null) retSize.append(finSize);
@@ -540,6 +746,24 @@ public class MtmLabels extends SvrProcess{
 		
 		
 	}
+	
+	private String getAttributeColour(int bldmtombomderivedID/*, String attributeName*/) {
+		StringBuffer sql = new StringBuffer	("SELECT mai.value FROM bld_mtom_bomderived line ");
+		sql.append("JOIN m_attributesetinstance masi ON masi.m_attributesetinstance_id = line.m_attributesetinstance_id ");      
+		sql.append("JOIN m_attributeset mas ON mas.m_attributeset_id = masi.m_attributeset_id ");
+		sql.append("JOIN m_attributeinstance mai ON mai.m_attributesetinstance_id = masi.m_attributesetinstance_id ");
+		sql.append("JOIN m_attribute ma ON ma.m_attribute_id = mai.m_attribute_id ");
+		sql.append("WHERE line.bld_mtom_bomderived_id = ? ");
+		sql.append(" AND ma.name LIKE '%olour%'");
+		List<Object> params = new ArrayList<Object>();
+		params.add(bldmtombomderivedID);
+		Object attributeName = DB.getSQLValueStringEx(get_TrxName(), sql.toString(), params);
+		
+		return (String) attributeName;
+		
+	}
+	
+	
 	
 
 }
