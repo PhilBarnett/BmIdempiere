@@ -60,7 +60,7 @@ public final class WcOrder {
 	private final String trxName;
 	private final int POSTENDERTYPE_ID = 1000000;
 	private final String DOC_BASE_TYPE = "SOO";
-	private final String ORDER_TYPE = "POS Order";
+	private final String ORDER_TYPE = "BM Order";
 	//private final int POS_ORDER = 135;//Hard coded to Garden World, does not work in all clients.
 	public static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
@@ -84,6 +84,10 @@ public final class WcOrder {
 	private String wooCommProductName ="";
 	private Integer wooCommProductID;
 	private StringBuilder mapNotFound;
+	private int orderBpID = 0;
+	private int cOrderID = 0;
+	private int bPLocationId = 0;
+	private String customerNote = "";
 
 	public WcOrder(Properties ctx, String trxName, PO wcDefaults) {
 		this.ctx = ctx;
@@ -97,12 +101,15 @@ public final class WcOrder {
 		order.setAD_Org_ID((int) wcDefaults.get_Value("ad_org_id"));
 		int BP_Id = getBPId(getWcCustomerEmail(orderWc), orderWc);
 		order.setC_BPartner_ID(BP_Id);
+		orderBpID = BP_Id;
 		int BPLocationId = getBPLocationId(BP_Id);
+		bPLocationId = BPLocationId;
 		order.setC_BPartner_Location_ID(BPLocationId); // order.setAD_User_ID(101);
 		order.setBill_BPartner_ID(BP_Id);
 		order.setBill_Location_ID(BPLocationId);
 		// order.setBill_User_ID(); order.setSalesRep_ID(101);
-		isTaxInclusive = (orderWc.get("prices_include_tax").toString().equals("true")) ? true : false;
+		/*isTaxInclusive = (orderWc.get("prices_include_tax").toString().equals("true")) ? true : false;//TODO:Problem: prices don't actually include tax.*/
+		isTaxInclusive = false;//Hard coded 2/2/24 because WooComm returns true when the price does not include tax.
 		order.setM_PriceList_ID(getPriceList(orderWc));
 		order.setIsSOTrx(true);
 		order.setM_Warehouse_ID((int) wcDefaults.get_Value("m_warehouse_id"));
@@ -120,6 +127,7 @@ public final class WcOrder {
 		order.setPaymentRule(PAYMENT_RULE);
 		order.setDeliveryRule("F");
 		order.setInvoiceRule("D");
+		order.set_ValueOfColumn("install_bpartner_id", BP_Id);
 
 		if (!order.save()) {
 			int orgID = order.getAD_Org_ID();
@@ -135,6 +143,18 @@ public final class WcOrder {
 			log.warning(msg.toString());
 			throw new IllegalStateException("Could not create order");
 		}
+		cOrderID = order.get_ID();
+		this.customerNote = (String) orderWc.get("customer_note");
+		order.setDescription(order.getDescription() + " Customer Note:" + customerNote);
+		
+	}
+	
+	public int getOrderLineCount() {
+		return order.getLines().length;
+	}
+	
+	public int getOrderTotal() {
+		return order.getTotalLines().intValue();
 	}
 
 	public String getWcCustomerEmail(Map<?, ?> orderWc) {
@@ -173,14 +193,14 @@ public final class WcOrder {
 
 	int createBP(Map<?, ?> orderWc) {
 		Map<?, ?> billing = (Map<?, ?>) orderWc.get("billing");
-		String name = (String) billing.get("first_name");
-		String name2 = (String) billing.get("last_name");
+		String name = (String) billing.get("first_name") + " " + billing.get("last_name");
+		//String name2 = (String) billing.get("last_name");
 		String phone = (String) billing.get("phone");
 		String email = getWcCustomerEmail(orderWc);
 		MBPartner businessPartner = new MBPartner(ctx, -1, trxName);
 		businessPartner.setAD_Org_ID(0);
 		businessPartner.setName(name);
-		businessPartner.setName2(name2);
+		//businessPartner.setName2(name2);
 		businessPartner.setIsCustomer(true);
 		businessPartner.setIsProspect(false);
 		businessPartner.setIsVendor(false);
@@ -256,24 +276,20 @@ public final class WcOrder {
 
 	//Consider not running this method - at least until the system is stable.
 	public void completeOrder() {
-		throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");//Comment out to run method as below
-		/*
-		
+		//throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");//Comment out to run method as below
 		order.setDateOrdered(new Timestamp(System.currentTimeMillis()));
 		order.setDateAcct(new Timestamp(System.currentTimeMillis()));
-		order.setDocAction(DocAction.ACTION_Complete);
-		if (order.processIt(DocAction.ACTION_Complete)) {
+		order.setDocAction(DocAction.ACTION_None );//23/10/24 was ACTION_Complete
+		if (order.processIt(DocAction.ACTION_None)) {//23/10/24 was ACTION_Complete
 			if (log.isLoggable(Level.FINE))
 				log.fine("Order: " + order.getDocumentNo() + " completed fine");
-		} else
+		} else {
 			if (log.isLoggable(Level.FINE))
 				log.fine("Order: " + order.getDocumentNo() + " did not complete");
 		order.saveEx();//Comment out with line below to bypass is completed check.
 			throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");
-			
-			*/
-
-		//order.saveEx(); Uncomment if 'throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");' is commented out
+		}
+		//order.saveEx(); //Uncomment if 'throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");' is commented out
 	}
 
 	public void createOrderLine(Map<?, ?> line, Map<?, ?> orderWc) {
@@ -1034,13 +1050,13 @@ public final class WcOrder {
 	public int getTaxRate(Map<?, ?> orderWc) {
 		List<?> taxLines = (List<?>) orderWc.get("tax_lines");
 		String taxRate = "" ;
-		if(taxLines.size() > 1)
+		/*Bug? Changed by PB 1/8/24*/ /*if(taxLines.size() > 1)*/ if(taxLines.size() > 0) //Do we have a tax line?
 		{
 			Map<?, ?> taxLine = (Map<?, ?>) taxLines.get(0);
 			taxRate = (String) taxLine.get("label");
 		}
 		
-		return (taxRate.equals("Standard") ? (int) wcDefaults.get_Value("standard_tax_id")
+		return (taxRate.equals("GST") ? (int) wcDefaults.get_Value("standard_tax_id")
 				: (int) wcDefaults.get_Value("zero_tax_id"));
 	}
 
@@ -1049,7 +1065,7 @@ public final class WcOrder {
 		Map<?, ?> shippingLine = (Map<?, ?>) shippingLines.get(0);
 		Double total = Double.parseDouble((String) shippingLine.get("total"));
 		Double totalTax = Double.parseDouble((String) shippingLine.get("total_tax"));
-		BigDecimal shippingCost = isTaxInclusive ? BigDecimal.valueOf((Double) total + totalTax)
+		BigDecimal shippingCost = !isTaxInclusive ? BigDecimal.valueOf((Double) total + totalTax)//Was BigDecimal shippingCost = isTaxInclusive 2/10/24
 				: BigDecimal.valueOf((Double) total);
 		return (shippingCost.setScale(4, RoundingMode.HALF_EVEN));
 	}
@@ -1058,10 +1074,10 @@ public final class WcOrder {
 		// Double price = (Double) line.get("price");
 		Double price = ((Number) line.get("price")).doubleValue();
 		BigDecimal unitPrice = new BigDecimal(price);
-		if (isTaxInclusive) {
+		if (!isTaxInclusive) {//Was if (isTaxInclusive) 2/10/24. If it is tax inclusive, why add the tax??
 			List<?> taxList = (List<?>) line.get("taxes");
 			Map<?, ?> taxes;
-			if(taxList.size() > 1)
+			if(taxList.size() > 0)//Was if(taxList.size() > 1) 1/8/24
 				{
 					taxes = (Map<?, ?>) taxList.get(0);
 					// long totalTax = ((Number) taxes.get("total")).longValue();
@@ -1648,9 +1664,12 @@ public final class WcOrder {
 								  * Throw error if it is more than can be currently handled?
 								  */
 								 
-								//Test to see if this mapping originates from a multi select field.
+								/*Test to see if this mapping originates from a multi select field.
+								 *TODO: If the record 'zz_woocommerce_multi_select_type' is set as 'Multi Select Parent'
+								 * and the 'Ignore no child records' is 'Y' then the child records should be ignored, whether they exist or not.
+								 * Currently the non-existent child records are loaded and throwing NPE???*/
 								 String multiSelect = zzWoocommerceMap.getzz_woocommerce_m_select_type();
-								 if(multiSelect != null && multiSelect.equalsIgnoreCase(WOOCOMMERCE_MAP_MULTISELECT_PARENT))
+								 if(multiSelect != null && multiSelect.equalsIgnoreCase(WOOCOMMERCE_MAP_MULTISELECT_PARENT)) 
 								 {
 									 String fieldContents = ((String) field.get("value"));
 									 String[] values = fieldContents.split(",");
@@ -1711,5 +1730,24 @@ public final class WcOrder {
 		return masterZzWoocommerceMapListFromMeta;
 		
 	}
+	public int getOrderBpID() {
+		return orderBpID;
+	}
+
+	public int getcOrderID() {
+		return cOrderID;
+	}
+
+	public int getbPLocationId() {
+		return bPLocationId;
+	}
+
+	public String getCustomerNote() {
+		return customerNote;
+	}
 	
+	public void setBldMtmInstallID(int bldMtmInstallID) {
+		order.set_ValueOfColumn("bld_mtm_install_id", bldMtmInstallID);
+		order.saveEx();
+	}
 }

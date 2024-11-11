@@ -160,7 +160,7 @@ public class MzzWoocommerceMap extends X_ZZ_Woocommerce_Map {
 	 * @return
 	 */
 	public static MzzWoocommerceMap getMzzWoocommerceMapping(int mProductID, String fieldID, String fieldValue,
-			Properties ctx, boolean isChild) {
+			Properties ctx, boolean wantChild) {
 		//get Lines and check for matches.
 		//If isParent == true then we only want to return multi
 		MzzWoocommerceMap [] lines = getMzzWoocommerceMapRecords(mProductID, ctx, "");
@@ -169,21 +169,30 @@ public class MzzWoocommerceMap extends X_ZZ_Woocommerce_Map {
 		{
 			String multiSelect = lines[l].getzz_woocommerce_m_select_type();
 			boolean mapIsChild = false;
+		/*	if(fieldValue.equalsIgnoreCase("Stella"))
+			{
+				System.out.println(fieldValue);
+			}*/
 			if(multiSelect != null) 
 				{
 					mapIsChild = multiSelect.equals(WcOrder.WOOCOMMERCE_MAP_MULTISELECT_CHILD);
 				}
 			//We want a 'child map
-			if(isChild)
+			if(mapIsChild && wantChild)
 			{
-				if(lines[l].getwoocommerce_field_key().equals(fieldID) && mapIsChild)
+				if(lines[l].getwoocommerce_field_key().equals(fieldID))
 				{
 					matches.add(lines[l]);
 				}
 			}
-			else//We want non children or 'parent' map records.
+			else if(!mapIsChild && !wantChild)//We want non children or 'parent' map records.
 			{
-				if(lines[l].getwoocommerce_field_key().equals(fieldID) && (!isChild))
+				/*if(lines[l].getwoocommerce_field_key() == null)
+				{
+					System.out.println(lines[l].toString());
+				}*/
+				
+				if(lines[l].getwoocommerce_field_key() != null && lines[l].getwoocommerce_field_key().equals(fieldID))
 				{
 					matches.add(lines[l]);
 				}
