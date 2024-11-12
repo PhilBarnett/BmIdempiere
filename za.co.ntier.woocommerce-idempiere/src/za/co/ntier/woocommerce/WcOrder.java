@@ -145,7 +145,16 @@ public final class WcOrder {
 		}
 		cOrderID = order.get_ID();
 		this.customerNote = (String) orderWc.get("customer_note");
-		order.setDescription(order.getDescription() + " Customer Note:" + customerNote);
+		String orderDescription = order.getDescription();
+		if(orderDescription.equalsIgnoreCase("null"))
+		{
+			orderDescription = "";
+		}
+		else
+		{
+			orderDescription = orderDescription + " .";
+		}
+		order.setDescription(orderDescription + "Customer Note:" + customerNote);
 		
 	}
 	
@@ -153,8 +162,14 @@ public final class WcOrder {
 		return order.getLines().length;
 	}
 	
-	public int getOrderTotal() {
-		return order.getTotalLines().intValue();
+	public int orderTotalOverZero() {
+		MOrder copyOrder = new MOrder(Env.getCtx(), order.get_ID(), null);//Created copy as this.order was returning no total;
+		//if(order.getTotalLines().compareTo(Env.ZERO) > 0) 
+		if(copyOrder.getGrandTotal().compareTo(Env.ZERO) > 0) 
+		{
+			return 1;//order.getTotalLines().;
+		}
+		return 0;
 	}
 
 	public String getWcCustomerEmail(Map<?, ?> orderWc) {
@@ -292,7 +307,7 @@ public final class WcOrder {
 		//order.saveEx(); //Uncomment if 'throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");' is commented out
 	}
 
-	public void createOrderLine(Map<?, ?> line, Map<?, ?> orderWc) {
+	public boolean createOrderLine(Map<?, ?> line, Map<?, ?> orderWc) {
 		MOrderLine orderLine = new MOrderLine(order);
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
 	
@@ -328,6 +343,11 @@ public final class WcOrder {
 		ArrayList<LinkedHashMap<String,Object>> metaData = (ArrayList<LinkedHashMap<String, Object>>) line.get("meta_data");
 		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();//Holds the found Mapping instructions for this WC orderline
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = createdMapListFromMetaData(metaData, orderLine.getM_Product_ID());
+		//IF there's been an error with the MapList, abort.
+		if(masterZzWoocommerceMapList == null)
+		{
+			return false;
+		}
 		
 	/*	for (LinkedHashMap<String, Object> metaItem : metaData)
 			{
@@ -583,12 +603,14 @@ public final class WcOrder {
 			msg.append(". The WooCommerce sync process may need to be run manually.");
 			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
 			log.warning(msg.toString());
-			throw new IllegalStateException("Could not create Order Line");
+			//throw new IllegalStateException("Could not create Order Line");//Commented out 12/11/24 to improve error handling
+			return false;
 		}
 		
 		//if (!orderLine.save()) {
 			//throw new IllegalStateException("Could not create Order Line");
 		//}
+		return true;
 	}
 	
 	/**
@@ -1722,7 +1744,8 @@ public final class WcOrder {
 						 String email = mzzWoocommerce.getnotify_email();
 						 WcMailNotify.sendEmail(email, mapNotFound.toString(), "", ctx, trxName);//Email any issues found.
 						 log.warning(mapNotFound.toString());
-						 throw new AdempiereUserError(mapNotFound.toString());
+						 //throw new AdempiereUserError(mapNotFound.toString());//Commented out 12/11/24 to improve error handling
+						 return null;//Throw a spanner in the works to trigger error
 					 }
 				 } 
 			 }
@@ -1749,5 +1772,9 @@ public final class WcOrder {
 	public void setBldMtmInstallID(int bldMtmInstallID) {
 		order.set_ValueOfColumn("bld_mtm_install_id", bldMtmInstallID);
 		order.saveEx();
+	}
+	
+	public void deleteOrder() {
+		order.delete(true);
 	}
 }

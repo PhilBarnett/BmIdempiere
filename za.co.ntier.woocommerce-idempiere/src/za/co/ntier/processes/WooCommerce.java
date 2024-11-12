@@ -79,23 +79,30 @@ public class WooCommerce extends SvrProcess {
 				wcOrder.createOrder(order);
 
 				// Iterate through each order Line
+				boolean linesSuccessful = true;
 				List<?> lines = (List<?>) order.get("line_items");
 				for (int j = 0; j < lines.size(); j++) 
 				{
 					Map<?, ?> line = (Map<?, ?>) lines.get(j);
-					wcOrder.createOrderLine(line, order);
+					if(!wcOrder.createOrderLine(line, order))//Will return false if errors
+					{
+						linesSuccessful = false;
+					}
 					Object name = line.get("name");
 					log.warning("Name of Product = " + name.toString());
 				}
-				wcOrder.createShippingCharge(order);
-				wcOrder.createPosPayment(order);
-				wcOrder.completeOrder();//PB 06062024 wcOrder.completeOrder()' has been disabled for testing, re-enabled 23/10/24
+				if(!linesSuccessful)
+				{
+					//At this point, the system will have sent an email to the user with the problems encountered.
+					//We now delete the order and allow iteration through other orders in WooComm.
+					wcOrder.deleteOrder();
+				}
 
 				// Update syncedToIdempiere to 'yes'
 				//PB 06062024 Will not get executed if 'wcOrder.completeOrder()' has been disabled.
 				
 				//Do not flag orders that have no order lines as complete and synced; they will need to be synced manually.
-				if(wcOrder.getOrderLineCount() > 0)
+				if(wcOrder.getOrderLineCount() > 0 && linesSuccessful)
 				{	
 					//Pass 1 -> change status to completed. When this happens WooCommerce sets "syncedToIdempiere" to "no".
 					Map<String, Object> body = new HashMap<>();
@@ -117,7 +124,7 @@ public class WooCommerce extends SvrProcess {
 					log.warning("---------Response2 from WooCommerce: " + response2.toString());
 					
 					//Create installation record
-					if(wcOrder.getOrderTotal() > 0)//Sample orders are 0 total and don't require installation records.
+					if(wcOrder.orderTotalOverZero() > 0)//Sample orders are 0 total and don't require installation records.
 					{
 						MBldMtmInstall mBldMtmInstall = new MBldMtmInstall(Env.getCtx(), 0, get_TrxName());
 						mBldMtmInstall.setStatus("Acc");
@@ -133,6 +140,9 @@ public class WooCommerce extends SvrProcess {
 						mBldMtmInstall.saveEx();
 						wcOrder.setBldMtmInstallID(mBldMtmInstall.get_ID());
 					}
+					wcOrder.createShippingCharge(order);
+					wcOrder.createPosPayment(order);
+					wcOrder.completeOrder();//PB 06062024 wcOrder.completeOrder()' has been disabled for testing, re-enabled 23/10/24
 				}	
 			}
 		}
