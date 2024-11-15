@@ -146,15 +146,10 @@ public final class WcOrder {
 		cOrderID = order.get_ID();
 		this.customerNote = (String) orderWc.get("customer_note");
 		String orderDescription = order.getDescription();
-		if(orderDescription.equalsIgnoreCase("null"))
+		if(!(order.getDescription() == null))
 		{
-			orderDescription = "";
+			order.setDescription(orderDescription + " .Customer Note:" + customerNote);
 		}
-		else
-		{
-			orderDescription = orderDescription + " .";
-		}
-		order.setDescription(orderDescription + "Customer Note:" + customerNote);
 		
 	}
 	

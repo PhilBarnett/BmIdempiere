@@ -3,7 +3,7 @@ Automatic-Module-Name: za.co.ntier.woocommerce
 Bundle-ManifestVersion: 2
 Bundle-Name: Woocommerce-ntier
 Bundle-SymbolicName: za.co.ntier.woocommerce;singleton:=true
-Bundle-Version: 1.0.8.qualifier
+Bundle-Version: 1.0.9.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Require-Bundle: org.adempiere.base;bundle-version="7.1.0",
  org.adempiere.plugin.utils;bundle-version="7.1.0",
