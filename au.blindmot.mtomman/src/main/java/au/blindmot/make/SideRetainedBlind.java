@@ -23,7 +23,7 @@ import au.blindmot.utils.MtmUtils;
  * @author phil
  *
  */
-public class SideRetainedBlind extends RollerBlind  {
+public class SideRetainedBlind extends RollerBlind implements Lockable {
 	
 	public static String MTM_SIDE_CHANNEL_PARTTYPE_AWNING_CHANNEL = "Awning Channel";
 	public static String MTM_SIDE_CHANNEL_PARTTYPE_AWNING_CHANNEL_COVER = "Awning channel cover";
@@ -32,6 +32,9 @@ public class SideRetainedBlind extends RollerBlind  {
 	public static String MTM_SIDE_CHANNEL_PARTTYPE_ROLLER_TUBE = "Roller tube";
 	public static String SIDE_RETAINED_BLIND = "Side Retained Blind";
 	public static String MTM_SIDE_CHANNEL_PARTTYPE_BOTTOM_BAR = "Bottom bar";
+	public static String BOTTOM_LOCK_DEDUCTION_1 = "Bottom Lock Deduction 1";
+	public static String BOTTOM_LOCK_DEDUCTION_2 = "Bottom Lock Deduction 2";
+	public static String MTM_SIDE_CHANNEL_PARTTYPE_LOCK_BAR = "Lock Bar";
 	
 	
 	/**
@@ -160,6 +163,12 @@ public class SideRetainedBlind extends RollerBlind  {
 					int cut = wide - overallDeduction;
 					addBldMtomCuts(bomLineProductID, 0, cut, 0);
 				}
+			if(mPartType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_LOCK_BAR))
+			{
+				ArrayList<Integer> lockBarCuts = getLockBarCuts(getBottomBarCut(), bomLineProductID);
+				addBldMtomCuts(bomLineProductID, 0, lockBarCuts.get(0), 0);
+				addBldMtomCuts(bomLineProductID, 0, lockBarCuts.get(1), 0);
+			}
 		}
 		return true;
 	}//getCuts()
@@ -239,7 +248,9 @@ public class SideRetainedBlind extends RollerBlind  {
 		super.addMtmInstancePartsToBomDerived();
 		return false;
 	}*/
-	
+	/**
+	 * 
+	 */
 	private void adjustBomQty() {
 		MBLDBomDerived[] bomDerivedLines = mBLDMtomItemLine.getBomDerivedLines(Env.getCtx(), mtom_item_line_id);
 		for (MBLDBomDerived lines : bomDerivedLines)
@@ -302,7 +313,9 @@ public class SideRetainedBlind extends RollerBlind  {
 					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_ROLLER_TUBE)
 					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX)
 					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_AWNING_HEADBOX_BACK)
-					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_BOTTOM_BAR))
+					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_BOTTOM_BAR)
+					|| partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_LOCK_BAR)
+					)
 			{
 				if(wasteObject == null) throw new AdempiereUserError("No waste attribute or value for: " + bomProduct.getName());
 			}
@@ -334,6 +347,11 @@ public class SideRetainedBlind extends RollerBlind  {
 				if(overallDeduction == -1) log.warning("Overall deduction is -1, check the Overall deduction attribute in the parent product");
 				qty = new BigDecimal(wide - overallDeduction);
 			}
+			if(partType.equalsIgnoreCase(MTM_SIDE_CHANNEL_PARTTYPE_LOCK_BAR))
+				{
+					qty = new BigDecimal(wide - (Integer.parseInt((String) MtmUtils.getMattributeInstanceValue(bomItemProductID, BOTTOM_LOCK_DEDUCTION_1, null)))
+							-(Integer.parseInt((String) MtmUtils.getMattributeInstanceValue(bomItemProductID, BOTTOM_LOCK_DEDUCTION_2, null))));
+				}
 			if(waste.compareTo(Env.ZERO) > 0)
 			{
 				return qty.add(qty.multiply(waste.divide(oneHundred)));	
@@ -386,5 +404,23 @@ public class SideRetainedBlind extends RollerBlind  {
 		 return bbWidth;
 		 */
 	 }//getBottomBarCut
+
+	/**
+	 * @param BigDecimal bottomRailWidth
+	 * @param int lockBarProductID
+	 * The bottom rail lock bar has 2 cuts at different sizes, this method gets the 2 cuts.
+	 */
+	public ArrayList<Integer> getLockBarCuts(BigDecimal bottomRailWidth, int lockBarProductID) {
+		int bottomRailHalf = bottomRailWidth.divide(new BigDecimal(2)).intValue();
+		ArrayList<Integer> cuts = new ArrayList<Integer>();
+		//Get the deductions
+		Integer deduction1 = (Integer.parseInt((String) MtmUtils.getMattributeInstanceValue(lockBarProductID, BOTTOM_LOCK_DEDUCTION_1, null)));
+		Integer deduction2 = (Integer.parseInt((String) MtmUtils.getMattributeInstanceValue(lockBarProductID, BOTTOM_LOCK_DEDUCTION_2, null)));
+		cuts.add(bottomRailHalf - deduction1);
+		cuts.add(bottomRailHalf - deduction2);
+		return cuts;
+		//return m_lines.toArray(new MPPProductBOMLine[this.m_lines.size()]);
+		
+	}//getLockBarCuts
 
 }
