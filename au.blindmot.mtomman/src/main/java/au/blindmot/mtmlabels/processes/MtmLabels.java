@@ -264,20 +264,45 @@ public class MtmLabels extends SvrProcess{
 		address.append(SCALABLE_FONT_ROTATION + ",40,40");
 		address.append(CHANGE_INTERNAT_FONT + "13");
 		address.append(FORMAT_DATA);
-		address.append(mBPartnerLocation.getC_BPartner().getName());
+		String name = mBPartnerLocation.getC_BPartner().getName();
+		String nameCap = "";
+		if (name != null)
+		{
+			nameCap = makeFirstLetterUpper(name);
+		}
+		address.append(nameCap);
 		address.append(FIELD_SEPARATOR);
 		address.append(SCALABLE_FONT_ROTATION + ",40,40");
 		address.append(CHANGE_INTERNAT_FONT + "13");
 		address.append(FIELD_ORIGIN + "130,75");
 		address.append(FORMAT_DATA);
-		address.append(mLocation.getAddress1());
-		address.append(" " + mLocation.getAddress2());
+		String addr1 = mLocation.getAddress1();
+		String addr1Cap = "";
+		if (addr1 != null)
+		{
+			addr1Cap = makeFirstLetterUpper(addr1);
+		}
+		String addr2 = mLocation.getAddress2();
+		String addr2Cap = "";
+		if (addr2 != null)
+		{
+			addr2Cap = makeFirstLetterUpper(addr2);
+		}
+		address.append(addr1Cap);
+		address.append(" " + addr2Cap);
 		address.append(FIELD_SEPARATOR);
 		address.append(SCALABLE_FONT_ROTATION + ",40,40");
 		address.append(CHANGE_INTERNAT_FONT + "13");
 		address.append(FIELD_ORIGIN + "130,120");
 		address.append(FORMAT_DATA);
-		address.append(mLocation.getCity());
+		
+		String city = mLocation.getCity();
+		String cityCap = "";
+		if (city != null)
+		{
+			cityCap = makeFirstLetterUpper(city);
+		}
+		address.append(cityCap);
 		address.append(" " + mLocation.getPostal());
 		address.append(FIELD_SEPARATOR);
 		address.append(END_FORMAT);
@@ -763,7 +788,19 @@ public class MtmLabels extends SvrProcess{
 		
 	}
 	
-	
+	private String makeFirstLetterUpper(String input) {
+		String[] words = input.split("\\s");
+		StringBuilder output = new StringBuilder();
+		for (String word : words)
+		{
+		    // capitalize the first letter of each word and append the rest of the word
+            output.append(Character.toUpperCase(word.charAt(0)))
+                  .append(word.substring(1).toLowerCase())
+                  .append(" "); // Add a space between words
+		}
+		// remove the trailing space and return the capitalized string
+        return output.toString().trim();
+	}
 	
 
 }

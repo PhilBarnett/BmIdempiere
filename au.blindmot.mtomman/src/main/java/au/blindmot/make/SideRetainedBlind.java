@@ -69,6 +69,7 @@ public class SideRetainedBlind extends RollerBlind implements Lockable {
 			config.add("Instance Attribute: Drop"+System.lineSeparator());
 			config.add("Instance Attribute: Blind control side - List: Left, Right"+System.lineSeparator());
 			config.add("Instance Attribute: Roll Type - List: NR, RR"+System.lineSeparator());
+			config.add("Bottom Lock bar needs 'Bottom Lock Deduction 1' and 'Bottom Lock Deduction 2 and waste'"+System.lineSeparator());
 			config.add("NOTE: Side rail parts have an attribute 'Drop deduction Adjust' that takes another deduction on top of the drop deduction. This varies per part type");
 			
 			return config;
@@ -374,7 +375,7 @@ public class SideRetainedBlind extends RollerBlind implements Lockable {
 		String productCategory = DB.getSQLValueString(null, sql1.toString(), m_product_id);
 		if (productCategory.equals(SIDE_RETAINED_BLIND))
 		{
-			//For Alpha SRS, the fabric is a width deduction and doesn't vary with different controls etc.
+			//For Alpha SRS & most Zip systems, the fabric is a width deduction and doesn't vary with different controls etc.
 			BigDecimal fabWidth;// = getRollerTubeCut(wide);
 			log.warning("-------About to go intoMtmUtils.attributePreCheck()");
 			MtmUtils.attributePreCheck(MtmUtils.MTM_FABRIC_DEDUCTION);
