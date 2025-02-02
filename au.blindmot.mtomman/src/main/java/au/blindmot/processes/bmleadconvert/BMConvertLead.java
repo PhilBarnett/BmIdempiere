@@ -60,8 +60,6 @@ public class BMConvertLead extends SvrProcess{
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     //private static final int WEB_PORT = 8180;//100 + CConnection.get().getWebPort();
-	
-   
 
     /**
      * Global instance of the scopes required by this quickstart.
@@ -270,7 +268,7 @@ public class BMConvertLead extends SvrProcess{
 			{
 				log.warning("Setting cOrder with DocID: " + docID);
 				cOrder.setC_DocTypeTarget_ID(docID);
-				/*TODO: fix query to produce 1000029 - neeed to be onsite*/
+				/*TODO: fix query to produce 1000029 - need to be onsite*/
 			}
 
 			

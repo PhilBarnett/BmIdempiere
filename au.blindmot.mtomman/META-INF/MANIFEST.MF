@@ -2,16 +2,15 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: AUMadeToMeasure
 Bundle-SymbolicName: au.blindmot.mtomman;singleton:=true
-Bundle-Version: 9.2.5.qualifier
+Bundle-Version: 9.2.6.qualifier
 Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 Require-Bundle: org.adempiere.base,
- org.eclipse.osgi.services;bundle-version="3.6.0",
  org.adempiere.ui.zk;bundle-version="7.1.0",
  org.junit,
  org.adempiere.plugin.utils;bundle-version="9.0.0",
  zcommon,
  org.apache.httpcomponents.httpclient
-Bundle-RequiredExecutionEnvironment: JavaSE-11
+Bundle-RequiredExecutionEnvironment: JavaSE-17
 Service-Component: OSGI-INF/CalloutFactory.xml, OSGI-INF/DocFactory.xml, OSGI-INF/ModelFactory.xml,OSGI-INF/ProcessFactory.xml, OSGI-INF/EventHandler2.xml, OSGI-INF/au.blindmot.mtmbtn.action.mtmb.xml,OSGI-INF/DisplayTypeFactory.xml,OSGI-INF/EditorFactory.xml,OSGI-INF/LookupFactory.xml, OSGI-INF/BLDBarcodeLookupFactory.xml
 Bundle-ActivationPolicy: lazy
 Import-Package: org.apache.commons.lang;version="2.6.0",

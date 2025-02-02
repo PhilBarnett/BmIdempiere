@@ -2,6 +2,7 @@ package au.blindmot.factories;
 
 import org.adempiere.base.ILookupFactory;
 import org.compiere.model.GridFieldVO;
+import org.compiere.model.InfoColumnVO;
 import org.compiere.model.Lookup;
 import org.compiere.util.CLogger;
 
@@ -35,6 +36,12 @@ public class BLDLookupFactory implements ILookupFactory {
 			return true;
 		}
 			
+		return false;
+	}
+
+	@Override
+	public boolean isLookup(InfoColumnVO infoColumnVO) {
+		// TODO Auto-generated method stub
 		return false;
 	}
 	
