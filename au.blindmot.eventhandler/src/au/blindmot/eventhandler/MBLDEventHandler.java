@@ -1,4 +1,4 @@
-package au.blindmot.eventhandler;
+	package au.blindmot.eventhandler;
 
 
 
@@ -85,18 +85,14 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				
 			MOrderLine copyFromOrderLine = copyAttributeInstance(orderLine, mProduct, event);
 			if(copyFromOrderLine != null)
-				{
-					
+				{	
 				System.out.println(copyFromOrderLine.get_Value("mtm_attribute"));
 				orderLine.set_ValueOfColumn("mtm_attribute", copyFromOrderLine.get_Value("mtm_attribute"));
 				orderLine.saveEx();
 				}
 			}
 	}
-	
 }
-
-	
 	/**
 	 * Listens for and overrides the MProductionLine.beforeSave() method which
 	 * sets the MBLDMtomItemLine child productionlines to 0 for the end product.
