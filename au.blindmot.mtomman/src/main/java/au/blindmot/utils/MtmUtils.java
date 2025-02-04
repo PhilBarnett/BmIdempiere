@@ -276,7 +276,7 @@ public class MtmUtils {
 		sql.append("JOIN m_attribute ma ON ma.m_attribute_id = mai.m_attribute_id ");
 		sql.append("WHERE col.c_orderline_id = ");
 		sql.append(cOrderLineID);
-		sql.append("AND ma.name LIKE '%' ");
+		sql.append(" AND ma.name LIKE '%");
 		sql.append(attributeName);
 		sql.append("%'");
 				

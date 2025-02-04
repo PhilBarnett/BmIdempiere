@@ -25,9 +25,9 @@ import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Util;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.calendar.CalendarScopes;
+//import com.google.api.client.json.JsonFactory;
+//import com.google.api.client.json.gson.GsonFactory;
+//import com.google.api.services.calendar.CalendarScopes;
 
 
 
@@ -56,18 +56,18 @@ public class BMConvertLead extends SvrProcess{
 	private int adOrgID = 0;
 	private static long elapsedTime;
 	
-	private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
-    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
+	//private static final String APPLICATION_NAME = "Google Calendar API Java Quickstart";
+    //private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
+    //private static final String TOKENS_DIRECTORY_PATH = "tokens";
     //private static final int WEB_PORT = 8180;//100 + CConnection.get().getWebPort();
 
     /**
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
-    private static final List<String> SCOPES = Collections.singletonList(CalendarScopes.CALENDAR);
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
-    private static final String CREDENTIALS_FILE_PATH_2 = "./credentials.json";
+   // private static final List<String> SCOPES = Collections.singletonList(CalendarScopes.CALENDAR);
+    //private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
+   // private static final String CREDENTIALS_FILE_PATH_2 = "./credentials.json";
 
 	@Override
 	protected void prepare() {
