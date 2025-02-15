@@ -13,6 +13,7 @@ import javax.sql.RowSet;
 
 import org.adempiere.base.Core;
 import org.adempiere.base.IProductPricing;
+import org.adempiere.webui.window.Dialog;
 import org.adempiere.webui.window.FDialog;
 import org.compiere.model.GridTab;
 import org.compiere.model.I_C_OrderLine;
@@ -61,6 +62,7 @@ public class MtmUtils {
 	public static final String MTM_WIDTH_MULTIPLIER = "Width multiplier";
 	public static final String MTM_DROP_MULTIPLIER = "Drop multiplier";
 	public static final String CHAIN_LENGTH = "Chain length";
+	public static final String COLUMN_ISMADETOMEASURE = "ismadetomeasure";
 	//public static final String MTM_HOOK_CLEARANCE_FF = "Hook clearance face fix";
 	//public static final String MTM_HOOK_CLEARANCE_FF_SW = "Hook clearance face fix Swave";
 	//public static final String MTM_HOOK_CLEARANCE_TF_SW = "Hook clearance top fix Swave";
@@ -636,7 +638,7 @@ public static BigDecimal getQty(MProduct productToGet, BigDecimal area2, I_C_Ord
 	if(productToGet == null || line == null) return qty;
 	//if(area2 != null)
 	//{
-		if(productToGet.getUOMSymbol().equalsIgnoreCase("sqm") && area2 != null)//it's sqm item, change qty
+		if(productToGet.getUOMSymbol().equalsIgnoreCase("M^2") && area2 != null)//it's sqm item, change qty
 		{
 			return qty = area2;
 		}
@@ -799,7 +801,7 @@ public static BigDecimal getCalculatedLineCosts(boolean iSsalesTrx, BigDecimal a
 			MProduct orderLineProduct = new MProduct(pCtx, mOrderLine.getM_Product_ID(), null);
 			log.warning("Costing for" + orderLineProduct.getName() + " is not accurate. The following costs are missing: " + costsMessage);
 			try {
-				FDialog.warn(windowNum, "Costing for " + orderLineProduct.getName() + " is not accurate. The following costs are missing: " + costsMessage);
+				Dialog.warn(windowNum, "Costing for " + orderLineProduct.getName() + " is not accurate. The following costs are missing: " + costsMessage);
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -997,9 +999,9 @@ private static ArrayList <Integer> getMTMSelectablePartProductIDs(Properties pCt
 		
 		productIDsCheck.add(Integer.valueOf(orderLine.getM_Product_ID()));
 		MProduct orderLineProduct = new MProduct(pCtx, orderLine.getM_Product_ID(), null);
-		//Only process for grid price products
-		//If it's not grid price, send back with just the orderline product. - no extra calculations to be done.
-		if(!orderLineProduct.get_ValueAsBoolean("isgridprice"))
+	
+		//If it's not grid price and not mtm, send back with just the orderline product. - no extra calculations to be done.
+		if(!orderLineProduct.get_ValueAsBoolean("isgridprice") && (!orderLineProduct.get_ValueAsBoolean(COLUMN_ISMADETOMEASURE)))
 		{
 			return productIDsCheck;
 		}
@@ -1257,7 +1259,7 @@ private static ArrayList <Integer> processIDs(Properties pCtx, MBLDLineProductIn
 				if(breakvalue.equals(Env.ONE) && productToGet.get_ID() == orderLine.getM_Product_ID())
 				{
 					try {
-						FDialog.warn(windowNum, "No price found at the dimesions entered. Please check the dimesion limits for this product.");
+						Dialog.warn(windowNum, "No price found at the dimesions entered. Please check the dimesion limits for this product.");
 					} catch (Exception e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();

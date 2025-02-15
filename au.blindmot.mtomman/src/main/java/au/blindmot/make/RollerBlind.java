@@ -123,7 +123,6 @@ public class RollerBlind extends MadeToMeasureProduct{
 	    //setUserSelectedPartIds();
 	    setChainControl(controlID);
 		populatePartTypes(m_product_id);//Gets the ArrayLists of partsget
-		checkChainLength();
 		setupTubeFabric();
 		//setValueProductID();//Currently Set roller tube ID based on blind width only
 		
@@ -276,6 +275,7 @@ public class RollerBlind extends MadeToMeasureProduct{
 		 */
 		//Get fields setup
 		setUserSelectedPartIds();
+		checkChainLength();
 		addMtmInstancePartsToBomDerived();
 		populatePartTypes(m_product_id) ;
 		setChainControl(controlID);//Must be called before setAutoSelectedPartIds()
