@@ -2,6 +2,7 @@ package za.co.ntier.woocommerce;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,10 +13,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
-import org.compiere.model.I_C_OrderLine;
-import org.compiere.model.I_M_AttributeInstance;
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
 import org.compiere.model.MAttributeSetInstance;
@@ -29,15 +27,13 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MUser;
 import org.compiere.model.PO;
-import org.compiere.model.Query;
 import org.compiere.model.X_C_POSPayment;
 import org.compiere.model.X_C_Payment;
-import org.compiere.model.X_M_Attribute;
+import org.compiere.process.DocAction;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
-import org.compiere.util.Util;
 
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
@@ -46,7 +42,6 @@ import za.co.ntier.model.MzzWoocommerce;
 import za.co.ntier.model.MzzWoocommerceMap;
 import za.co.ntier.model.MzzWoocommerceMapLine;
 import za.co.ntier.model.X_ZZ_Woocommerce_Match;
-import org.compiere.process.DocAction;
 
 /**
  *
@@ -1109,7 +1104,8 @@ public final class WcOrder {
 	}
 
 	public void createPosPayment(Map<?, ?> orderWc) {
-		X_C_POSPayment posPayment = new X_C_POSPayment(ctx, null, trxName);
+		ResultSet rs = null;
+		X_C_POSPayment posPayment = new X_C_POSPayment(ctx, rs, trxName);
 		posPayment.setC_Order_ID(order.getC_Order_ID());
 		posPayment.setAD_Org_ID(order.getAD_Org_ID());
 		posPayment.setPayAmt(new BigDecimal(orderWc.get("total").toString()));
@@ -1359,6 +1355,12 @@ public final class WcOrder {
 		{
 			MAttributeInstance mAttributeInstance;
 			//MAttributeInstance mAttributeInstance;
+			if(valueOfField.equalsIgnoreCase("1,500.00"))
+			{
+				System.out.println(valueOfField);
+			}
+			valueOfField = valueOfField.replaceAll(",|\\.0+$", "");//  Remove any unwanted number formatting
+			
 			if(mapType.equals(WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE))
 			{
 				mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_Product_ID(), m_AttributeSetInstance_ID, Integer.parseInt(valueOfField), trxn);
@@ -1370,7 +1372,16 @@ public final class WcOrder {
 			}
 			
 			mAttributeInstance.setValueInt(Integer.parseInt(valueOfField));
-			mAttributeInstance.saveEx();
+			
+			try 
+			{
+				mAttributeInstance.saveEx();
+			} 
+			catch (Exception e)
+			{
+					log.warning(e.getMessage());
+					mAttributeInstance.delete(true);//If it can't be saved, it's probably a duplicate - just delete.
+			}
 			/*MAttributeInstance (Properties ctx, int M_Attribute_ID, 
 			int M_AttributeSetInstance_ID, int Value, String trxName)*/
 		}
@@ -1402,7 +1413,16 @@ public final class WcOrder {
 			{
 				 mAttributeInstance = new MAttributeInstance(ctx, mzzWoocommerceMapLine.getM_Attribute_ID(), m_AttributeSetInstance_ID, mzzWoocommerceMapLine.getM_AttributeValue_ID(), valueOfField, trxn);
 			}
-			mAttributeInstance.saveEx();
+			try 
+			{
+				mAttributeInstance.saveEx();
+			} 
+			catch (Exception e)
+			{
+					log.warning(e.getMessage());
+					mAttributeInstance.delete(true);//If it can't be saved, it's probably a duplicate - just delete.
+			}
+			
 			/*MAttributeInstance(Properties ctx, int M_Attribute_ID, int M_AttributeSetInstance_ID,
 			int M_AttributeValue_ID, String Value, String trxName)*/
 		}
@@ -1471,7 +1491,8 @@ public final class WcOrder {
                 }
             }
         }
-		return duplicatesToReturn;
+		log.warning("-------WcOrder.getMzzWooCommerceLineDuplicates Duplicates for mapType: " + mapType + duplicatesToReturn.toString());
+        return duplicatesToReturn;
 	}
 	/**
 	 * 
@@ -1684,9 +1705,11 @@ public final class WcOrder {
 								/*Test to see if this mapping originates from a multi select field.
 								 *TODO: If the record 'zz_woocommerce_multi_select_type' is set as 'Multi Select Parent'
 								 * and the 'Ignore no child records' is 'Y' then the child records should be ignored, whether they exist or not.
-								 * Currently the non-existent child records are loaded and throwing NPE???*/
+								 * Currently the non-existent child records are loaded and throwing NPE???
+								 * 24/3/2025 -> Why didn't I fix this?? I am dumb.*/
 								 String multiSelect = zzWoocommerceMap.getzz_woocommerce_m_select_type();
-								 if(multiSelect != null && multiSelect.equalsIgnoreCase(WOOCOMMERCE_MAP_MULTISELECT_PARENT)) 
+								 if(multiSelect != null && multiSelect.equalsIgnoreCase(WOOCOMMERCE_MAP_MULTISELECT_PARENT) 
+										 /*&& !(zzWoocommerceMap.isignore_no_child_records())*/) 
 								 {
 									 String fieldContents = ((String) field.get("value"));
 									 String[] values = fieldContents.split(",");
@@ -1697,7 +1720,7 @@ public final class WcOrder {
 									 for(int p = 0; p < values.length; p++)
 									 {
 										 MzzWoocommerceMap zzWoocommerceMapChild = MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID,(String)field.get("id"), values[p], ctx);
-										 if(zzWoocommerceMapChild.isActive())
+										 if(zzWoocommerceMapChild != null && zzWoocommerceMapChild.isActive())//Changed 24/3/2025 to prevent NPE
 										 {
 											 masterZzWoocommerceMapListFromMeta.add(zzWoocommerceMapChild);
 										 }
