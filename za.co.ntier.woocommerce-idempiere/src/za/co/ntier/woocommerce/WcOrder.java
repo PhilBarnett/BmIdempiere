@@ -35,6 +35,7 @@ import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 
+import au.blindmot.eventhandler.BLDMOrderLine;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDProductPartType;
@@ -76,6 +77,7 @@ public final class WcOrder {
 	private ArrayList<MzzWoocommerceMap> sortArrayNonDuplicateAttributes;
 	private ArrayList<MzzWoocommerceMap> sortArrayNonDuplicateProductAttributes;
 	private LinkedHashMap<Object, Object> fieldValues;
+	private Map<?, ?> WooLineData;
 	private String wooCommProductName ="";
 	private Integer wooCommProductID;
 	private StringBuilder mapNotFound;
@@ -298,7 +300,8 @@ public final class WcOrder {
 	}
 
 	public boolean createOrderLine(Map<?, ?> line, Map<?, ?> orderWc) {
-		MOrderLine orderLine = new MOrderLine(order);
+		WooLineData = line;
+		BLDMOrderLine orderLine = new BLDMOrderLine(order);
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
 	
 		orderLine.setM_Product_ID(getProductId(((Integer) line.get("product_id")).intValue()));
@@ -325,6 +328,9 @@ public final class WcOrder {
 		// String total = (String) line.get("total");
 		// orderLine.setPrice(new BigDecimal(total));
 		orderLine.setPrice(calcOrderLineUnitPrice(line));
+		if (orderLine.getC_UOM_ID()==0)
+			orderLine.setC_UOM_ID(orderLine.getM_Product().getC_UOM_ID());
+		orderLine.saveEx();
 		orderLine.set_ValueOfColumn("lockprice", "Y");
 		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
 		
@@ -579,7 +585,13 @@ public final class WcOrder {
 		*/
 		//Added by Phil
 		/****************************Refactor to here**************************************************/
-		
+		if(calcOrderLineUnitPrice(line)==Env.ZERO)//
+		{
+			orderLine.setPriceList(Env.ZERO);
+			orderLine.setPriceEntered(Env.ZERO);
+			orderLine.setPriceActual(Env.ZERO);
+			orderLine.setLineNetAmt(Env.ZERO);
+		}
 		if (!orderLine.save())
 		 {
 		
@@ -695,10 +707,19 @@ public final class WcOrder {
 		{
 			processWooCommMeta(mzzWoocommerceMapList, line, ctx, trxn);
 			System.out.println(mapList.indexOf(mzzWoocommerceMapList));
+			if(calcOrderLineUnitPrice(WooLineData)==Env.ZERO)//
+			{
+				line.setPriceList(Env.ZERO);
+				line.setPriceEntered(Env.ZERO);
+				line.setPriceActual(Env.ZERO);
+				line.setLineNetAmt(Env.ZERO);
+			}
+			if (line.getC_UOM_ID()==0)
+				line.setC_UOM_ID(line.getM_Product().getC_UOM_ID());
 			line.saveEx();
 			if(1 + mapList.indexOf(mzzWoocommerceMapList) < mapList.size())//Don't copy the last line.
 			{
-				MOrderLine duplicateOrderLine = new MOrderLine(order);
+				BLDMOrderLine duplicateOrderLine = new BLDMOrderLine(order);
 				MOrderLine.copyValues(line, duplicateOrderLine);
 				if(line.getM_AttributeSetInstance_ID() > 0)
 				{
@@ -1032,7 +1053,7 @@ public final class WcOrder {
 	 * @param orderWc
 	 */
 	public void createShippingCharge(Map<?, ?> orderWc) {
-		MOrderLine orderLine = new MOrderLine(order);
+		BLDMOrderLine orderLine = new BLDMOrderLine(order);
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
 		orderLine.setC_Charge_ID((int) wcDefaults.get_Value("c_charge_id"));
 		// orderLine.setC_UOM_ID(originalOLine.getC_UOM_ID());
@@ -1164,7 +1185,7 @@ public final class WcOrder {
 			String whereClause = "and "+ MzzWoocommerceMapLine.COLUMNNAME_IsActive + "='Y'";
 			//String fv = (String) fieldValues.get(currentMapItem.get_ID());
 			currentMapItem.setFieldValue((String) fieldValues.get(currentMapItem.get_ID()));
-			MzzWoocommerceMapLine[] mzzWoocommerceMapLines = mzzWoocommerceMapLines = currentMapItem.getMzzWoocommerceMapLines(currentMapItem.get_ID(), ctx, "", whereClause);
+			MzzWoocommerceMapLine[] mzzWoocommerceMapLines = currentMapItem.getMzzWoocommerceMapLines(currentMapItem.get_ID(), ctx, "", whereClause);
 					
 				
 		for(int l = 0; l < mzzWoocommerceMapLines.length; l++) //Make this inner loop
@@ -1216,7 +1237,16 @@ public final class WcOrder {
 			mBldLineProductSetInstance.saveEx(trxn);
 			int bldLineProductSetInstanceID = mBldLineProductSetInstance.get_ID();
 			line.set_ValueNoCheck("bld_line_productsetinstance_id", bldLineProductSetInstanceID);
-			line.save();
+			if (calcOrderLineUnitPrice(WooLineData).compareTo(Env.ZERO)==0)
+				{
+					line.setPriceList(Env.ZERO);	
+					line.setPriceEntered(Env.ZERO);
+					line.setPriceActual(Env.ZERO);
+					line.setLineNetAmt(Env.ZERO);
+				}//This if block added because otherwise MOrderLine.save() gets a weird price from the product BOM
+			if (line.getC_UOM_ID()==0)
+				line.setC_UOM_ID(line.getM_Product().getC_UOM_ID());
+			line.saveEx();//$6.51?? -> This was a number pulled from the DB if the if (calcOrderLineUnitPrice(WooLineData).compareTo(Env.ZERO)==0) was no implemented.
 			
 			//if bld_line_productinstance records have not been created, then create them
 			MBLDLineProductInstance[] mBLDLineProductInstances = MBLDLineProductInstance.getmBLDLineProductInstance(bldLineProductSetInstanceID, trxn);
