@@ -35,7 +35,7 @@ import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 
-import au.blindmot.eventhandler.BLDMOrderLine;
+//import au.blindmot.eventhandler.BLDMOrderLine;
 import au.blindmot.model.MBLDLineProductInstance;
 import au.blindmot.model.MBLDLineProductSetInstance;
 import au.blindmot.model.MBLDProductPartType;
@@ -287,13 +287,16 @@ public final class WcOrder {
 		order.setDateOrdered(new Timestamp(System.currentTimeMillis()));
 		order.setDateAcct(new Timestamp(System.currentTimeMillis()));
 		order.setDocAction(DocAction.ACTION_None );//23/10/24 was ACTION_Complete
-		if (order.processIt(DocAction.ACTION_None)) {//23/10/24 was ACTION_Complete
-			if (log.isLoggable(Level.FINE))
+		if (order.processIt(DocAction.ACTION_None)) 
+			{//23/10/24 was ACTION_Complete
+				if (log.isLoggable(Level.FINE))
 				log.fine("Order: " + order.getDocumentNo() + " completed fine");
-		} else {
-			if (log.isLoggable(Level.FINE))
-				log.fine("Order: " + order.getDocumentNo() + " did not complete");
-		order.saveEx();//Comment out with line below to bypass is completed check.
+			} 
+		else 
+		{
+			if (log.isLoggable(Level.WARNING)) log.warning("Order: " + order.getDocumentNo() + " did not complete");	
+			
+			order.saveEx();//Comment out with line below to bypass is completed check.
 			throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");
 		}
 		//order.saveEx(); //Uncomment if 'throw new IllegalStateException("Order: " + order.getDocumentNo() + " Did not complete");' is commented out
@@ -301,7 +304,7 @@ public final class WcOrder {
 
 	public boolean createOrderLine(Map<?, ?> line, Map<?, ?> orderWc) {
 		WooLineData = line;
-		BLDMOrderLine orderLine = new BLDMOrderLine(order);
+		MOrderLine orderLine = new MOrderLine(order);
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
 	
 		orderLine.setM_Product_ID(getProductId(((Integer) line.get("product_id")).intValue()));
@@ -585,13 +588,7 @@ public final class WcOrder {
 		*/
 		//Added by Phil
 		/****************************Refactor to here**************************************************/
-		if(calcOrderLineUnitPrice(line)==Env.ZERO)//
-		{
-			orderLine.setPriceList(Env.ZERO);
-			orderLine.setPriceEntered(Env.ZERO);
-			orderLine.setPriceActual(Env.ZERO);
-			orderLine.setLineNetAmt(Env.ZERO);
-		}
+		
 		if (!orderLine.save())
 		 {
 		
@@ -719,7 +716,7 @@ public final class WcOrder {
 			line.saveEx();
 			if(1 + mapList.indexOf(mzzWoocommerceMapList) < mapList.size())//Don't copy the last line.
 			{
-				BLDMOrderLine duplicateOrderLine = new BLDMOrderLine(order);
+				MOrderLine duplicateOrderLine = new MOrderLine(order);
 				MOrderLine.copyValues(line, duplicateOrderLine);
 				if(line.getM_AttributeSetInstance_ID() > 0)
 				{
@@ -1053,7 +1050,7 @@ public final class WcOrder {
 	 * @param orderWc
 	 */
 	public void createShippingCharge(Map<?, ?> orderWc) {
-		BLDMOrderLine orderLine = new BLDMOrderLine(order);
+		MOrderLine orderLine = new MOrderLine(order);
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
 		orderLine.setC_Charge_ID((int) wcDefaults.get_Value("c_charge_id"));
 		// orderLine.setC_UOM_ID(originalOLine.getC_UOM_ID());
@@ -1076,7 +1073,8 @@ public final class WcOrder {
 			msg.append(". The WooCommerce sync process may need to be run manually.");
 			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
 			log.warning(msg.toString());
-			throw new IllegalStateException("Could not create Order Line");
+			//throw new IllegalStateException("Could not create Order Line");
+			//log.warning(msg.toString());
 		}
 	}
 
