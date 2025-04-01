@@ -210,54 +210,52 @@ public class RollerBlind extends MadeToMeasureProduct{
 				}
 				
 				if(hasChainLengthAttribute) 
-			{
-			//Check if there is a chain length set.
-			
-			 String chainLength = MtmUtils.getAttributeLineProductInstance(mBLDMtomItemLine.getC_OrderLine_ID(), CHAIN_LENGTH);
-			 if(chainLength.equalsIgnoreCase("0")) //If no chain length set, set chain length based on drop.
-			 {
-				 int attributeValueID = MtmUtils.getChainAttributeIDByLength(high);
-				 int attributeSetInstanceID = getAttributeSetInstanceIDChain();
-				 MAttributeSetInstance mAttributeSetInstance = null;
-				 if (attributeSetInstanceID == 0)//Should be 0 as there was no chain length set.
+				{
+				//Check if there is a chain length set.
+				
+				 String chainLength = MtmUtils.getAttributeLineProductInstance(mBLDMtomItemLine.getC_OrderLine_ID(), CHAIN_LENGTH);
+				 if(chainLength.equalsIgnoreCase("0")) //If no chain length set, set chain length based on drop.
 				 {
-					 //Create an attributesetinstance
-					 mAttributeSetInstance = new MAttributeSetInstance(ctx, 0, chain.getAttributeSet().get_ID(), chainLength);
-					 mAttributeSetInstance.save(trxName);
-					 attributeSetInstanceID = mAttributeSetInstance.get_ID();
-				 }
-				 //Create the attributeinstance
-				
-				 MAttributeValue  mAttributeValue = new  MAttributeValue(ctx, attributeValueID, trxName);
-				
-				 MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mAttributeValue.getM_Attribute_ID(), 
-						 attributeSetInstanceID, mAttributeValue.getValue(),trxName);
-				 mAttributeInstance.setM_AttributeValue_ID(attributeValueID);
-				
-				 mAttributeInstance.save(trxName);
-				 //Create the bld_line_productinstance
-				 MBLDLineProductSetInstance mBLDLineProductSetInstance = new MBLDLineProductSetInstance(ctx, mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID(), trxName);
-				 MBLDProductPartType mBLDProductPartType = 
-						 (MBLDProductPartType) MBLDProductPartType.getMBLDProductPartType(chain.getM_PartType_ID(),m_product_id, ctx, trxName);
-				 int mBLDProductPartTypeID = mBLDProductPartType.getBLD_Product_PartType_ID();
-				
-				 int bldLineProductinstanceID = getBldLineProductInstanceID(chainID, mBLDLineProductSetInstance.get_ID(), mBLDProductPartTypeID);
-				 MBLDLineProductInstance mBLDLineProductInstance = new MBLDLineProductInstance(ctx, bldLineProductinstanceID , trxName);
-				//Write the new chain attribute info to the DB
-				 log.warning("..........RollerBlind.checkChainLength() auto setting the chain length.");
-				 mBLDLineProductInstance.setM_AttributeSetInstance_ID(attributeSetInstanceID);	
-				 mBLDLineProductInstance.saveEx();
-				 	
-				 if(mAttributeSetInstance != null)
-				 {
-					 mAttributeSetInstance.setDescription();
-					 mAttributeSetInstance.saveEx();
-				 }
-			  }
-			}
-		  }
-	   }
-	}
+					 int attributeValueID = MtmUtils.getChainAttributeIDByLength(high);
+					 int attributeSetInstanceID = getAttributeSetInstanceIDChain();
+					 MAttributeSetInstance mAttributeSetInstance = null;
+					 if (attributeSetInstanceID == 0)//Should be 0 as there was no chain length set.
+					 {
+						 //Create an attributesetinstance
+						 mAttributeSetInstance = new MAttributeSetInstance(ctx, 0, chain.getAttributeSet().get_ID(), chainLength);
+						 mAttributeSetInstance.save(trxName);
+						 attributeSetInstanceID = mAttributeSetInstance.get_ID();
+					 }
+					 //Create the attributeinstance
+					 MAttributeValue  mAttributeValue = new  MAttributeValue(ctx, attributeValueID, trxName);
+					 MAttributeInstance mAttributeInstance = new MAttributeInstance(ctx, mAttributeValue.getM_Attribute_ID(), 
+							 attributeSetInstanceID, mAttributeValue.getValue(),trxName);
+					 mAttributeInstance.setM_AttributeValue_ID(attributeValueID);
+					 mAttributeInstance.save(trxName);
+					 
+					 //Create the bld_line_productinstance
+					 MBLDLineProductSetInstance mBLDLineProductSetInstance = new MBLDLineProductSetInstance(ctx, mBLDMtomItemLine.getBld_Line_ProductSetInstance_ID(), trxName);
+					 MBLDProductPartType mBLDProductPartType = 
+							 (MBLDProductPartType) MBLDProductPartType.getMBLDProductPartType(chain.getM_PartType_ID(),m_product_id, ctx, trxName);
+					 int mBLDProductPartTypeID = mBLDProductPartType.getBLD_Product_PartType_ID();
+					
+					 int bldLineProductinstanceID = getBldLineProductInstanceID(chainID, mBLDLineProductSetInstance.get_ID(), mBLDProductPartTypeID);
+					 MBLDLineProductInstance mBLDLineProductInstance = new MBLDLineProductInstance(ctx, bldLineProductinstanceID , trxName);
+					//Write the new chain attribute info to the DB
+					 log.warning("..........RollerBlind.checkChainLength() auto setting the chain length.");
+					 mBLDLineProductInstance.setM_AttributeSetInstance_ID(attributeSetInstanceID);	
+					 mBLDLineProductInstance.saveEx();
+					 	
+					 if(mAttributeSetInstance != null)
+					 {
+						 mAttributeSetInstance.setDescription();
+						 mAttributeSetInstance.saveEx();
+					 }
+				  }//if(chainLength.equalsIgnoreCase("0")
+				}//if(hasChainLengthAttribute)
+		  }//if(chainAttributeSet != null)
+	   }//if(chainID > 0)
+	}//checkChainLength()
 
 	@Override
 	public boolean createBomDerived() {

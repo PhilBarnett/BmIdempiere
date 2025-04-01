@@ -3,6 +3,7 @@ package au.blindmot.eventhandler;
 import java.math.BigDecimal;
 import java.util.Properties;
 
+import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.util.Env;
@@ -20,6 +21,20 @@ public class BLDMOrderLine extends MOrderLine implements I_BM_OrderLine {
 		super(ctx, C_OrderLine_ID, trxName);
 		// TODO Auto-generated constructor stub
 	}
+	
+	public BLDMOrderLine(MOrderLine line) {
+		super(line.getCtx(), line.get_ID(), line.get_TrxName());
+		// TODO Auto-generated constructor stub
+	}
+	
+	public BLDMOrderLine (MOrder order)
+	{
+		this (order.getCtx(), 0, order.get_TrxName());
+		if (order.get_ID() == 0)
+			throw new IllegalArgumentException("Header not saved");
+		setC_Order_ID (order.getC_Order_ID());	//	parent
+		setOrder(order);
+	}	//	MOrderLine
 	
 	/**************************************************************************
 	 * 	Before Save
