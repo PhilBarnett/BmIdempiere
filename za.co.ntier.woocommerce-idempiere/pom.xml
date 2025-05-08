@@ -4,7 +4,7 @@
   <artifactId>za.co.ntier.woocommerce</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <properties>
-        <jackson.version>2.10.0</jackson.version>
+        <jackson.version>2.12.7.1</jackson.version>
         <httpclient.version>4.5.10</httpclient.version>
         <junit.version>4.12</junit.version>
     </properties>
