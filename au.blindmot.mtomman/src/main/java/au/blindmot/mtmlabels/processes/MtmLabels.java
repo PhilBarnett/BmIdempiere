@@ -55,6 +55,8 @@ public class MtmLabels extends SvrProcess{
 	public static final String END_FORMAT = "^XZ";
 	public static final String FABRIC = "Fabric";
 	public static final String PHONE = "1300 998 442";
+	public static final String QUALITY_LABEL = "QUALITY CONTROL LABEL";
+	public static final String QUALITY_INSPECTOR = "QUALITY CHECKED BY:";
 	public static final String ONLINE_LOGO = "^MMT\n"
 			+ "^PW799\n"
 			+ "^LL0200\n"
@@ -65,6 +67,7 @@ public class MtmLabels extends SvrProcess{
 	private int bLDMtomProduction_ID = 0;
 	private boolean finishedItemOnly = false;
 	private boolean fabricSample = false;
+	private boolean printQualityLabel = false;
 	private int finishedLabelCopies = 2;
 	private int labelCopies = 1;
 	private String windowName = "";
@@ -98,6 +101,8 @@ public class MtmLabels extends SvrProcess{
 				windowName = para.getParameterAsString(); 
 			else if(paraName.equalsIgnoreCase("C_BPartner_Location_ID"))
 				cBPartnerLocationID = para.getParameterAsInt(); 
+			else if(paraName.equalsIgnoreCase("PrintQualityLabels"))
+				printQualityLabel = para.getParameterAsBoolean(); 
 			else if(paraName.equalsIgnoreCase("LabelCopies"))
 			{
 				int copies = para.getParameterAsInt();
@@ -156,7 +161,7 @@ public class MtmLabels extends SvrProcess{
 		MBLDMtomItemLine[] lines = mBLDMtomProduction.getLines();
 		StringBuilder outputStringBuilder = new StringBuilder();
 		
-		if(!fabricSample && !(windowName.equalsIgnoreCase("Sales Order")))
+		if(!fabricSample && !(windowName.equalsIgnoreCase("Sales Order")))//It's a production window
 		{
 			for(int numCopies = 0; numCopies < labelCopies; numCopies++)
 			{
@@ -169,6 +174,11 @@ public class MtmLabels extends SvrProcess{
 					for(int a = 0; a < finishedLabelCopies; a++)
 					{
 						productOutput.append(productToAdd);
+						//Add quality labels
+						if(printQualityLabel)
+						{
+							productOutput.append(addQualityLabel(lines[i], mBLDMtomProduction));
+						}
 					}
 					/*
 					 *Do other items only if finishedItemOnly is false
@@ -460,14 +470,38 @@ public class MtmLabels extends SvrProcess{
 		String bpName = bPartner.getName();
 		String bpName2 = bPartner.getName2();
 		StringBuilder name = new StringBuilder();
+		StringBuilder name1Name2 = new StringBuilder();
 		name.append(FIELD_ORIGIN + "20,55");
 		name.append(SCALABLE_FONT_ROTATION + ",30,30");
 		name.append(CHANGE_INTERNAT_FONT + "13");
 		name.append(FORMAT_DATA);
-		if(bpName2 != null)name.append(bpName2 + ", ");
-		if(bpName != null)name.append(bpName);
+		if(bpName2 != null)name1Name2.append(bpName2 + ", ");
+		if(bpName != null)name1Name2.append(bpName);
+		String nameString = name1Name2.toString();
+		nameString = nameString.substring(0, Math.min(name.length(), 18));
+		name.append(nameString);
 		name.append(FIELD_SEPARATOR);
 		return name.toString();
+	}
+	
+	private StringBuilder addQualityItems(MBLDMtomProduction prod) {
+		StringBuilder quality = new StringBuilder();
+		quality.append(FIELD_ORIGIN + "20,55");
+		quality.append(SCALABLE_FONT_ROTATION + ",30,30");
+		quality.append(CHANGE_INTERNAT_FONT + "13");
+		quality.append(FORMAT_DATA);
+		quality.append(QUALITY_LABEL);
+		quality.append(FIELD_SEPARATOR);
+		//Add The 'Quality checked by:' field
+		quality.append(FIELD_ORIGIN + "20,175");
+		quality.append(SCALABLE_FONT_ROTATION + ",30,30");
+		quality.append(CHANGE_INTERNAT_FONT + "13");
+		quality.append(FORMAT_DATA);
+		quality.append(QUALITY_INSPECTOR);
+		quality.append(FIELD_SEPARATOR);
+		
+		return quality;
+		
 	}
 	
 	private String addOrderDescription(String description) {
@@ -768,6 +802,39 @@ public class MtmLabels extends SvrProcess{
 		productLabel.append(END_FORMAT);
 		productLabel.append("\n");
 		return productLabel;
+		
+		
+	}
+	
+	private StringBuilder addQualityLabel(MBLDMtomItemLine line, MBLDMtomProduction mBLDMtomPrdctn) {
+		StringBuilder qualityLabel = new StringBuilder();
+		
+		qualityLabel.append(START_FORMAT);
+		qualityLabel.append(LABEL_HOME);
+		qualityLabel.append(PRINT_RATE);
+		qualityLabel.append(MEDIA_DARKNESS);
+		qualityLabel.append(DOTS_PER_MM);
+		qualityLabel.append(FIELD_SEPARATOR);
+		qualityLabel.append(BARCODE_DEFAULTS);
+		
+		qualityLabel.append(addBarcode(line.getbarcode()));
+		qualityLabel.append(addProductionDate(line));
+		qualityLabel.append(addOrderInfo(line.getLine(),mBLDMtomPrdctn.getDocumentNo()));
+		//qualityLabel.append(addClientName(mBLDMtomPrdctn));
+		//qualityLabel.append(addOrderDescription(mBLDMtomPrdctn.getDescription()));
+		if(isRollerBlind(line.getM_Product_ID()))
+		{
+			qualityLabel.append(addFabric(line));
+		}
+		//qualityLabel.append(addLocation(line));
+		qualityLabel.append(addQualityItems(mBLDMtomPrdctn));
+		
+		qualityLabel.append(addProductname(line.getM_Product_ID(), true));
+		qualityLabel.append(addFinshedSize(line));
+		qualityLabel.append(PRINT_QUALITY);
+		qualityLabel.append(END_FORMAT);
+		qualityLabel.append("\n");
+		return qualityLabel;
 		
 		
 	}
