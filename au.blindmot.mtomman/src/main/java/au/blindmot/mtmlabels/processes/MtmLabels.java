@@ -478,7 +478,10 @@ public class MtmLabels extends SvrProcess{
 		if(bpName2 != null)name1Name2.append(bpName2 + ", ");
 		if(bpName != null)name1Name2.append(bpName);
 		String nameString = name1Name2.toString();
-		nameString = nameString.substring(0, Math.min(name.length(), 18));
+		if(nameString.length() > 18)
+		{
+			nameString = nameString.substring(0, Math.min(name.length(), 18));
+		}
 		name.append(nameString);
 		name.append(FIELD_SEPARATOR);
 		return name.toString();
