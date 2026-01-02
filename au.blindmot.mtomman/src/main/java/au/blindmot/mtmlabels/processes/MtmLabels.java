@@ -480,7 +480,7 @@ public class MtmLabels extends SvrProcess{
 		String nameString = name1Name2.toString();
 		if(nameString.length() > 18)
 		{
-			nameString = nameString.substring(0, Math.min(name.length(), 18));
+			nameString = nameString.substring(0, Math.min(name.length(), 18));//Trim long names
 		}
 		name.append(nameString);
 		name.append(FIELD_SEPARATOR);

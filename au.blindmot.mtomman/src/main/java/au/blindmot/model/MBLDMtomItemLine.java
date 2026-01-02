@@ -317,9 +317,10 @@ return false;
 		MProduct finishedProduct = new MProduct(getCtx(), getM_Product_ID(), get_TrxName());
 
 		MProductionLine line = new MProductionLine(getCtx(), 0, get_TrxName());
-		log.warning("Line 276 About to create new MProductionLine with finished product" + finishedProduct.toString());
+		log.warning("Line 320 About to create new MProductionLine with finished product" + finishedProduct.toString());
 		line.setLine( lineno );
 		line.setM_Product_ID( finishedProduct.get_ID() );
+		line.setM_AttributeSetInstance_ID(this.getattributesetinstance_id());
 		line.setM_Locator_ID( m_Locator_ID);
 		line.setMovementQty(BigDecimal.ONE);//always 1 for MTM manufacturing. Gets overwritten in MProductionLine.beforeSave.
 		line.setPlannedQty(BigDecimal.ONE);//always 1 for MTM manufacturing
@@ -374,6 +375,7 @@ return false;
 		{
 			lineno = lineno + 10;
 			BOMProduct_ID = bomDerivedCleaned[i].getM_Product_ID();
+			int mAttributeSetInstanceID = bomDerivedCleaned[i].getM_AttributeSetInstance_ID();//Added by PB1/1/26 
 			BOMQty = bomDerivedCleaned[i].getQty();
 			BOMMovementQty = BOMQty;
 			MProduct bomProd = new MProduct(p_ctx, BOMProduct_ID, get_TrxName());
@@ -396,36 +398,37 @@ return false;
 						defaultLocator = m_Locator_ID;
 					if (!bomproduct.isStocked())
 					{					
-						MProductionLine BOMLine = null;
-						log.warning("Line 350 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
-						BOMLine = new MProductionLine(getCtx(), 0, get_TrxName());
-						BOMLine.setLine( lineno );
-						BOMLine.setM_Product_ID( BOMProduct_ID );
-						BOMLine.setM_Locator_ID( defaultLocator );  
-						BOMLine.setQtyUsed(BOMMovementQty );
-						BOMLine.setPlannedQty( BOMMovementQty );
-						BOMLine.setAD_Org_ID(determineAdOrgId());
-						BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
-						log.warning("Line 359 About to saveEx() new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
-						BOMLine.saveEx(get_TrxName());
+						MProductionLine mProductionLine = null;
+						log.warning("Line 400 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
+						mProductionLine = new MProductionLine(getCtx(), 0, get_TrxName());
+						mProductionLine.setLine( lineno );
+						mProductionLine.setM_Product_ID( BOMProduct_ID );
+						mProductionLine.setM_AttributeSetInstance_ID(mAttributeSetInstanceID);
+						mProductionLine.setM_Locator_ID( defaultLocator );  
+						mProductionLine.setQtyUsed(BOMMovementQty );
+						mProductionLine.setPlannedQty( BOMMovementQty );
+						mProductionLine.setAD_Org_ID(determineAdOrgId());
+						mProductionLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+						log.warning("Line 412 About to saveEx() new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
+						mProductionLine.saveEx(get_TrxName());
 						
 						lineno = lineno + 10;
 						count++;					
 					}
 					else if (BOMMovementQty.signum() == 0) 
 					{
-						MProductionLine BOMLine = null;
-						log.warning("Line 370 About to saveEx() new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
-						BOMLine = new MProductionLine(getCtx(), 0, get_TrxName());
-						BOMLine.setLine( lineno );
-						BOMLine.setM_Product_ID( BOMProduct_ID );
-						BOMLine.setM_Locator_ID( defaultLocator );  
-						BOMLine.setQtyUsed( BOMMovementQty );
-						BOMLine.setPlannedQty( BOMMovementQty );
-						BOMLine.setAD_Org_ID(determineAdOrgId());
-						BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+						MProductionLine mProductionLine2 = null;
+						log.warning("Line 418 About to saveEx() new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
+						mProductionLine2 = new MProductionLine(getCtx(), 0, get_TrxName());
+						mProductionLine2.setLine( lineno );
+						mProductionLine2.setM_Product_ID( BOMProduct_ID );
+						mProductionLine2.setM_Locator_ID( defaultLocator );  
+						mProductionLine2.setQtyUsed( BOMMovementQty );
+						mProductionLine2.setPlannedQty( BOMMovementQty );
+						mProductionLine2.setAD_Org_ID(determineAdOrgId());
+						mProductionLine2.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
 						
-						BOMLine.saveEx(get_TrxName());
+						mProductionLine2.saveEx(get_TrxName());
 
 						lineno = lineno + 10;
 						count++;
@@ -455,14 +458,15 @@ return false;
 						storages = MStorageOnHand.getWarehouse(getCtx(), M_Warehouse_ID, BOMProduct_ID, 0, null,
 								MProductCategory.MMPOLICY_FiFo.equals(MMPolicy), true, 0, get_TrxName());
 
-						MProductionLine BOMLine = null;
+						MProductionLine mProductionLine3 = null;
 						int prevLoc = -1;
 						int previousAttribSet = -1;
 						// Create lines from storage until qty is reached
 						for (int sl = 0; sl < storages.length; sl++) {
 
 							BigDecimal lineQty = storages[sl].getQtyOnHand();
-							if (lineQty.signum() != 0) {
+							if (lineQty.signum() != 0) 
+							{
 								if (lineQty.compareTo(BOMMovementQty) > 0)
 									lineQty = BOMMovementQty;
 
@@ -473,29 +477,32 @@ return false;
 										get_TrxName()).getM_AttributeSet_ID();
 
 								// roll up costing attributes if in the same locator
-								if (locAttribSet == 0 && previousAttribSet == 0
-										&& prevLoc == loc) {
-									BOMLine.setQtyUsed(BOMLine.getQtyUsed()
+								if (locAttribSet == 0 && previousAttribSet == 0 && prevLoc == loc) 
+								{
+									mProductionLine3.setQtyUsed(mProductionLine3.getQtyUsed()
 											.add(lineQty));
-									BOMLine.setPlannedQty(BOMLine.getQtyUsed());
-									BOMLine.saveEx(get_TrxName());
+									mProductionLine3.setPlannedQty(mProductionLine3.getQtyUsed());
+									mProductionLine3.saveEx(get_TrxName());
 
 								}
 								// otherwise create new line
 								else {
-									log.warning("Line 435 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
-									BOMLine = new MProductionLine(getCtx(), 0, get_TrxName());
-									BOMLine.setLine( lineno );
-									BOMLine.setM_Product_ID( BOMProduct_ID );
-									BOMLine.setM_Locator_ID( loc );
-									BOMLine.setQtyUsed(lineQty);
-									BOMLine.setPlannedQty( lineQty);
-									BOMLine.setAD_Org_ID(determineAdOrgId());
+									log.warning("Line 486 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
+									mProductionLine3 = new MProductionLine(getCtx(), 0, get_TrxName());
+									mProductionLine3.setLine( lineno );
+									mProductionLine3.setM_Product_ID( BOMProduct_ID );
+									mProductionLine3.setM_Locator_ID( loc );
+									mProductionLine3.setM_AttributeSetInstance_ID(mAttributeSetInstanceID); //Added 1/1/26 TEST!!
+									/*Added 1/1/26 The attribute needs to be set (and was not being set) 
+									 * otherwise inventory control does not know what has been moved*/
+									mProductionLine3.setQtyUsed(lineQty);
+									mProductionLine3.setPlannedQty( lineQty);
+									mProductionLine3.setAD_Org_ID(determineAdOrgId());
 									if ( slASI != 0 && locAttribSet != 0 )  // ie non costing attribute
-										BOMLine.setM_AttributeSetInstance_ID(slASI);
-									BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+										mProductionLine3.setM_AttributeSetInstance_ID(slASI);
+									mProductionLine3.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
 									log.warning("Line 446 About to save new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
-									BOMLine.saveEx(get_TrxName());
+									mProductionLine3.saveEx(get_TrxName());
 
 									lineno = lineno + 10;
 									count++;
@@ -517,25 +524,28 @@ return false;
 								// roll up costing attributes if in the same locator
 								if ( previousAttribSet == 0
 										&& prevLoc == defaultLocator) {
-									BOMLine.setQtyUsed(BOMLine.getQtyUsed()
+									mProductionLine3.setQtyUsed(mProductionLine3.getQtyUsed()
 											.add(BOMMovementQty));
-									BOMLine.setPlannedQty(BOMLine.getQtyUsed());
-									BOMLine.saveEx(get_TrxName());
+									mProductionLine3.setPlannedQty(mProductionLine3.getQtyUsed());
+									mProductionLine3.saveEx(get_TrxName());
 
 								}
 								// otherwise create new line
 								else {
-									log.warning("Line 480 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
-									BOMLine = new MProductionLine(getCtx(), 0, get_TrxName());
-									BOMLine.setLine( lineno );
-									BOMLine.setM_Product_ID( BOMProduct_ID );
-									BOMLine.setM_Locator_ID( defaultLocator );  
-									BOMLine.setQtyUsed( BOMMovementQty);
-									BOMLine.setPlannedQty( BOMMovementQty);
-									BOMLine.setAD_Org_ID(determineAdOrgId());
-									BOMLine.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
+									log.warning("Line 530 About to create new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
+									mProductionLine3 = new MProductionLine(getCtx(), 0, get_TrxName());
+									mProductionLine3.setLine( lineno );
+									mProductionLine3.setM_Product_ID( BOMProduct_ID );
+									mProductionLine3.setM_AttributeSetInstance_ID(mAttributeSetInstanceID); //Added 1/1/26 TEST!!
+									/*Added 1/1/26 The attribute needs to be set (and was not being set) 
+									 * otherwise inventory control does not know what has been moved*/
+									mProductionLine3.setM_Locator_ID( defaultLocator );  
+									mProductionLine3.setQtyUsed( BOMMovementQty);
+									mProductionLine3.setPlannedQty( BOMMovementQty);
+									mProductionLine3.setAD_Org_ID(determineAdOrgId());
+									mProductionLine3.set_ValueOfColumn("bld_mtom_item_line_id", getbld_mtom_item_line_ID());
 									log.warning("Line 489 About to save new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
-									BOMLine.saveEx(get_TrxName());
+									mProductionLine3.saveEx(get_TrxName());
 									log.warning("Line 491 Just saved new MProductionLine with BOMProduct_ID: " + BOMProduct_ID);
 									lineno = lineno + 10;
 									count++;
