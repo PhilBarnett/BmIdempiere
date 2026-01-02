@@ -192,6 +192,26 @@ public class MzzWoocommerceMap extends X_ZZ_Woocommerce_Map {
 					System.out.println(lines[l].toString());
 				}*/
 				
+				/*We have a field with mulitple possible values - find a match to field value and return it.
+				 * PROBLEM: EG If we have multiple width fields, code tries to match on value; no value exists, null gets returned.
+				 * Then an empty record gets created etc. 
+				 * So: If getwoocommerce_field_key().equals(fieldID) AND the fieldvalue is null then return the record as it must be expecting a value like width or drop.
+				 * Validation to ensure that the incoming data contains a value must be done in WooCommerce.
+				 * */
+				/*//Enable for testing if required.
+				System.out.println(lines[l].toString());
+				
+				if(!(lines[l].getwoocommerce_field_value()==null)) System.out.println(lines[l].getwoocommerce_field_value().toString());
+				if(lines[l].getwoocommerce_field_key().equalsIgnoreCase("651e63fed6d51"))//651e63fed6d51 is Width(mm) in rol1
+				{
+					System.out.println(lines[l].getwoocommerce_field_key().toString());
+				}*/
+				
+				if(lines[l].getwoocommerce_field_key().equalsIgnoreCase(fieldID) && lines[l].getwoocommerce_field_value() == null)
+				{
+ 					return lines[l];
+				}
+				
 				if(lines[l].getwoocommerce_field_key() != null && lines[l].getwoocommerce_field_key().equals(fieldID))
 				{
 					matches.add(lines[l]);
@@ -200,7 +220,8 @@ public class MzzWoocommerceMap extends X_ZZ_Woocommerce_Map {
 		}
 		//Just one record? return it.
 		if(matches.size() == 1) return matches.get(0);
-		if(matches.size() > 1)//We have a field with mulitple possible values - find a match to field value and return it.
+		if(matches.size() > 1)
+			
 		{
 			for(MzzWoocommerceMap map : matches)
 			{
