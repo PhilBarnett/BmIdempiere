@@ -74,7 +74,7 @@ public class WooCommerce extends SvrProcess {
 			{
 				Map<?, ?> order = (Map<?, ?>) wcOrders.get(i);
 				int id = (int) order.get("id");
-				log.warning("Order- " + order.get("id") + ": " + order);
+				log.warning("Importing WooCommerce order " + id);
 				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
 				wcOrder.createOrder(order);
 
@@ -91,11 +91,9 @@ public class WooCommerce extends SvrProcess {
 					Object name = line.get("name");
 					log.warning("Name of Product = " + name.toString());
 				}
-				if(!linesSuccessful)
-				{
-					//At this point, the system will have sent an email to the user with the problems encountered.
-					//We now delete the order and allow iteration through other orders in WooComm.
-					wcOrder.deleteOrder();
+				if (!linesSuccessful) {
+					throw new IllegalStateException("WooCommerce order " + id
+						+ " failed line mapping; iDempiere import must be rolled back.");
 				}
 
 				// Update syncedToIdempiere to 'yes'
@@ -154,10 +152,10 @@ public class WooCommerce extends SvrProcess {
 
 	@Override
 	protected String doIt() throws Exception {
-		Thread thread = new Thread(new MyRunnable());
-		thread.start();
-
-		return "Synchronisation from WooCommerce initiated";
+		// Keep the import inside the process lifecycle so its transaction is
+		// available until all line mappings have completed or an error propagates.
+		new MyRunnable().run();
+		return "Synchronisation from WooCommerce completed";
 	}
 
 }
