@@ -1638,6 +1638,7 @@ public final class WcOrder {
 	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(ArrayList<LinkedHashMap<String, Object>> metaData, int orderLineProductID) {
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapListFromMeta = new ArrayList<>(); 
 		fieldValues = new LinkedHashMap<Object, Object>();
+		boolean foundWapfMeta = false;
 		for (LinkedHashMap<String, Object> metaItem : metaData)
 		{
 			
@@ -1645,6 +1646,7 @@ public final class WcOrder {
 				 /*_wapf_meta contains the unique id of each field that
 				  * can be matched to the backend product  */
 			 {
+				 foundWapfMeta = true;
 				 // WAPF normally serializes this as an array containing one fields/settings object.
 				 // Older orders may contain the object directly; accept both forms.
 				 Object rawWapfMeta = metaItem.get("value");
@@ -1661,6 +1663,11 @@ public final class WcOrder {
 						 + " has invalid _wapf_meta; expected a fields/settings object.");
 				 }
 				 Map<String, Object> wapfMeta = (Map<String, Object>) rawWapfMeta;
+				 if (!(wapfMeta.get("fields") instanceof Map<?, ?>)
+					 || ((Map<?, ?>) wapfMeta.get("fields")).isEmpty()) {
+					 throw new AdempiereUserError("Order " + order.getDocumentNo()
+						 + " has no readable WAPF fields.");
+				 }
 				 //Create a list of mapping object for this WC order line
 				 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
 				 {
@@ -1811,6 +1818,10 @@ public final class WcOrder {
 					 }
 				 } 
 			 }
+		}
+		if (Integer.valueOf(128).equals(wooCommProductID) && !foundWapfMeta) {
+			throw new AdempiereUserError("Order " + order.getDocumentNo()
+				+ " is missing Fabric Sample WAPF metadata.");
 		}
 		return masterZzWoocommerceMapListFromMeta;
 		
