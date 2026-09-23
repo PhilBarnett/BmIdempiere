@@ -355,22 +355,7 @@ public final class WcOrder {
 					 /*_wapf_meta contains the unique id of each field that
 					  * can be matched to the backend product  */
 					 /*			 {
-					 // WAPF normally serializes this as an array containing one fields/settings object.
-				 // Older orders may contain the object directly; accept both forms.
-				 Object rawWapfMeta = metaItem.get("value");
-				 if (rawWapfMeta instanceof List<?>) {
-					 List<?> groups = (List<?>) rawWapfMeta;
-					 if (groups.size() != 1 || !(groups.get(0) instanceof Map<?, ?>)) {
-						 throw new AdempiereUserError("Order " + order.getDocumentNo()
-							 + " has an invalid _wapf_meta array; expected one fields/settings object.");
-					 }
-					 rawWapfMeta = groups.get(0);
-				 }
-				 if (!(rawWapfMeta instanceof Map<?, ?>)) {
-					 throw new AdempiereUserError("Order " + order.getDocumentNo()
-						 + " has invalid _wapf_meta; expected a fields/settings object.");
-				 }
-				 Map<String, Object> wapfMeta = (Map<String, Object>) rawWapfMeta;
+					 LinkedHashMap<String, Object> wapfMeta = (LinkedHashMap<String, Object>) metaItem.get("value");
 					 //Create a list of mapping object for this WC order line
 					 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
 					 {
@@ -1660,7 +1645,22 @@ public final class WcOrder {
 				 /*_wapf_meta contains the unique id of each field that
 				  * can be matched to the backend product  */
 			 {
-				 LinkedHashMap<String, Object> wapfMeta = (LinkedHashMap<String, Object>) metaItem.get("value");
+				 // WAPF normally serializes this as an array containing one fields/settings object.
+				 // Older orders may contain the object directly; accept both forms.
+				 Object rawWapfMeta = metaItem.get("value");
+				 if (rawWapfMeta instanceof List<?>) {
+					 List<?> groups = (List<?>) rawWapfMeta;
+					 if (groups.size() != 1 || !(groups.get(0) instanceof Map<?, ?>)) {
+						 throw new AdempiereUserError("Order " + order.getDocumentNo()
+							 + " has an invalid _wapf_meta array; expected one fields/settings object.");
+					 }
+					 rawWapfMeta = groups.get(0);
+				 }
+				 if (!(rawWapfMeta instanceof Map<?, ?>)) {
+					 throw new AdempiereUserError("Order " + order.getDocumentNo()
+						 + " has invalid _wapf_meta; expected a fields/settings object.");
+				 }
+				 Map<String, Object> wapfMeta = (Map<String, Object>) rawWapfMeta;
 				 //Create a list of mapping object for this WC order line
 				 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
 				 {
