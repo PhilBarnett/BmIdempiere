@@ -333,20 +333,21 @@ public final class WcOrder {
 		orderLine.setPrice(calcOrderLineUnitPrice(line));
 		if (orderLine.getC_UOM_ID()==0)
 			orderLine.setC_UOM_ID(orderLine.getM_Product().getC_UOM_ID());
-		orderLine.saveEx();
-		orderLine.set_ValueOfColumn("lockprice", "Y");
-		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
-		
-		//Added by Phil Barnett 27/5/2023 -> process meta data for attributes and product options
-		//duplicateFields = null;
+		// Resolve all option mappings before the first order-line write.
 		ArrayList<LinkedHashMap<String,Object>> metaData = (ArrayList<LinkedHashMap<String, Object>>) line.get("meta_data");
-		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();//Holds the found Mapping instructions for this WC orderline
+		if (metaData == null) {
+			throw new AdempiereUserError("Order " + order.getDocumentNo() + " has no line metadata.");
+		}
+		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = createdMapListFromMetaData(metaData, orderLine.getM_Product_ID());
 		//IF there's been an error with the MapList, abort.
 		if(masterZzWoocommerceMapList == null)
 		{
 			return false;
 		}
+		orderLine.saveEx();
+		orderLine.set_ValueOfColumn("lockprice", "Y");
+		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
 		
 	/*	for (LinkedHashMap<String, Object> metaItem : metaData)
 			{
