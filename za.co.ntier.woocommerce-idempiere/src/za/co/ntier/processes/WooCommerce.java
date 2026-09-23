@@ -102,25 +102,7 @@ public class WooCommerce extends SvrProcess {
 				//Do not flag orders that have no order lines as complete and synced; they will need to be synced manually.
 				if(wcOrder.getOrderLineCount() > 0 && linesSuccessful)
 				{	
-					//Pass 1 -> change status to completed. When this happens WooCommerce sets "syncedToIdempiere" to "no".
-					Map<String, Object> body = new HashMap<>();
-					body.put("status","completed");
-					Map<?, ?> response = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body);
-					System.out.println(response.toString());
-					log.warning("---------Response from WooCommerce: " + response.toString());
-					
-					//Pass 2 -> Update syncedToIdempiere to 'yes', must be done separately to status=completed.
-					Map<String, Object> body2 = new HashMap<>();
-					List<Map<String, String>> listOfMetaData = new ArrayList<Map<String, String>>();
-					Map<String, String> metaData = new HashMap<>();
-					metaData.put("key", "syncedToIdempiere");
-					metaData.put("value", "yes");
-					listOfMetaData.add(metaData);
-					body2.put("meta_data", listOfMetaData);
-					Map<?, ?> response2 = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body2);
-					System.out.println(response2.toString());
-					log.warning("---------Response2 from WooCommerce: " + response2.toString());
-					
+
 					//Create installation record
 					if(wcOrder.orderTotalOverZero() > 0)//Sample orders are 0 total and don't require installation records.
 					{
@@ -141,6 +123,26 @@ public class WooCommerce extends SvrProcess {
 					wcOrder.createShippingCharge(order);
 					wcOrder.createPosPayment(order);
 					wcOrder.completeOrder();//PB 06062024 wcOrder.completeOrder()' has been disabled for testing, re-enabled 23/10/24
+					// Mark WooCommerce complete only after all ERP order work succeeds.
+					//Pass 1 -> change status to completed. When this happens WooCommerce sets "syncedToIdempiere" to "no".
+					Map<String, Object> body = new HashMap<>();
+					body.put("status","completed");
+					Map<?, ?> response = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body);
+					System.out.println(response.toString());
+					log.warning("---------Response from WooCommerce: " + response.toString());
+					
+					//Pass 2 -> Update syncedToIdempiere to 'yes', must be done separately to status=completed.
+					Map<String, Object> body2 = new HashMap<>();
+					List<Map<String, String>> listOfMetaData = new ArrayList<Map<String, String>>();
+					Map<String, String> metaData = new HashMap<>();
+					metaData.put("key", "syncedToIdempiere");
+					metaData.put("value", "yes");
+					listOfMetaData.add(metaData);
+					body2.put("meta_data", listOfMetaData);
+					Map<?, ?> response2 = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body2);
+					System.out.println(response2.toString());
+					log.warning("---------Response2 from WooCommerce: " + response2.toString());
+					
 				}	
 			}
 		}
