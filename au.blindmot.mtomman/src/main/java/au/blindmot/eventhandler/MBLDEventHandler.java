@@ -61,7 +61,7 @@ public class MBLDEventHandler extends AbstractEventHandler {
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSECORRECT, MBLDMtomProduction.Table_Name);
 				registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MBLDMtomProduction.Table_Name);
 				//registerTableEvent(IEventTopics.PO_BEFORE_NEW, MOrderLine.Table_Name);//
-				registerTableEvent(IEventTopics.PO_POST_CREATE, MOrderLine.Table_Name);
+				// PO_POST_CREATE runs asynchronously and has no handling branch here.
 				registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);//PO to copy MAttributeSetInstance to
 				registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);//Cause issues with copy at moment?
 				log.info("----------<MBLDEventHandler> .. IS NOW INITIALIZED");
