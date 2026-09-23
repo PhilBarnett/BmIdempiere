@@ -74,7 +74,7 @@ public class WooCommerce extends SvrProcess {
 			{
 				Map<?, ?> order = (Map<?, ?>) wcOrders.get(i);
 				int id = (int) order.get("id");
-				log.warning("Order- " + order.get("id") + ": " + order);
+				log.warning("Importing WooCommerce order " + id);
 				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
 				wcOrder.createOrder(order);
 
@@ -91,11 +91,9 @@ public class WooCommerce extends SvrProcess {
 					Object name = line.get("name");
 					log.warning("Name of Product = " + name.toString());
 				}
-				if(!linesSuccessful)
-				{
-					//At this point, the system will have sent an email to the user with the problems encountered.
-					//We now delete the order and allow iteration through other orders in WooComm.
-					wcOrder.deleteOrder();
+				if (!linesSuccessful) {
+					throw new IllegalStateException("WooCommerce order " + id
+						+ " failed line mapping; iDempiere import must be rolled back.");
 				}
 
 				// Update syncedToIdempiere to 'yes'
@@ -104,25 +102,7 @@ public class WooCommerce extends SvrProcess {
 				//Do not flag orders that have no order lines as complete and synced; they will need to be synced manually.
 				if(wcOrder.getOrderLineCount() > 0 && linesSuccessful)
 				{	
-					//Pass 1 -> change status to completed. When this happens WooCommerce sets "syncedToIdempiere" to "no".
-					Map<String, Object> body = new HashMap<>();
-					body.put("status","completed");
-					Map<?, ?> response = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body);
-					System.out.println(response.toString());
-					log.warning("---------Response from WooCommerce: " + response.toString());
-					
-					//Pass 2 -> Update syncedToIdempiere to 'yes', must be done separately to status=completed.
-					Map<String, Object> body2 = new HashMap<>();
-					List<Map<String, String>> listOfMetaData = new ArrayList<Map<String, String>>();
-					Map<String, String> metaData = new HashMap<>();
-					metaData.put("key", "syncedToIdempiere");
-					metaData.put("value", "yes");
-					listOfMetaData.add(metaData);
-					body2.put("meta_data", listOfMetaData);
-					Map<?, ?> response2 = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body2);
-					System.out.println(response2.toString());
-					log.warning("---------Response2 from WooCommerce: " + response2.toString());
-					
+
 					//Create installation record
 					if(wcOrder.orderTotalOverZero() > 0)//Sample orders are 0 total and don't require installation records.
 					{
@@ -143,6 +123,26 @@ public class WooCommerce extends SvrProcess {
 					wcOrder.createShippingCharge(order);
 					wcOrder.createPosPayment(order);
 					wcOrder.completeOrder();//PB 06062024 wcOrder.completeOrder()' has been disabled for testing, re-enabled 23/10/24
+					// Mark WooCommerce complete only after all ERP order work succeeds.
+					//Pass 1 -> change status to completed. When this happens WooCommerce sets "syncedToIdempiere" to "no".
+					Map<String, Object> body = new HashMap<>();
+					body.put("status","completed");
+					Map<?, ?> response = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body);
+					System.out.println(response.toString());
+					log.warning("---------Response from WooCommerce: " + response.toString());
+					
+					//Pass 2 -> Update syncedToIdempiere to 'yes', must be done separately to status=completed.
+					Map<String, Object> body2 = new HashMap<>();
+					List<Map<String, String>> listOfMetaData = new ArrayList<Map<String, String>>();
+					Map<String, String> metaData = new HashMap<>();
+					metaData.put("key", "syncedToIdempiere");
+					metaData.put("value", "yes");
+					listOfMetaData.add(metaData);
+					body2.put("meta_data", listOfMetaData);
+					Map<?, ?> response2 = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body2);
+					System.out.println(response2.toString());
+					log.warning("---------Response2 from WooCommerce: " + response2.toString());
+					
 				}	
 			}
 		}
@@ -154,10 +154,10 @@ public class WooCommerce extends SvrProcess {
 
 	@Override
 	protected String doIt() throws Exception {
-		Thread thread = new Thread(new MyRunnable());
-		thread.start();
-
-		return "Synchronisation from WooCommerce initiated";
+		// Keep the import inside the process lifecycle so its transaction is
+		// available until all line mappings have completed or an error propagates.
+		new MyRunnable().run();
+		return "Synchronisation from WooCommerce completed";
 	}
 
 }

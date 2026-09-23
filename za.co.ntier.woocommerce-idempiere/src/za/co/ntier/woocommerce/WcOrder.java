@@ -333,20 +333,21 @@ public final class WcOrder {
 		orderLine.setPrice(calcOrderLineUnitPrice(line));
 		if (orderLine.getC_UOM_ID()==0)
 			orderLine.setC_UOM_ID(orderLine.getM_Product().getC_UOM_ID());
-		orderLine.saveEx();
-		orderLine.set_ValueOfColumn("lockprice", "Y");
-		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
-		
-		//Added by Phil Barnett 27/5/2023 -> process meta data for attributes and product options
-		//duplicateFields = null;
+		// Resolve all option mappings before the first order-line write.
 		ArrayList<LinkedHashMap<String,Object>> metaData = (ArrayList<LinkedHashMap<String, Object>>) line.get("meta_data");
-		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();//Holds the found Mapping instructions for this WC orderline
+		if (metaData == null) {
+			throw new AdempiereUserError("Order " + order.getDocumentNo() + " has no line metadata.");
+		}
+		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = createdMapListFromMetaData(metaData, orderLine.getM_Product_ID());
 		//IF there's been an error with the MapList, abort.
 		if(masterZzWoocommerceMapList == null)
 		{
 			return false;
 		}
+		orderLine.saveEx();
+		orderLine.set_ValueOfColumn("lockprice", "Y");
+		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
 		
 	/*	for (LinkedHashMap<String, Object> metaItem : metaData)
 			{
@@ -1637,6 +1638,7 @@ public final class WcOrder {
 	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(ArrayList<LinkedHashMap<String, Object>> metaData, int orderLineProductID) {
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapListFromMeta = new ArrayList<>(); 
 		fieldValues = new LinkedHashMap<Object, Object>();
+		boolean foundWapfMeta = false;
 		for (LinkedHashMap<String, Object> metaItem : metaData)
 		{
 			
@@ -1644,7 +1646,28 @@ public final class WcOrder {
 				 /*_wapf_meta contains the unique id of each field that
 				  * can be matched to the backend product  */
 			 {
-				 LinkedHashMap<String, Object> wapfMeta = (LinkedHashMap<String, Object>) metaItem.get("value");
+				 foundWapfMeta = true;
+				 // WAPF normally serializes this as an array containing one fields/settings object.
+				 // Older orders may contain the object directly; accept both forms.
+				 Object rawWapfMeta = metaItem.get("value");
+				 if (rawWapfMeta instanceof List<?>) {
+					 List<?> groups = (List<?>) rawWapfMeta;
+					 if (groups.size() != 1 || !(groups.get(0) instanceof Map<?, ?>)) {
+						 throw new AdempiereUserError("Order " + order.getDocumentNo()
+							 + " has an invalid _wapf_meta array; expected one fields/settings object.");
+					 }
+					 rawWapfMeta = groups.get(0);
+				 }
+				 if (!(rawWapfMeta instanceof Map<?, ?>)) {
+					 throw new AdempiereUserError("Order " + order.getDocumentNo()
+						 + " has invalid _wapf_meta; expected a fields/settings object.");
+				 }
+				 Map<String, Object> wapfMeta = (Map<String, Object>) rawWapfMeta;
+				 if (!(wapfMeta.get("fields") instanceof Map<?, ?>)
+					 || ((Map<?, ?>) wapfMeta.get("fields")).isEmpty()) {
+					 throw new AdempiereUserError("Order " + order.getDocumentNo()
+						 + " has no readable WAPF fields.");
+				 }
 				 //Create a list of mapping object for this WC order line
 				 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
 				 {
@@ -1795,6 +1818,10 @@ public final class WcOrder {
 					 }
 				 } 
 			 }
+		}
+		if (Integer.valueOf(128).equals(wooCommProductID) && !foundWapfMeta) {
+			throw new AdempiereUserError("Order " + order.getDocumentNo()
+				+ " is missing Fabric Sample WAPF metadata.");
 		}
 		return masterZzWoocommerceMapListFromMeta;
 		
