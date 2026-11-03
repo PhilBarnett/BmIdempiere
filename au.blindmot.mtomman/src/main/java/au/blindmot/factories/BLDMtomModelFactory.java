@@ -121,7 +121,7 @@ public class BLDMtomModelFactory implements IModelFactory {
 			return new MBLDMtomItemLine(Env.getCtx(), rs, trxName);
 			
 		if(tableName.equalsIgnoreCase(MBLDMtomProduction.Table_Name))
-			return new MBLDMtomItemLine(Env.getCtx(), rs, trxName);
+			return new MBLDMtomProduction(Env.getCtx(), rs, trxName);
 		
 		if(tableName.equalsIgnoreCase(MBLDBomDerived.Table_Name))
 			return new MBLDBomDerived(Env.getCtx(), rs, trxName);

@@ -4,7 +4,6 @@ import org.adempiere.webui.apps.AEnv;
 import org.adempiere.webui.component.Label;
 import org.adempiere.webui.component.Textbox;
 import org.adempiere.webui.panel.ADForm;
-import org.adempiere.webui.window.FDialog;
 import org.compiere.model.MQuery;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
@@ -15,7 +14,7 @@ import org.zkoss.zk.ui.event.Events;
 import au.blindmot.model.I_BLD_mtom_cuts;
 import au.blindmot.model.I_BLD_Mtom_Item_Line;
 import au.blindmot.model.I_BLD_mtom_production;
-import au.blindmot.utils.MtmUtils;
+import au.blindmot.utils.MtmBarcode;
 
 public class BLDBarcodeLookup extends ADForm {
 	/**
@@ -41,28 +40,24 @@ public class BLDBarcodeLookup extends ADForm {
 	}
 	
 	public void proccessBarcode(String barcodeText) {
-		String prefix = barcodeText.substring(0, 2);
-		String id = barcodeText.substring(2);
-		if(id.length() != 7)
-		{
-			throw new AdempiereUserError("Barcode length incorrect. Is this is a Made to measure barcode?");
+		final MtmBarcode parsed;
+		try {
+			parsed = MtmBarcode.parse(barcodeText);
+		} catch (IllegalArgumentException ex) {
+			throw new AdempiereUserError(ex.getMessage());
 		}
-		if(prefix.equalsIgnoreCase(MtmUtils.MTM_PRODUCTION_PREFIX))
-		{
-			windowFromBarcode(I_BLD_mtom_production.Table_ID,id);
-		}
-		else if(prefix.equalsIgnoreCase(MtmUtils.MTM_PRODUCTION_ITEM_PREFIX))
-		{
+		String id = Integer.toString(parsed.getRecordId());
+		switch (parsed.getTarget()) {
+		case PRODUCTION:
+			windowFromBarcode(I_BLD_mtom_production.Table_ID, id);
+			break;
+		case ITEM:
 			windowFromBarcode(I_BLD_Mtom_Item_Line.Table_ID, id);
-		}
-		
-		else if(prefix.equalsIgnoreCase(MtmUtils.MTM_PRODUCTION_ASSEMBLEY_ITEM))
-		{
+			break;
+		case CUT:
 			windowFromBarcode(I_BLD_mtom_cuts.Table_ID, id);
+			break;
 		}
-		
-		else FDialog.warn(getWindowNo(), "Barcode not recognised.", "Warning");
-		//TODO:More error handling- check length etc.
 	}
 		
 	public void windowFromBarcode(int tableID, String id) {

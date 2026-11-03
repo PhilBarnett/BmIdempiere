@@ -1,0 +1,29 @@
+name: MTM foundation checks
+on:
+  pull_request:
+    paths:
+      - 'au.blindmot.mtomman/**'
+      - 'scripts/**'
+      - '.github/workflows/mtm-foundation.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'au.blindmot.mtomman/**'
+      - 'scripts/**'
+      - '.github/workflows/mtm-foundation.yml'
+permissions:
+  contents: read
+jobs:
+  barcode-validation:
+    name: Barcode validation (not a full plugin build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Test barcode routing and rejected input
+        run: sh scripts/test-mtm-barcode.sh
+      - name: Test build inventory reader
+        run: python3 -m unittest discover -s scripts/tests -p 'test_build_inventory.py'
