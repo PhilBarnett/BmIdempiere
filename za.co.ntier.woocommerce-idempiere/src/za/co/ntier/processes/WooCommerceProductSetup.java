@@ -11,6 +11,7 @@ import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeValue;
 import org.compiere.model.MProduct;
 import org.compiere.model.Query;
+import org.compiere.model.X_M_PartType;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
@@ -78,8 +79,14 @@ public class WooCommerceProductSetup extends SvrProcess {
 				.map(type -> new PartSet(type, bomComponents(type.getM_PartTypeID())))
 				.filter(set -> !set.products.isEmpty())
 				.collect(Collectors.toList());
+		List<String> collections = fields.stream().filter(field -> isFabricCollection(field.get("label")))
+				.flatMap(field -> fieldChoices(field).stream()
+						.map(choice -> choiceLabel(choice, (String) field.get("id"))))
+				.distinct().collect(Collectors.toList());
+		List<PartSet> fabricSets = collections.isEmpty()
+				? List.of() : partSets.stream().filter(this::isFabricPartSet).collect(Collectors.toList());
 		for (Map<?, ?> field : fields) {
-			reviewField(field, attributes, partSets);
+			reviewField(field, attributes, partSets, collections, fabricSets);
 		}
 		addLog(productId, null, null, "New proposals: " + proposed + ", needing a destination: "
 				+ needsReview + ", existing mappings preserved: " + existing
@@ -132,15 +139,28 @@ public class WooCommerceProductSetup extends SvrProcess {
 		return set == null ? List.of() : Arrays.asList(set.getMAttributes(true));
 	}
 
-	private void reviewField(Map<?, ?> field, List<MAttribute> attributes, List<PartSet> partSets) {
+	private void reviewField(Map<?, ?> field, List<MAttribute> attributes, List<PartSet> partSets,
+			List<String> collections, List<PartSet> fabricSets) {
 		String key = (String) field.get("id");
 		if (key == null || key.isBlank()) {
 			throw new AdempiereUserError("WooCommerce returned a field without an ID.");
 		}
 		String label = (String) field.get("label");
-		Object options = field.get("options");
-		Object choicesValue = options instanceof Map<?, ?> ? ((Map<?, ?>) options).get("choices") : null;
-		List<Map<?, ?>> choices = choicesValue == null ? List.of() : objects(choicesValue, "choices for " + key);
+		List<Map<?, ?>> choices = fieldChoices(field);
+		if (!collections.isEmpty() && label != null && !choices.isEmpty()) {
+			if (isFabricCollection(label)) {
+				for (Map<?, ?> choice : choices) {
+					proposal(field, choiceLabel(choice, key), null, List.of(), "fabric collection selector");
+				}
+				return;
+			}
+			String collection = label.strip().replaceFirst("(?i)\\s+colou?rs?$", "");
+			if (!collection.equals(label.strip())
+					&& !WooCommerceNameMatcher.match(collection, collections, Function.identity()).isEmpty()) {
+				reviewCollectionColours(field, choices, collection, fabricSets);
+				return;
+			}
+		}
 		List<MAttribute> candidates = suggest(label, attributes, MAttribute::getName);
 		if (candidates.size() == 1) {
 			MAttribute attribute = candidates.get(0);
@@ -199,6 +219,73 @@ public class WooCommerceProductSetup extends SvrProcess {
 			if (map != null && products.size() == 1) {
 				saveComponent(map, set, products.get(0), null, null);
 			}
+		}
+	}
+
+	private static List<Map<?, ?>> fieldChoices(Map<?, ?> field) {
+		Object options = field.get("options");
+		Object choices = options instanceof Map<?, ?> ? ((Map<?, ?>) options).get("choices") : null;
+		return choices == null ? List.of() : objects(choices, "choices for " + field.get("id"));
+	}
+
+	private static boolean isFabricCollection(Object label) {
+		return label instanceof String && ((String) label).strip()
+				.matches("(?i)(?:sheer|blockout) fabric collection");
+	}
+
+	private boolean isFabricPartSet(PartSet set) {
+		String partType = new X_M_PartType(getCtx(), set.type.getM_PartTypeID(), get_TrxName()).getName();
+		return "Fabric".equalsIgnoreCase(partType) || "Lining".equalsIgnoreCase(partType);
+	}
+
+	private void reviewCollectionColours(Map<?, ?> field, List<Map<?, ?>> choices, String collection,
+			List<PartSet> fabricSets) {
+		List<MProduct> components = fabricSets.stream().flatMap(set -> set.products.stream())
+				.distinct().collect(Collectors.toList());
+		List<MProduct> fabrics = WooCommerceNameMatcher.match(collection, components, MProduct::getName);
+		for (Map<?, ?> choice : choices) {
+			String value = choiceLabel(choice, (String) field.get("id"));
+			if (fabrics.isEmpty()) {
+				// Some collections have a separate BOM product for each colour.
+				List<MProduct> variants = WooCommerceNameMatcher.match(collection + " " + value,
+						components, MProduct::getName);
+				reviewCollectionComponent(field, value, variants, fabricSets, null);
+			} else {
+				reviewCollectionComponent(field, value, fabrics, fabricSets, collection);
+			}
+		}
+	}
+
+	private void reviewCollectionComponent(Map<?, ?> field, String value, List<MProduct> fabrics,
+			List<PartSet> fabricSets, String collection) {
+		if (fabrics.size() != 1) {
+			proposal(field, value, null, fabrics, "BOM fabric");
+			return;
+		}
+		MProduct fabric = fabrics.get(0);
+		List<PartSet> slots = fabricSets.stream()
+				.filter(set -> set.products.stream().anyMatch(product -> product.get_ID() == fabric.get_ID()))
+				.collect(Collectors.toList());
+		if (slots.size() != 1 || collection == null) {
+			MzzWoocommerceMap map = proposal(field, value, null, slots, "BOM fabric part type");
+			if (map != null && slots.size() == 1) {
+				saveComponent(map, slots.get(0), fabric, null, null);
+			}
+			return;
+		}
+		List<MAttribute> colours = attributesOf(fabric).stream()
+				.filter(attribute -> "L".equals(attribute.getAttributeValueType()))
+				.filter(attribute -> attribute.getName().strip().matches("(?i)(?:.*\\s)?colou?rs?"))
+				.collect(Collectors.toList());
+		if (colours.size() != 1) {
+			proposal(field, value, null, colours, "fabric colour attribute");
+			return;
+		}
+		MAttribute colour = colours.get(0);
+		List<MAttributeValue> values = attributeValues(colour, value);
+		MzzWoocommerceMap map = proposal(field, value, null, values, "fabric colour");
+		if (map != null && values.size() == 1) {
+			saveComponent(map, slots.get(0), fabric, colour, values.get(0));
 		}
 	}
 
