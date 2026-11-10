@@ -1,6 +1,8 @@
 package za.co.ntier.processes;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -35,9 +37,10 @@ public class WooCommerceProductSetup extends SvrProcess {
 	private static final String MULTI_SELECT_CHILD = "10000007";
 
 	private int productId;
-	private int proposed;
+	private int activated;
 	private int needsReview;
 	private int existing;
+	private final Map<String, List<String>> exceptions = new LinkedHashMap<>();
 
 	@Override
 	protected void prepare() {
@@ -88,9 +91,12 @@ public class WooCommerceProductSetup extends SvrProcess {
 		for (Map<?, ?> field : fields) {
 			reviewField(field, attributes, partSets, collections, fabricSets);
 		}
-		addLog(productId, null, null, "New proposals: " + proposed + ", needing a destination: "
+		exceptions.forEach((message, values) -> addLog(productId, null, null,
+				values.isEmpty() ? message : message + ": " + String.join(", ", values),
+				MProduct.Table_ID, productId));
+		addLog(productId, null, null, "Mappings activated: " + activated + ", exceptions: "
 				+ needsReview + ", existing mappings preserved: " + existing
-				+ ". New records are inactive until reviewed.", MProduct.Table_ID, productId);
+				+ ". Exceptions were left unchanged.", MProduct.Table_ID, productId);
 		return "@OK@";
 	}
 
@@ -214,7 +220,7 @@ public class WooCommerceProductSetup extends SvrProcess {
 		}
 		for (Map<?, ?> choice : choices) {
 			String value = choiceLabel(choice, key);
-			List<MProduct> products = suggest(value, set.products, MProduct::getName);
+			List<MProduct> products = WooCommerceNameMatcher.match(value, set.products, MProduct::getName);
 			MzzWoocommerceMap map = proposal(field, value, null, products, "BOM component");
 			if (map != null && products.size() == 1) {
 				saveComponent(map, set, products.get(0), null, null);
@@ -293,7 +299,11 @@ public class WooCommerceProductSetup extends SvrProcess {
 		List<MProduct> fabrics = suggest((String) field.get("label"), set.products, MProduct::getName);
 		boolean multi = "multi-image-swatch".equals(field.get("type"));
 		if (multi) {
-			proposal(field, null, MULTI_SELECT_PARENT, List.of(set), "multi-select parent");
+			MzzWoocommerceMap parent = proposal(field, null, MULTI_SELECT_PARENT,
+					List.of(set), "multi-select parent");
+			if (parent != null) {
+				activate(parent);
+			}
 		}
 		List<MAttribute> colours = fabrics.size() == 1
 				? suggest("colour", attributesOf(fabrics.get(0)), MAttribute::getName) : List.of();
@@ -318,14 +328,25 @@ public class WooCommerceProductSetup extends SvrProcess {
 	private MzzWoocommerceMap proposal(Map<?, ?> field, String value, String mode, List<?> matches, String target) {
 		String key = (String) field.get("id");
 		String label = (String) field.get("label");
-		boolean found = new Query(getCtx(), MzzWoocommerceMap.Table_Name,
+		MzzWoocommerceMap map = new Query(getCtx(), MzzWoocommerceMap.Table_Name,
 				"M_Product_ID=? AND woocommerce_field_key=? AND woocommerce_field_value IS NOT DISTINCT FROM ?",
-				get_TrxName()).setParameters(productId, key, value).match();
-		if (found) {
+				get_TrxName()).setParameters(productId, key, value).firstOnly();
+		if (map != null && map.isActive()) {
 			existing++;
 			return null;
 		}
-		MzzWoocommerceMap map = new MzzWoocommerceMap(getCtx(), 0, get_TrxName());
+		if (matches.size() != 1) {
+			String reason = (matches.isEmpty() ? "Unmatched " : "Ambiguous ") + target;
+			reportException(key, label, value, reason);
+			return null;
+		}
+		if (map == null) {
+			map = new MzzWoocommerceMap(getCtx(), 0, get_TrxName());
+		} else if (!isEmptyGeneratedProposal(map)) {
+			existing++;
+			reportException(key, label, value, "Existing inactive mapping preserved");
+			return null;
+		}
 		map.setM_Product_ID(productId);
 		map.setwoocommerce_field_key(key);
 		map.setwoocommerce_field_label(label);
@@ -334,18 +355,33 @@ public class WooCommerceProductSetup extends SvrProcess {
 		map.setIsActive(false);
 		map.setAdd_To_Duplicate("attribute".equals(target) || "attribute value".equals(target));
 		map.setignore_no_child_records(MULTI_SELECT_PARENT.equals(mode));
-		if (matches.size() == 1) {
-			map.setDescription("Review suggested " + target + " before activating.");
-			proposed++;
-		} else {
-			String reason = (matches.isEmpty() ? "Unmatched " : "Ambiguous ") + target;
-			map.setDescription(reason + ". Select a destination or explicitly mark as ignored.");
-			addLog(productId, null, null, reason + " for " + label + " [" + key + "]"
-					+ (value == null ? "" : ": " + value), MProduct.Table_ID, productId);
-			needsReview++;
-		}
+		map.setDescription("Automatically mapped " + target + ".");
 		map.saveEx();
 		return map;
+	}
+
+	private boolean isEmptyGeneratedProposal(MzzWoocommerceMap map) {
+		String description = map.getDescription();
+		return description != null && (description.startsWith("Unmatched ") || description.startsWith("Ambiguous "))
+				&& description.endsWith(". Select a destination or explicitly mark as ignored.")
+				&& !map.isignore_no_child_records()
+				&& !new Query(getCtx(), MzzWoocommerceMapLine.Table_Name, "ZZ_Woocommerce_Map_ID=?",
+						get_TrxName()).setParameters(map.get_ID()).match();
+	}
+
+	private void reportException(String key, String label, String value, String reason) {
+		List<String> values = exceptions.computeIfAbsent(
+				reason + " for " + label + " [" + key + "]", ignored -> new ArrayList<>());
+		if (value != null) {
+			values.add(value);
+		}
+		needsReview++;
+	}
+
+	private void activate(MzzWoocommerceMap map) {
+		map.setIsActive(true);
+		map.saveEx();
+		activated++;
 	}
 
 	private void saveAttribute(MzzWoocommerceMap map, MAttribute attribute, int valueId) {
@@ -353,6 +389,7 @@ public class WooCommerceProductSetup extends SvrProcess {
 		line.setM_Attribute_ID(attribute.get_ID());
 		line.setM_AttributeValue_ID(valueId);
 		line.saveEx();
+		activate(map);
 	}
 
 	private void saveComponent(MzzWoocommerceMap map, PartSet set, MProduct product,
@@ -369,6 +406,7 @@ public class WooCommerceProductSetup extends SvrProcess {
 			line.setM_Attributevalue_Product_ID(value.get_ID());
 			line.saveEx();
 		}
+		activate(map);
 	}
 
 	private MzzWoocommerceMapLine newLine(MzzWoocommerceMap map, String type) {
