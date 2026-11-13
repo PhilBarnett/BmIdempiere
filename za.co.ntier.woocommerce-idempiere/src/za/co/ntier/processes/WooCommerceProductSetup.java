@@ -28,6 +28,7 @@ import au.blindmot.model.MBLDProductPartType;
 import za.co.ntier.model.MzzWoocommerceMap;
 import za.co.ntier.model.MzzWoocommerceMapLine;
 import za.co.ntier.model.X_zz_woocommerce;
+import za.co.ntier.woocommerce.WcOrder;
 
 public class WooCommerceProductSetup extends SvrProcess {
 	private static final String ATTRIBUTE = "10000003";
@@ -156,7 +157,13 @@ public class WooCommerceProductSetup extends SvrProcess {
 		if (!collections.isEmpty() && label != null && !choices.isEmpty()) {
 			if (isFabricCollection(label)) {
 				for (Map<?, ?> choice : choices) {
-					proposal(field, choiceLabel(choice, key), null, List.of(), "fabric collection selector");
+					String value = choiceLabel(choice, key);
+					MzzWoocommerceMap map = proposal(field, value, null, List.of(value), "fabric collection selector");
+					if (map != null) {
+						map.setignore_no_child_records(true);
+						map.setDescription(WcOrder.FABRIC_COLLECTION_SELECTOR_DESCRIPTION);
+						activate(map);
+					}
 				}
 				return;
 			}
@@ -248,7 +255,14 @@ public class WooCommerceProductSetup extends SvrProcess {
 			List<PartSet> fabricSets) {
 		List<MProduct> components = fabricSets.stream().flatMap(set -> set.products.stream())
 				.distinct().collect(Collectors.toList());
-		List<MProduct> fabrics = WooCommerceNameMatcher.match(collection, components, MProduct::getName);
+		List<MProduct> fabrics = WooCommerceNameMatcher.match(collection, components,
+				product -> product.getName().strip().replaceFirst("(?i)^hoads?\\s+", ""));
+		List<MProduct> withColour = fabrics.stream()
+				.filter(product -> collectionColourAttributes(product).size() == 1)
+				.collect(Collectors.toList());
+		if (withColour.size() == 1) {
+			fabrics = withColour;
+		}
 		for (Map<?, ?> choice : choices) {
 			String value = choiceLabel(choice, (String) field.get("id"));
 			if (fabrics.isEmpty()) {
@@ -279,10 +293,7 @@ public class WooCommerceProductSetup extends SvrProcess {
 			}
 			return;
 		}
-		List<MAttribute> colours = attributesOf(fabric).stream()
-				.filter(attribute -> "L".equals(attribute.getAttributeValueType()))
-				.filter(attribute -> attribute.getName().strip().matches("(?i)(?:.*\\s)?colou?rs?"))
-				.collect(Collectors.toList());
+		List<MAttribute> colours = collectionColourAttributes(fabric);
 		if (colours.size() != 1) {
 			proposal(field, value, null, colours, "fabric colour attribute");
 			return;
@@ -293,6 +304,18 @@ public class WooCommerceProductSetup extends SvrProcess {
 		if (map != null && values.size() == 1) {
 			saveComponent(map, slots.get(0), fabric, colour, values.get(0));
 		}
+	}
+
+	private List<MAttribute> collectionColourAttributes(MProduct fabric) {
+		if (fabric.getM_AttributeSet_ID() <= 0) {
+			return List.of();
+		}
+		MAttributeSet set = new MAttributeSet(getCtx(), fabric.getM_AttributeSet_ID(), get_TrxName());
+		return Arrays.stream(set.getMAttributes(true))
+				.filter(attribute -> "L".equals(attribute.getAttributeValueType()))
+				.filter(attribute -> attribute.getName().strip().matches("(?i)(?:.*\\s)?colou?rs?")
+						|| "Colour".equalsIgnoreCase(attribute.getDescription()))
+				.collect(Collectors.toList());
 	}
 
 	private void reviewFabric(Map<?, ?> field, List<Map<?, ?>> choices, PartSet set) {
@@ -426,7 +449,8 @@ public class WooCommerceProductSetup extends SvrProcess {
 
 	private static List<MAttributeValue> attributeValues(MAttribute attribute, String label) {
 		MAttributeValue[] values = attribute.getMAttributeValues();
-		return values == null ? List.of() : WooCommerceNameMatcher.match(label, Arrays.asList(values),
+		return values == null ? List.of() : WooCommerceNameMatcher.match(label,
+				Arrays.stream(values).filter(MAttributeValue::isActive).collect(Collectors.toList()),
 				MAttributeValue::getName);
 	}
 
