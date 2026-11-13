@@ -59,6 +59,8 @@ public final class WcOrder {
 	private final String ORDER_TYPE = "BM Order";
 	//private final int POS_ORDER = 135;//Hard coded to Garden World, does not work in all clients.
 	public static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
+	public static final String FABRIC_COLLECTION_SELECTOR_DESCRIPTION = "Automatically mapped fabric collection selector.";
+
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
 	public static final String WOOCOMMERCE_MAP_MULTISELECT_PARENT = "10000006";
@@ -1823,6 +1825,7 @@ public final class WcOrder {
 			throw new AdempiereUserError("Order " + order.getDocumentNo()
 				+ " is missing Fabric Sample WAPF metadata.");
 		}
+		validateFabricCollectionSelectors(masterZzWoocommerceMapListFromMeta);
 		return masterZzWoocommerceMapListFromMeta;
 		
 	}
@@ -1850,4 +1853,38 @@ public final class WcOrder {
 	public void deleteOrder() {
 		order.delete(true);
 	}
+	private void validateFabricCollectionSelectors(List<MzzWoocommerceMap> mappings) {
+		for (MzzWoocommerceMap selector : mappings) {
+			if (!FABRIC_COLLECTION_SELECTOR_DESCRIPTION.equals(selector.getDescription())
+					|| !selector.isignore_no_child_records()) {
+				continue;
+			}
+			String collection = (String) fieldValues.get(selector.get_ID());
+			String expected = selector.getwoocommerce_field_value();
+			if (collection == null || !collection.equals(expected)) {
+				throw new AdempiereUserError("Order " + order.getDocumentNo()
+						+ " has an unmapped curtain fabric collection: " + collection);
+			}
+			boolean hasColour = mappings.stream()
+					.filter(map -> map.getwoocommerce_field_label() != null
+							&& map.getwoocommerce_field_label().strip().matches("(?i).+\\s+colou?rs?$")
+							&& map.getwoocommerce_field_label().strip().replaceFirst("(?i)\\s+colou?rs?$", "")
+									.equalsIgnoreCase(collection))
+					.filter(map -> map.getwoocommerce_field_value() != null
+							&& map.getwoocommerce_field_value().equals(fieldValues.get(map.get_ID())))
+					.anyMatch(map -> {
+						for (MzzWoocommerceMapLine line : map.getMzzWoocommerceMapLines(map.get_ID(), ctx, "", "")) {
+							if (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(line.getzz_woocommerce_map_type())) {
+								return true;
+							}
+						}
+						return false;
+					});
+			if (!hasColour) {
+				throw new AdempiereUserError("Order " + order.getDocumentNo()
+						+ " requires a mapped curtain colour for " + collection + ".");
+			}
+		}
+	}
+
 }
