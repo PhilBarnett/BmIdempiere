@@ -61,6 +61,19 @@ public final class WcOrder {
 	public static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
 	public static final String FABRIC_COLLECTION_SELECTOR_DESCRIPTION = "Automatically mapped fabric collection selector.";
 
+	private static final int CURTAIN_WOO_PRODUCT_ID = 1298;
+	private static final String CURTAIN_CONFIGURATION_FIELD = "de9a14efa7384";
+	private static final String DOUBLE_CURTAIN = "Double Curtain – Sheer + Blockout";
+	private static final String CURTAIN_HEADING_FIELD = "ce4ef1711247d";
+	private static final String CURTAIN_HEADING_ARRANGEMENT_FIELD = "f8fe601e980e1";
+	private static final String DOUBLE_CURTAIN_HEADING_ARRANGEMENT = "Front Sheer: S-Wave / Rear Blockout: Knife Pleat";
+	private static final String SHEER_COLLECTION_FIELD = "92db9fc815954";
+	private static final String BLOCKOUT_COLLECTION_FIELD = "636f72a6ea7b1";
+	private static final String SINGLE_MOTOR_SIDE_FIELD = "33607f4f3c30c";
+	private static final String SHEER_MOTOR_SIDE_FIELD = "a45bb1cc8b4f2";
+	private static final String BLOCKOUT_MOTOR_SIDE_FIELD = "f5594fa1f9e6e";
+
+
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
 	public static final String WOOCOMMERCE_MAP_MULTISELECT_PARENT = "10000006";
@@ -346,6 +359,11 @@ public final class WcOrder {
 		if(masterZzWoocommerceMapList == null)
 		{
 			return false;
+		}
+		if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
+				&& DOUBLE_CURTAIN.equals(getCurtainFieldValue(masterZzWoocommerceMapList, CURTAIN_CONFIGURATION_FIELD))) {
+			createDoubleCurtainLines(orderLine, masterZzWoocommerceMapList);
+			return true;
 		}
 		orderLine.saveEx();
 		orderLine.set_ValueOfColumn("lockprice", "Y");
@@ -1853,6 +1871,117 @@ public final class WcOrder {
 	public void deleteOrder() {
 		order.delete(true);
 	}
+	private void createDoubleCurtainLines(MOrderLine frontLine, List<MzzWoocommerceMap> mappings) {
+		if (!DOUBLE_CURTAIN_HEADING_ARRANGEMENT.equals(getCurtainFieldValue(mappings, CURTAIN_HEADING_ARRANGEMENT_FIELD))) {
+			throw curtainMappingError("requires the supported heading arrangement for a double curtain");
+		}
+		String sheerCollection = getCurtainFieldValue(mappings, SHEER_COLLECTION_FIELD);
+		String blockoutCollection = getCurtainFieldValue(mappings, BLOCKOUT_COLLECTION_FIELD);
+		if (sheerCollection == null || blockoutCollection == null || sheerCollection.equalsIgnoreCase(blockoutCollection)) {
+			throw curtainMappingError("requires distinct mapped sheer and blockout fabric collections");
+		}
+
+		ArrayList<MzzWoocommerceMap> shared = new ArrayList<>();
+		ArrayList<MzzWoocommerceMap> sheer = new ArrayList<>();
+		ArrayList<MzzWoocommerceMap> blockout = new ArrayList<>();
+		for (MzzWoocommerceMap mapping : mappings) {
+			String field = mapping.getwoocommerce_field_key();
+			if (CURTAIN_CONFIGURATION_FIELD.equals(field) || CURTAIN_HEADING_ARRANGEMENT_FIELD.equals(field)
+					|| SHEER_COLLECTION_FIELD.equals(field) || BLOCKOUT_COLLECTION_FIELD.equals(field)
+					|| CURTAIN_HEADING_FIELD.equals(field) || SINGLE_MOTOR_SIDE_FIELD.equals(field)) {
+				continue;
+			}
+			if (SHEER_MOTOR_SIDE_FIELD.equals(field) || isCurtainColourMapping(mapping, sheerCollection)) {
+				sheer.add(mapping);
+			} else if (BLOCKOUT_MOTOR_SIDE_FIELD.equals(field) || isCurtainColourMapping(mapping, blockoutCollection)) {
+				blockout.add(mapping);
+			} else if (isCurtainColourMapping(mapping, null)) {
+				throw curtainMappingError("has a fabric colour outside the selected curtain collections");
+			} else {
+				shared.add(mapping);
+			}
+		}
+		if (!hasMappedCurtainColour(sheer, sheerCollection) || !hasMappedCurtainColour(blockout, blockoutCollection)) {
+			throw curtainMappingError("requires an active fabric colour mapping for each curtain layer");
+		}
+		sheer.addAll(shared);
+		blockout.addAll(shared);
+		int productId = frontLine.getM_Product_ID();
+		sheer.add(getCurtainHeadingMapping(productId, "S-Wave"));
+		blockout.add(getCurtainHeadingMapping(productId, "Knife Pleat"));
+
+		// Copy before applying any layer mappings so the lines cannot share attribute or component instances.
+		MOrderLine rearLine = new MOrderLine(order);
+		MOrderLine.copyValues(frontLine, rearLine);
+		rearLine.setM_AttributeSetInstance_ID(0);
+		rearLine.set_ValueOfColumn("BLD_Line_ProductSetInstance_ID", null);
+
+		frontLine.set_ValueOfColumn("lockprice", "Y");
+		frontLine.saveEx();
+		processWooCommMeta(sheer, frontLine, ctx, trxName);
+		frontLine.setPrice(calcOrderLineUnitPrice(WooLineData));
+		frontLine.setLineNetAmt();
+		frontLine.saveEx();
+
+		// Retain the existing WooCommerce pricing convention for additional manufactured lines.
+		rearLine.setLine(DB.getSQLValue(trxName, "SELECT COALESCE(MAX(Line),0)+10 FROM C_OrderLine WHERE C_Order_ID=?",
+				order.getC_Order_ID()));
+		rearLine.set_ValueOfColumn("lockprice", "Y");
+		rearLine.setPrice(Env.ZERO);
+		rearLine.setPriceList(Env.ZERO);
+		rearLine.setLineNetAmt();
+		rearLine.saveEx();
+		processWooCommMeta(blockout, rearLine, ctx, trxName);
+		rearLine.setPrice(Env.ZERO);
+		rearLine.setPriceList(Env.ZERO);
+		rearLine.setLineNetAmt();
+		rearLine.saveEx();
+	}
+
+	private String getCurtainFieldValue(List<MzzWoocommerceMap> mappings, String fieldKey) {
+		for (MzzWoocommerceMap mapping : mappings) {
+			if (fieldKey.equals(mapping.getwoocommerce_field_key())) {
+				return (String) fieldValues.get(mapping.get_ID());
+			}
+		}
+		return null;
+	}
+
+	private boolean isCurtainColourMapping(MzzWoocommerceMap mapping, String collection) {
+		String label = mapping.getwoocommerce_field_label();
+		return label != null && label.strip().matches("(?i).+\\s+colou?rs?$")
+				&& (collection == null || label.strip().replaceFirst("(?i)\\s+colou?rs?$", "").equalsIgnoreCase(collection));
+	}
+
+	private MzzWoocommerceMap getCurtainHeadingMapping(int productId, String heading) {
+		MzzWoocommerceMap mapping = MzzWoocommerceMap.getMzzWoocommerceMap(productId, CURTAIN_HEADING_FIELD, heading, ctx);
+		if (mapping == null || !heading.equals(mapping.getwoocommerce_field_value())
+				|| mapping.getMzzWoocommerceMapLines(mapping.get_ID(), ctx, "", "").length == 0) {
+			throw curtainMappingError("requires an active heading mapping for " + heading);
+		}
+		fieldValues.put(mapping.get_ID(), heading);
+		return mapping;
+	}
+
+	private AdempiereUserError curtainMappingError(String detail) {
+		return new AdempiereUserError("Order " + order.getDocumentNo() + " " + detail + ".");
+	}
+
+	private boolean hasMappedCurtainColour(List<MzzWoocommerceMap> mappings, String collection) {
+		return mappings.stream()
+				.filter(map -> isCurtainColourMapping(map, collection))
+				.filter(map -> map.getwoocommerce_field_value() != null
+						&& map.getwoocommerce_field_value().equals(fieldValues.get(map.get_ID())))
+				.anyMatch(map -> {
+					for (MzzWoocommerceMapLine line : map.getMzzWoocommerceMapLines(map.get_ID(), ctx, "", "")) {
+						if (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(line.getzz_woocommerce_map_type())) {
+							return true;
+						}
+					}
+					return false;
+				});
+	}
+
 	private void validateFabricCollectionSelectors(List<MzzWoocommerceMap> mappings) {
 		for (MzzWoocommerceMap selector : mappings) {
 			if (!FABRIC_COLLECTION_SELECTOR_DESCRIPTION.equals(selector.getDescription())
@@ -1865,22 +1994,7 @@ public final class WcOrder {
 				throw new AdempiereUserError("Order " + order.getDocumentNo()
 						+ " has an unmapped curtain fabric collection: " + collection);
 			}
-			boolean hasColour = mappings.stream()
-					.filter(map -> map.getwoocommerce_field_label() != null
-							&& map.getwoocommerce_field_label().strip().matches("(?i).+\\s+colou?rs?$")
-							&& map.getwoocommerce_field_label().strip().replaceFirst("(?i)\\s+colou?rs?$", "")
-									.equalsIgnoreCase(collection))
-					.filter(map -> map.getwoocommerce_field_value() != null
-							&& map.getwoocommerce_field_value().equals(fieldValues.get(map.get_ID())))
-					.anyMatch(map -> {
-						for (MzzWoocommerceMapLine line : map.getMzzWoocommerceMapLines(map.get_ID(), ctx, "", "")) {
-							if (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(line.getzz_woocommerce_map_type())) {
-								return true;
-							}
-						}
-						return false;
-					});
-			if (!hasColour) {
+			if (!hasMappedCurtainColour(mappings, collection)) {
 				throw new AdempiereUserError("Order " + order.getDocumentNo()
 						+ " requires a mapped curtain colour for " + collection + ".");
 			}
