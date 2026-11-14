@@ -1236,8 +1236,13 @@ public final class WcOrder {
 					mAttributeSetInstance.setM_AttributeSet_ID(mAttributeSetID);
 					int m_AttributeSetInstance_ID = mAttributeSetInstance.get_ID();
 					line.setM_AttributeSetInstance_ID(m_AttributeSetInstance_ID);
-					System.out.println(currentMapItem.getFieldValue());
-					setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, currentMapItem.getFieldValue(), mapType,trxn);
+					String value = currentMapItem.getFieldValue();
+					// Curtain manufacturing reads the stored instance text to select its S-wave calculations.
+					if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
+							&& CURTAIN_HEADING_FIELD.equals(currentMapItem.getwoocommerce_field_key()) && "S-Wave".equals(value)) {
+						value = "SWave";
+					}
+					setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, value, mapType,trxn);
 					//setAttribute(String attributeValueType, MzzWoocommerceMap mzzWoocommerceMap, int m_AttributeSetInstance_ID, Properties field, String trxn)
 	
 					mAttributeSetInstance.saveEx();
