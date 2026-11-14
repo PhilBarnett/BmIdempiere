@@ -97,6 +97,7 @@ public final class WcOrder {
 	private String wooCommProductName ="";
 	private Integer wooCommProductID;
 	private StringBuilder mapNotFound;
+	private final Map<String, String> curtainSelectors = new HashMap<>();
 	private int orderBpID = 0;
 	private int cOrderID = 0;
 	private int bPLocationId = 0;
@@ -362,7 +363,7 @@ public final class WcOrder {
 			return false;
 		}
 		if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
-				&& DOUBLE_CURTAIN.equals(getCurtainFieldValue(masterZzWoocommerceMapList, CURTAIN_CONFIGURATION_FIELD))) {
+				&& DOUBLE_CURTAIN.equals(curtainSelectors.get(CURTAIN_CONFIGURATION_FIELD))) {
 			createDoubleCurtainLines(orderLine, masterZzWoocommerceMapList);
 			return true;
 		}
@@ -1664,6 +1665,7 @@ public final class WcOrder {
 	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(ArrayList<LinkedHashMap<String, Object>> metaData, int orderLineProductID) {
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapListFromMeta = new ArrayList<>(); 
 		fieldValues = new LinkedHashMap<Object, Object>();
+		curtainSelectors.clear();
 		boolean foundWapfMeta = false;
 		for (LinkedHashMap<String, Object> metaItem : metaData)
 		{
@@ -1710,6 +1712,15 @@ public final class WcOrder {
 							{                        
 								 LinkedHashMap<String, Object> field = (LinkedHashMap<String, Object>) fieldItem.getValue();
 									
+								 String fieldKey = (String) field.get("id");
+								 if (isCurtainSelector(wooCommProductID, fieldKey)) {
+									 if (!(field.get("value") instanceof String selection)
+											 || !isSupportedCurtainSelection(fieldKey, selection)
+											 || curtainSelectors.putIfAbsent(fieldKey, selection) != null) {
+										 throw curtainMappingError("has an invalid or duplicate curtain selection for " + fieldKey);
+									 }
+									 continue;
+								 }
 								 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLineProductID,(String)field.get("id"), (String)field.get("value"), ctx);
 								 if(zzWoocommerceMap == null)
 								 {
@@ -1849,6 +1860,7 @@ public final class WcOrder {
 			throw new AdempiereUserError("Order " + order.getDocumentNo()
 				+ " is missing Fabric Sample WAPF metadata.");
 		}
+		validateCurtainSelectors();
 		validateFabricCollectionSelectors(masterZzWoocommerceMapListFromMeta);
 		return masterZzWoocommerceMapListFromMeta;
 		
@@ -1877,10 +1889,32 @@ public final class WcOrder {
 	public void deleteOrder() {
 		order.delete(true);
 	}
-	private void createDoubleCurtainLines(MOrderLine frontLine, List<MzzWoocommerceMap> mappings) {
-		if (!DOUBLE_CURTAIN_HEADING_ARRANGEMENT.equals(getCurtainFieldValue(mappings, CURTAIN_HEADING_ARRANGEMENT_FIELD))) {
-			throw curtainMappingError("requires the supported heading arrangement for a double curtain");
+	public static boolean isCurtainSelector(Integer wooProductId, String fieldKey) {
+		return Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooProductId)
+				&& (CURTAIN_CONFIGURATION_FIELD.equals(fieldKey) || CURTAIN_HEADING_ARRANGEMENT_FIELD.equals(fieldKey));
+	}
+
+	public static boolean isSupportedCurtainSelection(String fieldKey, String value) {
+		if (CURTAIN_CONFIGURATION_FIELD.equals(fieldKey)) {
+			return "Single Sheer Curtain".equals(value) || "Single Blockout Curtain".equals(value)
+					|| DOUBLE_CURTAIN.equals(value);
 		}
+		return CURTAIN_HEADING_ARRANGEMENT_FIELD.equals(fieldKey) && DOUBLE_CURTAIN_HEADING_ARRANGEMENT.equals(value);
+	}
+
+	private void validateCurtainSelectors() {
+		if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)) {
+			String configuration = curtainSelectors.get(CURTAIN_CONFIGURATION_FIELD);
+			if (configuration == null) {
+				throw curtainMappingError("requires a curtain configuration");
+			}
+			if (DOUBLE_CURTAIN.equals(configuration) != curtainSelectors.containsKey(CURTAIN_HEADING_ARRANGEMENT_FIELD)) {
+				throw curtainMappingError("has a heading arrangement that does not match the curtain configuration");
+			}
+		}
+	}
+
+	private void createDoubleCurtainLines(MOrderLine frontLine, List<MzzWoocommerceMap> mappings) {
 		String sheerCollection = getCurtainFieldValue(mappings, SHEER_COLLECTION_FIELD);
 		String blockoutCollection = getCurtainFieldValue(mappings, BLOCKOUT_COLLECTION_FIELD);
 		if (sheerCollection == null || blockoutCollection == null || sheerCollection.equalsIgnoreCase(blockoutCollection)) {
@@ -1892,8 +1926,7 @@ public final class WcOrder {
 		ArrayList<MzzWoocommerceMap> blockout = new ArrayList<>();
 		for (MzzWoocommerceMap mapping : mappings) {
 			String field = mapping.getwoocommerce_field_key();
-			if (CURTAIN_CONFIGURATION_FIELD.equals(field) || CURTAIN_HEADING_ARRANGEMENT_FIELD.equals(field)
-					|| SHEER_COLLECTION_FIELD.equals(field) || BLOCKOUT_COLLECTION_FIELD.equals(field)
+			if (SHEER_COLLECTION_FIELD.equals(field) || BLOCKOUT_COLLECTION_FIELD.equals(field)
 					|| CURTAIN_HEADING_FIELD.equals(field) || SINGLE_MOTOR_SIDE_FIELD.equals(field)) {
 				continue;
 			}

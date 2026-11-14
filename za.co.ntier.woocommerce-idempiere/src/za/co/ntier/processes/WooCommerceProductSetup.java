@@ -90,7 +90,7 @@ public class WooCommerceProductSetup extends SvrProcess {
 		List<PartSet> fabricSets = collections.isEmpty()
 				? List.of() : partSets.stream().filter(this::isFabricPartSet).collect(Collectors.toList());
 		for (Map<?, ?> field : fields) {
-			reviewField(field, attributes, partSets, collections, fabricSets);
+			reviewField(wooProductId, field, attributes, partSets, collections, fabricSets);
 		}
 		exceptions.forEach((message, values) -> addLog(productId, null, null,
 				values.isEmpty() ? message : message + ": " + String.join(", ", values),
@@ -146,7 +146,7 @@ public class WooCommerceProductSetup extends SvrProcess {
 		return set == null ? List.of() : Arrays.asList(set.getMAttributes(true));
 	}
 
-	private void reviewField(Map<?, ?> field, List<MAttribute> attributes, List<PartSet> partSets,
+	private void reviewField(int wooProductId, Map<?, ?> field, List<MAttribute> attributes, List<PartSet> partSets,
 			List<String> collections, List<PartSet> fabricSets) {
 		String key = (String) field.get("id");
 		if (key == null || key.isBlank()) {
@@ -154,6 +154,19 @@ public class WooCommerceProductSetup extends SvrProcess {
 		}
 		String label = (String) field.get("label");
 		List<Map<?, ?>> choices = fieldChoices(field);
+		if (WcOrder.isCurtainSelector(wooProductId, key)) {
+			if (choices.isEmpty()) {
+				reportException(key, label, null, "Curtain selector has no choices");
+			}
+			for (Map<?, ?> choice : choices) {
+				String value = choiceLabel(choice, key);
+				if (!WcOrder.isSupportedCurtainSelection(key, value)) {
+					reportException(key, label, value, "Unsupported curtain selection");
+				}
+			}
+			return;
+		}
+
 		if (!collections.isEmpty() && label != null && !choices.isEmpty()) {
 			if (isFabricCollection(label)) {
 				for (Map<?, ?> choice : choices) {
