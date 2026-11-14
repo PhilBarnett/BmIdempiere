@@ -16,6 +16,7 @@ import java.util.logging.Level;
 
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
+import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MAttributeValue;
 import org.compiere.model.MBPartner;
@@ -1909,6 +1910,9 @@ public final class WcOrder {
 		int productId = frontLine.getM_Product_ID();
 		sheer.add(getCurtainHeadingMapping(productId, "S-Wave"));
 		blockout.add(getCurtainHeadingMapping(productId, "Knife Pleat"));
+		MAttributeSet curtainAttributes = (MAttributeSet) frontLine.getM_Product().getM_AttributeSet();
+		MAttributeValue frontPosition = getCurtainPosition(curtainAttributes, "aFront");
+		MAttributeValue backPosition = getCurtainPosition(curtainAttributes, "bback");
 
 		// Copy before applying any layer mappings so the lines cannot share attribute or component instances.
 		MOrderLine rearLine = new MOrderLine(order);
@@ -1919,6 +1923,7 @@ public final class WcOrder {
 		frontLine.set_ValueOfColumn("lockprice", "Y");
 		frontLine.saveEx();
 		processWooCommMeta(sheer, frontLine, ctx, trxName);
+		setCurtainPosition(frontLine, frontPosition);
 		frontLine.setPrice(calcOrderLineUnitPrice(WooLineData));
 		frontLine.setLineNetAmt();
 		frontLine.saveEx();
@@ -1932,10 +1937,33 @@ public final class WcOrder {
 		rearLine.setLineNetAmt();
 		rearLine.saveEx();
 		processWooCommMeta(blockout, rearLine, ctx, trxName);
+		setCurtainPosition(rearLine, backPosition);
 		rearLine.setPrice(Env.ZERO);
 		rearLine.setPriceList(Env.ZERO);
 		rearLine.setLineNetAmt();
 		rearLine.saveEx();
+	}
+
+	private MAttributeValue getCurtainPosition(MAttributeSet curtainAttributes, String searchKey) {
+		for (MAttribute attribute : curtainAttributes.getMAttributes(true)) {
+			if (attribute.isActive() && "L".equals(attribute.getAttributeValueType())
+					&& "Curtain position".equalsIgnoreCase(attribute.getName())) {
+				for (MAttributeValue value : attribute.getMAttributeValues()) {
+					if (value != null && value.isActive() && searchKey.equals(value.getValue())) {
+						return value;
+					}
+				}
+			}
+		}
+		throw curtainMappingError("requires an active Curtain position value with search key " + searchKey);
+	}
+
+	private void setCurtainPosition(MOrderLine line, MAttributeValue position) {
+		MAttributeSetInstance attributes = new MAttributeSetInstance(ctx, line.getM_AttributeSetInstance_ID(), trxName);
+		MAttribute attribute = new MAttribute(ctx, position.getM_Attribute_ID(), trxName);
+		attribute.setMAttributeInstance(attributes.get_ID(), position);
+		attributes.setDescription();
+		attributes.saveEx();
 	}
 
 	private String getCurtainFieldValue(List<MzzWoocommerceMap> mappings, String fieldKey) {
