@@ -8,6 +8,7 @@ import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.Env;
 
+import java.net.URI;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -37,6 +38,8 @@ public class WooCommerce extends SvrProcess {
 
 	private static final String ORDER_ID_PARAMETER = "WooCommerceOrderID";
 	private static final String PROCESSING_STATUS = "processing";
+	private static final String STAGING_WOO_HOST = "staging-online.blindmotion.com.au";
+	private static final int CURTAIN_WOO_PRODUCT_ID = 1298;
 	private Integer wooCommerceOrderId;
 
 	public class MyRunnable implements Runnable {
@@ -63,6 +66,10 @@ public class WooCommerce extends SvrProcess {
 			{
 				Map<?, ?> order = (Map<?, ?>) wcOrders.get(i);
 				int id = (int) order.get("id");
+				boolean rehearsal = isMarkedCurtainRehearsal(order);
+				if (rehearsal && wooCommerceOrderId == null) {
+					continue;
+				}
 				log.warning("Importing WooCommerce order " + id);
 				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
 				wcOrder.createOrder(order);
@@ -90,6 +97,14 @@ public class WooCommerce extends SvrProcess {
 				
 				if (wooCommerceOrderId != null && wcOrder.getOrderLineCount() == 0) {
 					throw new AdempiereUserError("WooCommerce order " + id + " produced no sales order lines.");
+				}
+
+				if (rehearsal) {
+					MOrder draft = new MOrder(getCtx(), wcOrder.getcOrderID(), get_TrxName());
+					draft.setDescription("STAGING CURTAIN QA - DO NOT FULFIL");
+					draft.saveEx();
+					addLog("Imported staging curtain QA order " + id + " as an iDempiere draft. WooCommerce order left On hold.");
+					continue;
 				}
 
 				//Do not flag orders that have no order lines as complete and synced; they will need to be synced manually.
@@ -151,11 +166,13 @@ public class WooCommerce extends SvrProcess {
 		if (order == null || !wooCommerceOrderId.equals(order.get("id"))) {
 			throw new AdempiereUserError("WooCommerce did not return order " + wooCommerceOrderId + ".");
 		}
-		if (!PROCESSING_STATUS.equals(order.get("status"))) {
-			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " must be in Processing status.");
-		}
 		if (!(order.get("line_items") instanceof List<?> items) || items.isEmpty()) {
 			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " has no order items.");
+		}
+		if (isMarkedCurtainRehearsal(order)) {
+			validateCurtainRehearsal(order, items, (String) defaults.get_Value("url"));
+		} else if (!PROCESSING_STATUS.equals(order.get("status"))) {
+			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " must be in Processing status.");
 		}
 		boolean existing = new Query(getCtx(), MOrder.Table_Name,
 				"AD_Client_ID=? AND AD_Org_ID=? AND IsSOTrx='Y' AND DocumentNo=?", get_TrxName())
@@ -165,6 +182,32 @@ public class WooCommerce extends SvrProcess {
 			throw new AdempiereUserError("Sales order " + wooCommerceOrderId + " already exists in iDempiere.");
 		}
 		return List.of(order);
+	}
+
+	private static boolean isMarkedCurtainRehearsal(Map<?, ?> order) {
+		return "bm-curtain-checkout-qa".equals(order.get("created_via"))
+				|| hasCurtainRehearsalMarker(order);
+	}
+
+	private static boolean hasCurtainRehearsalMarker(Map<?, ?> order) {
+		return order.get("meta_data") instanceof List<?> metadata && metadata.stream()
+				.anyMatch(entry -> entry instanceof Map<?, ?> meta
+						&& "_bm_curtain_qa_no_fulfilment".equals(meta.get("key"))
+						&& "yes".equals(meta.get("value")));
+	}
+
+	private void validateCurtainRehearsal(Map<?, ?> order, List<?> items, String storeUrl) {
+		URI store = URI.create(storeUrl);
+		if (!"https".equalsIgnoreCase(store.getScheme()) || !STAGING_WOO_HOST.equalsIgnoreCase(store.getHost())
+				|| !"on-hold".equals(order.get("status")) || !hasCurtainRehearsalMarker(order)
+				|| !"bm-curtain-checkout-qa".equals(order.get("created_via")) || order.get("date_paid") != null
+				|| !"bm_curtain_qa".equals(order.get("payment_method"))) {
+			throw new AdempiereUserError("Curtain QA import requires an unpaid, marked staging rehearsal that is On hold.");
+		}
+		if (!items.stream().allMatch(item -> item instanceof Map<?, ?> line
+				&& Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(line.get("product_id")))) {
+			throw new AdempiereUserError("The staging QA order must contain only Custom Made Curtains.");
+		}
 	}
 
 	@Override
