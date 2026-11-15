@@ -1,9 +1,11 @@
 package za.co.ntier.processes;
 
-import org.compiere.model.MOrderLine;
+import org.compiere.model.MOrder;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
+import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
+import org.compiere.util.AdempiereUserError;
 import org.compiere.util.Env;
 
 import java.sql.Timestamp;
@@ -33,6 +35,10 @@ import za.co.ntier.woocommerce.WcOrder;
 
 public class WooCommerce extends SvrProcess {
 
+	private static final String ORDER_ID_PARAMETER = "WooCommerceOrderID";
+	private static final String PROCESSING_STATUS = "processing";
+	private Integer wooCommerceOrderId;
+
 	public class MyRunnable implements Runnable {
 
 		@Override
@@ -51,24 +57,7 @@ public class WooCommerce extends SvrProcess {
 					(String) wcDefaults.get_Value("consumerkey"), (String) wcDefaults.get_Value("consumersecret"));
 			Woocommerce wooCommerce = new WooCommerceAPI(config, ApiVersionType.V3);
 
-			// Get all with request parameters
-			Map<String, String> params = new HashMap<>();
-			params.put("per_page", "100");
-			params.put("offset", "0");
-			//params.put("meta_key", "syncedToIdempiere");
-			//params.put("meta_value", "no");
-			params.put("status", "processing");//See comment below
-			//params.put("status", "completed");//See comment below
-			
-			/*Current sync behaviour:
-			 * Orders with status 'processing' are retrieved from WooComm.
-			 * Once orders are processed, orders with orderlines have their status set to 'completed' and 
-			 * 'syncedToIdempiere' flag set to yes.
-			 * Orders that have no lines will almost certainly throw errors so they can be attended to.
-			 * Currently there is no use of the 'syncedToIdempiere' flag
-			 */
-
-			List<?> wcOrders = wooCommerce.getAll(EndpointBaseType.ORDERS.getValue(), params);
+			List<?> wcOrders = ordersToSync(wooCommerce, wcDefaults);
 			// Iterate through each order
 			for (int i = 0; i < wcOrders.size(); i++) 
 			{
@@ -99,6 +88,10 @@ public class WooCommerce extends SvrProcess {
 				// Update syncedToIdempiere to 'yes'
 				//PB 06062024 Will not get executed if 'wcOrder.completeOrder()' has been disabled.
 				
+				if (wooCommerceOrderId != null && wcOrder.getOrderLineCount() == 0) {
+					throw new AdempiereUserError("WooCommerce order " + id + " produced no sales order lines.");
+				}
+
 				//Do not flag orders that have no order lines as complete and synced; they will need to be synced manually.
 				if(wcOrder.getOrderLineCount() > 0 && linesSuccessful)
 				{	
@@ -148,8 +141,44 @@ public class WooCommerce extends SvrProcess {
 		}
 	}
 
+	private List<?> ordersToSync(Woocommerce wooCommerce, PO defaults) {
+		String endpoint = EndpointBaseType.ORDERS.getValue();
+		if (wooCommerceOrderId == null) {
+			return wooCommerce.getAll(endpoint, Map.of("per_page", "100", "offset", "0", "status", PROCESSING_STATUS));
+		}
+
+		Map<?, ?> order = wooCommerce.get(endpoint, wooCommerceOrderId);
+		if (order == null || !wooCommerceOrderId.equals(order.get("id"))) {
+			throw new AdempiereUserError("WooCommerce did not return order " + wooCommerceOrderId + ".");
+		}
+		if (!PROCESSING_STATUS.equals(order.get("status"))) {
+			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " must be in Processing status.");
+		}
+		if (!(order.get("line_items") instanceof List<?> items) || items.isEmpty()) {
+			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " has no order items.");
+		}
+		boolean existing = new Query(getCtx(), MOrder.Table_Name,
+				"AD_Client_ID=? AND AD_Org_ID=? AND IsSOTrx='Y' AND DocumentNo=?", get_TrxName())
+				.setParameters(Env.getAD_Client_ID(getCtx()), defaults.getAD_Org_ID(), wooCommerceOrderId.toString())
+				.match();
+		if (existing) {
+			throw new AdempiereUserError("Sales order " + wooCommerceOrderId + " already exists in iDempiere.");
+		}
+		return List.of(order);
+	}
+
 	@Override
 	protected void prepare() {
+		wooCommerceOrderId = null;
+		for (ProcessInfoParameter parameter : getParameter()) {
+			if (ORDER_ID_PARAMETER.equals(parameter.getParameterName()) && parameter.getParameter() != null) {
+				int id = parameter.getParameterAsInt();
+				if (id <= 0) {
+					throw new AdempiereUserError("Enter a positive WooCommerce Order ID or leave the parameter blank.");
+				}
+				wooCommerceOrderId = id;
+			}
+		}
 	}
 
 	@Override
@@ -157,7 +186,8 @@ public class WooCommerce extends SvrProcess {
 		// Keep the import inside the process lifecycle so its transaction is
 		// available until all line mappings have completed or an error propagates.
 		new MyRunnable().run();
-		return "Synchronisation from WooCommerce completed";
+		return wooCommerceOrderId == null ? "Synchronisation from WooCommerce completed"
+				: "WooCommerce order " + wooCommerceOrderId + " imported";
 	}
 
 }
