@@ -1956,9 +1956,15 @@ public final class WcOrder {
 		MAttributeValue frontPosition = getCurtainPosition(curtainAttributes, "aFront");
 		MAttributeValue backPosition = getCurtainPosition(curtainAttributes, "bback");
 
-		// Copy before applying any layer mappings so the lines cannot share attribute or component instances.
+		// Populate the rear line from the current values. PO.copyValues reads the saved values.
 		MOrderLine rearLine = new MOrderLine(order);
-		MOrderLine.copyValues(frontLine, rearLine);
+		rearLine.setAD_Org_ID(frontLine.getAD_Org_ID());
+		rearLine.setM_Product_ID(productId);
+		rearLine.setDescription(frontLine.getDescription());
+		rearLine.setM_Warehouse_ID(frontLine.getM_Warehouse_ID());
+		rearLine.setC_Tax_ID(frontLine.getC_Tax_ID());
+		rearLine.setC_UOM_ID(frontLine.getC_UOM_ID());
+		rearLine.setQty(frontLine.getQtyOrdered());
 		rearLine.setM_AttributeSetInstance_ID(0);
 		rearLine.set_ValueOfColumn("BLD_Line_ProductSetInstance_ID", null);
 
