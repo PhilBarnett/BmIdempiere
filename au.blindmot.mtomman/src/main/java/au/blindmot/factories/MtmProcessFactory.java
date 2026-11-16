@@ -11,6 +11,7 @@ import au.blindmot.mtmproductinfo.processes.MtmProductGetConfig;
 import au.blindmot.processes.bmleadconvert.BMConvertLead;
 import au.blindmot.processes.bmleadconvert.BMCreateCalendarEntry;
 import au.blindmot.processes.mtmcreate.MtmCreate;
+import au.blindmot.processes.mtmcreate.ReleaseMtmOrders;
 import au.blindmot.utils.FixMBomProductIDs;
 //import main.java.BMGoogleCalendar.BMConvertLead;
 
@@ -21,6 +22,8 @@ public class MtmProcessFactory implements IProcessFactory {
 	}
 
 	public ProcessCall newProcessInstance(String className) {
+		if (ReleaseMtmOrders.class.getName().equals(className))
+			return new ReleaseMtmOrders();
 		if(className.equals("au.blindmot.processes.mtmcreate.MtmCreate"))
 			{
 				return new MtmCreate();

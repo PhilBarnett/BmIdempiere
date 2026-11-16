@@ -664,12 +664,7 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 			//MOrderLine line = orderLines[i];
 			MProduct mProduct = new MProduct(getCtx(), orderLines[i].getM_Product_ID(),get_TrxName());
 			//Products MUST be 'made to measure' and 'manufactured' to make it to a production Order.
-			String allowMultiple = (String) MtmUtils.getMattributeInstanceValue(mProduct.get_ID(), ALLOW_MULTIPLE, null);
-			int orderLineQty = theOrderLine.getQtyEntered().setScale(0, RoundingMode.HALF_UP).intValueExact();
-			if(allowMultiple == null || allowMultiple.equalsIgnoreCase("N"))
-			{
-				orderLineQty = 1;
-			}
+			int orderLineQty = productionQuantity(mProduct, theOrderLine);
 			for(int d = 0; d < orderLineQty; d++)
 			{
 				if(mProduct.get_ValueAsBoolean("ismadetomeasure") && mProduct.isManufactured())
@@ -715,6 +710,23 @@ public class MBLDMtomProduction extends X_BLD_mtom_production implements DocActi
 		return false;
 	}
 
+
+	/** Expected finished items, including configured additional products, per source line. */
+	public java.util.Map<Integer, Integer> expectedProducts(MProduct product, MOrderLine line) {
+		int quantity = productionQuantity(product, line);
+		java.util.Map<Integer, Integer> result = new java.util.HashMap<>();
+		result.put(product.get_ID(), quantity);
+		for (int extra : getadditionalMProductIDs(product, line)) {
+			result.merge(extra, quantity, Integer::sum);
+		}
+		return result;
+	}
+
+	private int productionQuantity(MProduct product, MOrderLine line) {
+		String multiple = (String) MtmUtils.getMattributeInstanceValue(product.get_ID(), ALLOW_MULTIPLE, null);
+		return multiple == null || "N".equalsIgnoreCase(multiple)
+				? 1 : line.getQtyEntered().setScale(0, RoundingMode.HALF_UP).intValueExact();
+	}
 
 	/**
 	 * Gets the additional products to add to a production from the MProduct mProduct.
