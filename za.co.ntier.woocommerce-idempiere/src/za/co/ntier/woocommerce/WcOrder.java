@@ -1219,6 +1219,12 @@ public final class WcOrder {
 		{
 			
 			String mapType = mzzWoocommerceMapLines[l].getzz_woocommerce_map_type();
+			if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
+					&& (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(mapType)
+							|| WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE.equals(mapType))) {
+				applyCurtainComponentMapping(line, mzzWoocommerceMapLines[l], currentMapItem.getFieldValue(), trxn);
+				continue;
+			}
 			/*if(mzzWoocommerceMapLines[l].isAdd_To_Duplicate())
 			{
 				//Set flags, add duplicate field to ArrayList, skip processing the field on this MOrderLine.
@@ -1409,6 +1415,63 @@ public final class WcOrder {
 			} */
 	    	}//End for(int l = 0; l < mzzWoocommerceMapLines.length; l++) loop
 		   }//End for(MzzWoocommerceMap currentMapItem : currentMapList) loop
+	}
+
+	private void applyCurtainComponentMapping(MOrderLine line, MzzWoocommerceMapLine mapping,
+			String fieldValue, String trxn) {
+		String setColumn = "BLD_Line_ProductSetInstance_ID";
+		int partTypeId = mapping.getBLD_Product_PartType_ID();
+		int componentProductId = mapping.getM_Product_Line_ID();
+		MBLDProductPartType partType = new MBLDProductPartType(ctx, partTypeId, trxn);
+		if (partType.get_ID() <= 0 || !partType.isActive() || !partType.isUserSelect()
+				|| partType.getM_Product_ID() != line.getM_Product_ID() || componentProductId <= 0) {
+			throw curtainMappingError("has an invalid curtain component destination for " + fieldValue);
+		}
+
+		MBLDLineProductSetInstance components = new MBLDLineProductSetInstance(ctx,
+				line.get_ValueAsInt(setColumn), trxn);
+		if (components.get_ID() <= 0) {
+			components.setAD_Org_ID(line.getAD_Org_ID());
+			components.saveEx(trxn);
+		}
+		int instanceId = DB.getSQLValueEx(trxn,
+				"SELECT BLD_Line_ProductInstance_ID FROM BLD_Line_ProductInstance"
+						+ " WHERE BLD_Line_ProductSetInstance_ID=? AND BLD_Product_PartType_ID=?",
+				components.get_ID(), partTypeId);
+		MBLDLineProductInstance component = new MBLDLineProductInstance(ctx, Math.max(instanceId, 0), trxn);
+		if (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(mapping.getzz_woocommerce_map_type())) {
+			if (component.get_ID() <= 0) {
+				component.setAD_Org_ID(line.getAD_Org_ID());
+				component.setBLD_Line_ProductSetInstance_ID(components.get_ID());
+				component.setBLD_Product_PartType_ID(partTypeId);
+			}
+			if (component.getM_Product_ID() != componentProductId) {
+				component.setM_AttributeSetInstance_ID(0);
+			}
+			component.setM_Product_ID(componentProductId);
+			component.saveEx(trxn);
+			line.set_ValueNoCheck(setColumn, components.get_ID());
+			line.saveEx(trxn);
+			components.setDescription(line.getM_Product_ID());
+			components.saveEx(trxn);
+			return;
+		}
+
+		if (component.getM_Product_ID() != componentProductId) {
+			throw curtainMappingError("could not find the saved curtain component for " + fieldValue);
+		}
+		MAttribute attribute = new MAttribute(ctx, mapping.getM_Attribute_Product_ID(), trxn);
+		MAttributeValue value = new MAttributeValue(ctx, mapping.getM_Attributevalue_Product_ID(), trxn);
+		if (!attribute.isActive() || value.get_ID() <= 0 || !value.isActive()
+				|| value.getM_Attribute_ID() != attribute.get_ID()) {
+			throw curtainMappingError("has an invalid curtain component attribute for " + fieldValue);
+		}
+		MAttributeSetInstance attributes = new MAttributeSetInstance(ctx, component.getM_AttributeSetInstance_ID(), trxn);
+		attributes.setM_AttributeSet_ID(MProduct.get(componentProductId).getM_AttributeSet_ID());
+		attributes.saveEx(trxn);
+		attribute.setMAttributeInstance(attributes.get_ID(), value);
+		component.setM_AttributeSetInstance_ID(attributes.get_ID());
+		component.saveEx(trxn);
 	}
 
 	public void setAttribute(String attributeValueType, 
