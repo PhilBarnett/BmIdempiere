@@ -1,7 +1,8 @@
 package au.blindmot.mtmlabels.processes;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -64,6 +65,8 @@ public class MtmLabels extends SvrProcess{
 			+ "^FO0,0^GFA,04608,04608,00036,:Z64:\n"
 			+ "eJztlk9r1EAYhydhY0M9NAsbPCg01EvZg3qsrNBZSPG6hQ091k+gLbY3pUNPBaF+AaFreyn7CYp7VXv0JB4teumhbCxF6mHX+L7zL5ndJHvQm/tCZidp5uGZ38yEEjKtaU3r/yoriqLWhHdmu1Cs9BVnmxediIGaYMOrRMnudieCbq2pahe+U+9OBGmdEiNbDC8FOdtcI+IZFYDqx5pXCNISJUbpUOQc5+qkofCMaM47diejVgDyFQ8APhrlvOPK31kmQZ3xdzYUDztO/j4KlEtHGY2BLNURyTgFRlkOB7Gid9ZEwg5EVAiSnFKQT8VvuZECjoMsHP8g8wAj2hoZh2OCzH0wnhHneJkHnjVuxOoMObbNd1KdBfzcGiBrJWwjZ+aGs9IiTtj2eEbmPtoltuAEZBG68CM+AFlOG9YMOFalRWrQsTx15Mx54dRsmwkgmvAzIpRsbJ4QQnGsg5uAyg3FT1vUDsNoS3ICMS/oM5UVhHSstTAfj/vAZemsQKnt6/PGxJ4WHJJmzjkdnXON5wP9Zpp5he8kquflKp/dlKPOC+cQweE+yKnWIDKf+lVCfVqNDB+iOMy1BYevIypiJBXJIStwbTZbFqUVuG3SWo3QXB/WgWe2y9GLXM/KcrgPDG3yZQvxD16uj7jhPjYx88lyQo4NkeaN+qj1gv6eWEnN8Yx8BIeMcIjySdcdOXs6aOBswPly0IfCzWa+T7p/AsFZIGKWtvaxqPLBjsynQipN3ATaR3Nc7DMRjcvU+gPHwZcf4/6hM4SsAgfWCw4LrJfmBGRhoX4o9mGHc1AQFi4IpE8Em61arcoPYxSt4vzga+Tjt9szPgV/Xf3yOkefJEk+w3U9hOYLXMlXbHagHUY7SfILOb1ejzV6vbcn0HnVk82729CekAY2nPP7znKSXA5g9KnmzEM7QM4AOXHcvz8Xx2fncRyfwhW/hqs/B+3FM+hJn8HOQZL8eKk4B9jMIAcwyucEFQ6XDJ+76IN30meYfIJ5PTJ8nhs+EEF/v9//5kIYHzGRfWwCaC/IU53PEIdevTF8Hub5HO0ZPkvo00h9+Lyu3xs+L9YlR+VzD/L5fmbkg4+y+SSY89UldD6sK5/leTmv7HodYRrspvJpjKxXuu4/17Prnuh8uuWV+4/MtKY1rX9UfwBZiW3o:FB1A\n"
 			+ "^PQ1,0,1,Y^FS";
+	private java.util.Properties labelContext;
+	private String labelTransaction;
 	private int bLDMtomProduction_ID = 0;
 	private boolean finishedItemOnly = false;
 	private boolean fabricSample = false;
@@ -158,6 +161,25 @@ public class MtmLabels extends SvrProcess{
 		}
 		
 		MBLDMtomProduction mBLDMtomProduction = new MBLDMtomProduction(getCtx(), bLDMtomProduction_ID, get_TrxName());
+		String labels = render(mBLDMtomProduction);
+		String filename = (mBLDMtomProduction.get_ID() > 0
+				? mBLDMtomProduction.getDocumentNo() : Integer.toString(cBPartnerLocationID)) + ".buz";
+		File file = Files.createTempDirectory("mtm-labels-").resolve(filename).toFile();
+		file.getParentFile().deleteOnExit();
+		file.deleteOnExit();
+		Files.writeString(file.toPath(), labels, Charset.defaultCharset());
+		processUI.download(file);
+		return null;
+	}
+
+	/** Render the standard production labels without a UI or printer. */
+	public static String renderProduction(MBLDMtomProduction production) {
+		return new MtmLabels().render(production);
+	}
+
+	private String render(MBLDMtomProduction mBLDMtomProduction) {
+		labelContext = mBLDMtomProduction.getCtx();
+		labelTransaction = mBLDMtomProduction.get_TrxName();
 		MBLDMtomItemLine[] lines = mBLDMtomProduction.getLines();
 		StringBuilder outputStringBuilder = new StringBuilder();
 		
@@ -184,7 +206,7 @@ public class MtmLabels extends SvrProcess{
 					 *Do other items only if finishedItemOnly is false
 					 */
 					
-						MBLDMtomCuts[] cuts = lines[i].getCutLines(getCtx(), lines[i].getbld_mtom_item_line_ID());
+						MBLDMtomCuts[] cuts = lines[i].getCutLines(labelContext, lines[i].getbld_mtom_item_line_ID());
 						//boolean fabricHasBeenCut = false;
 						
 						for(int x =0; x < cuts.length; x++)
@@ -227,7 +249,7 @@ public class MtmLabels extends SvrProcess{
 			{
 				throw new AdempiereUserError("No address details (cBPartnerLocationID ==0) to create labels for. Is this an unsaved or new record?"); 
 			}
-			MBPartnerLocation mBPartnerLocation = new MBPartnerLocation(getCtx(), cBPartnerLocationID, null);
+			MBPartnerLocation mBPartnerLocation = new MBPartnerLocation(labelContext, cBPartnerLocationID, null);
 			String address = getAddress(mBPartnerLocation);
 			for(int h = 0; h < labelCopies; h++)
 			{
@@ -235,33 +257,10 @@ public class MtmLabels extends SvrProcess{
 			}
 		}
 		
-		String filenameForDownload = "";
-		if(mBLDMtomProduction.get_ID() > 0)
-		{
-			filenameForDownload = mBLDMtomProduction.getDocumentNo() + ".buz";
-		}	
-		else
-		{
-			filenameForDownload = Integer.toString(cBPartnerLocationID) + ".buz";
-		}
-			
-		
-		File tempFile = new File(filenameForDownload);
-		FileWriter fw = new FileWriter(tempFile);
-		outputStringBuilder.append(productOutput);
-		outputStringBuilder.append(fabricOutput);
-		outputStringBuilder.append(cutItemOutput); 
-		outputStringBuilder.append(addressOutput);
-		fw.write(outputStringBuilder.toString());
-		processUI.download(tempFile);
-	
-		tempFile.deleteOnExit();
-		fw.flush();
-		fw.close();
-		log.warning("----------Finished au.blindmot.mtmlabels.processes.MtmLabels");
-		return null;
+		return outputStringBuilder.append(productOutput)
+				.append(fabricOutput).append(cutItemOutput).append(addressOutput).toString();
 	}
-	
+
 	private String getAddress(MBPartnerLocation mBPartnerLocation) {
 		MLocation mLocation = mBPartnerLocation.getLocation(false);
 		StringBuilder address = new StringBuilder();
@@ -466,7 +465,7 @@ public class MtmLabels extends SvrProcess{
 	private String addClientName(MBLDMtomProduction prod) {
 		int bpID = prod.getC_BPartner_ID();
 		if(bpID == 0) return null;
-		MBPartner bPartner = new MBPartner(getCtx(), bpID, get_TrxName());
+		MBPartner bPartner = new MBPartner(labelContext, bpID, labelTransaction);
 		String bpName = bPartner.getName();
 		String bpName2 = bPartner.getName2();
 		StringBuilder name = new StringBuilder();
@@ -529,7 +528,7 @@ public class MtmLabels extends SvrProcess{
 	}
 	
 	private String addProductname(int mProductID, boolean isEndProd) {
-		MProduct cutProduct = new MProduct(getCtx(), mProductID, get_TrxName());
+		MProduct cutProduct = new MProduct(labelContext, mProductID, labelTransaction);
 		String cutName =  cutProduct.getName();
 		StringBuilder nameToRet = new StringBuilder();
 		String fieldOrigin = "20,135";
@@ -576,12 +575,12 @@ public class MtmLabels extends SvrProcess{
 	private MProduct getBomFabric(MBLDMtomItemLine line) {
 	
 		MProduct bomProduct = null;
-		MBLDBomDerived[] bomLines = line.getBomDerivedLines (getCtx(), line.get_ID());
+		MBLDBomDerived[] bomLines = line.getBomDerivedLines (labelContext, line.get_ID());
 		for(int y = 0; y < bomLines.length; y++)
 		{
 			int mProductBomID = bomLines[y].getM_Product_ID();
-			bomProduct = new MProduct(Env.getCtx(), mProductBomID, null);
-			X_M_PartType bomPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
+			bomProduct = new MProduct(labelContext, mProductBomID, null);
+			X_M_PartType bomPartType = new X_M_PartType(labelContext, bomProduct.getM_PartType_ID(), null);
 			if(bomPartType != null)
 				{
 					if(bomPartType.getName().equalsIgnoreCase(FABRIC))
@@ -599,12 +598,12 @@ public class MtmLabels extends SvrProcess{
 		int fabID = 0;
 		int mBLDBomDerivedID = 0;
 		MProduct bomProduct = null;
-		MBLDBomDerived[] bomLines = line.getBomDerivedLines (getCtx(), line.get_ID());
+		MBLDBomDerived[] bomLines = line.getBomDerivedLines (labelContext, line.get_ID());
 		for(int y = 0; y < bomLines.length; y++)
 		{
 			int mProductBomID = bomLines[y].getM_Product_ID();
-			bomProduct = new MProduct(Env.getCtx(), mProductBomID, null);
-			X_M_PartType bomPartType = new X_M_PartType(Env.getCtx(), bomProduct.getM_PartType_ID(), null);
+			bomProduct = new MProduct(labelContext, mProductBomID, null);
+			X_M_PartType bomPartType = new X_M_PartType(labelContext, bomProduct.getM_PartType_ID(), null);
 			if(bomPartType != null)
 				{
 					if(bomPartType.getName().equalsIgnoreCase(FABRIC))
@@ -633,7 +632,7 @@ public class MtmLabels extends SvrProcess{
 		sql.append("JOIN m_attribute ma ON ma.m_attribute_id = mai.m_attribute_id ");
 		sql.append("AND mp.name = (SELECT name FROM m_product WHERE m_product_id = ?)");
 		sql.append(" AND ma.name LIKE 'Fabric desc'");
-		String fabType = DB.getSQLValueString(get_TrxName(), sql.toString(), params);
+		String fabType = DB.getSQLValueString(labelTransaction, sql.toString(), params);
 		
 		StringBuilder fabricDesc = new StringBuilder("");
 		if(name != null)fabricDesc.append(name + " ");
@@ -660,7 +659,7 @@ public class MtmLabels extends SvrProcess{
 		sql.append("WHERE mtm.bld_mtom_item_line_id = ?");
 		sql.append(" AND ma.name LIKE 'Location'");
 		Integer mtmID = new Integer(line.getbld_mtom_item_line_ID());
-		String location = DB.getSQLValueString(get_TrxName(), sql.toString(), (Object)mtmID);
+		String location = DB.getSQLValueString(labelTransaction, sql.toString(), (Object)mtmID);
 		
 		StringBuilder locToReturn = new StringBuilder();
 		locToReturn.append(FIELD_ORIGIN + "20,175");
@@ -715,7 +714,7 @@ public class MtmLabels extends SvrProcess{
 		sql.append("WHERE m_parttype_id =(SELECT m_parttype_id FROM m_product WHERE m_product_id = ?");
 		sql.append(")");
 		
-		String partType = DB.getSQLValueString(get_TrxName(), sql.toString(), mProductID);
+		String partType = DB.getSQLValueString(labelTransaction, sql.toString(), mProductID);
 		if(partType == null) return false;
 		if(partType.equalsIgnoreCase("Fabric"))return true;
 		return false;
@@ -770,9 +769,9 @@ public class MtmLabels extends SvrProcess{
 }
 	
 	private boolean isRollerBlind(int mProductID) {
-		MProduct theProduct = new MProduct(Env.getCtx(), mProductID, get_TrxName());
+		MProduct theProduct = new MProduct(labelContext, mProductID, labelTransaction);
 		int productCategoryID = theProduct.getM_Product_Category_ID();
-		MProductCategory prodCategory = new MProductCategory(getCtx(), productCategoryID, null);
+		MProductCategory prodCategory = new MProductCategory(labelContext, productCategoryID, null);
 		String name = prodCategory.getName();
 		if((name.contains("roller") || name.contains("Roller")))return true;
 		return false;
@@ -852,7 +851,7 @@ public class MtmLabels extends SvrProcess{
 		sql.append(" AND ma.name LIKE '%olour%'");
 		List<Object> params = new ArrayList<Object>();
 		params.add(bldmtombomderivedID);
-		Object attributeName = DB.getSQLValueStringEx(get_TrxName(), sql.toString(), params);
+		Object attributeName = DB.getSQLValueStringEx(labelTransaction, sql.toString(), params);
 		
 		return (String) attributeName;
 		
