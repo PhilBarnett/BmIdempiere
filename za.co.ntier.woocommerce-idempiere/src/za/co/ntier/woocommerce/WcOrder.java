@@ -111,7 +111,11 @@ public final class WcOrder {
 	}
 
 	public void createOrder(Map<?, ?> orderWc) {
-		order.setDocumentNo((orderWc.get("id").toString()));
+		createOrder(orderWc, orderWc.get("id").toString());
+	}
+
+	public void createOrder(Map<?, ?> orderWc, String documentNo) {
+		order.setDocumentNo(documentNo);
 		order.setAD_Org_ID((int) wcDefaults.get_Value("ad_org_id"));
 		int BP_Id = getBPId(getWcCustomerEmail(orderWc), orderWc);
 		order.setC_BPartner_ID(BP_Id);

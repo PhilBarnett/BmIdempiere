@@ -72,7 +72,7 @@ public class WooCommerce extends SvrProcess {
 				}
 				log.warning("Importing WooCommerce order " + id);
 				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
-				wcOrder.createOrder(order);
+				wcOrder.createOrder(order, documentNoFor(order));
 
 				// Iterate through each order Line
 				boolean linesSuccessful = true;
@@ -103,7 +103,8 @@ public class WooCommerce extends SvrProcess {
 					MOrder draft = new MOrder(getCtx(), wcOrder.getcOrderID(), get_TrxName());
 					draft.setDescription("STAGING CURTAIN QA - DO NOT FULFIL");
 					draft.saveEx();
-					addLog("Imported staging curtain QA order " + id + " as an iDempiere draft. WooCommerce order left On hold.");
+					addLog("Imported staging curtain QA order " + id + " as iDempiere draft " + draft.getDocumentNo()
+							+ ". WooCommerce order left On hold.");
 					continue;
 				}
 
@@ -174,14 +175,20 @@ public class WooCommerce extends SvrProcess {
 		} else if (!PROCESSING_STATUS.equals(order.get("status"))) {
 			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " must be in Processing status.");
 		}
+		String documentNo = documentNoFor(order);
 		boolean existing = new Query(getCtx(), MOrder.Table_Name,
 				"AD_Client_ID=? AND AD_Org_ID=? AND IsSOTrx='Y' AND DocumentNo=?", get_TrxName())
-				.setParameters(Env.getAD_Client_ID(getCtx()), defaults.getAD_Org_ID(), wooCommerceOrderId.toString())
+				.setParameters(Env.getAD_Client_ID(getCtx()), defaults.getAD_Org_ID(), documentNo)
 				.match();
 		if (existing) {
-			throw new AdempiereUserError("Sales order " + wooCommerceOrderId + " already exists in iDempiere.");
+			throw new AdempiereUserError("Sales order " + documentNo + " already exists in iDempiere.");
 		}
 		return List.of(order);
+	}
+
+	private static String documentNoFor(Map<?, ?> order) {
+		String orderId = order.get("id").toString();
+		return isMarkedCurtainRehearsal(order) ? "QA-CURTAIN-" + orderId : orderId;
 	}
 
 	private static boolean isMarkedCurtainRehearsal(Map<?, ?> order) {
