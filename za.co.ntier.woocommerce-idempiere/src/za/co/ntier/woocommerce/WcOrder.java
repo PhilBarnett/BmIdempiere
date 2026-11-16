@@ -66,6 +66,8 @@ public final class WcOrder {
 	private static final String CURTAIN_CONFIGURATION_FIELD = "de9a14efa7384";
 	private static final String DOUBLE_CURTAIN = "Double Curtain – Sheer + Blockout";
 	private static final String CURTAIN_HEADING_FIELD = "ce4ef1711247d";
+	private static final String CURTAIN_FLOOR_CLEARANCE_FIELD = "bm_curtain_floor_clearance";
+	private static final String CURTAIN_FLOOR_CLEARANCE_LABEL = "Floor Clearance (mm)";
 	private static final String CURTAIN_HEADING_ARRANGEMENT_FIELD = "f8fe601e980e1";
 	private static final String DOUBLE_CURTAIN_HEADING_ARRANGEMENT = "Front Sheer: S-Wave / Rear Blockout: Knife Pleat";
 	private static final String SHEER_COLLECTION_FIELD = "92db9fc815954";
@@ -1247,7 +1249,12 @@ public final class WcOrder {
 							&& CURTAIN_HEADING_FIELD.equals(currentMapItem.getwoocommerce_field_key()) && "S-Wave".equals(value)) {
 						value = "SWave";
 					}
-					setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, value, mapType,trxn);
+					if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
+							&& CURTAIN_FLOOR_CLEARANCE_FIELD.equals(currentMapItem.getwoocommerce_field_key())) {
+						mapAttribute.setMAttributeInstance(m_AttributeSetInstance_ID, new BigDecimal(value));
+					} else {
+						setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, value, mapType,trxn);
+					}
 					//setAttribute(String attributeValueType, MzzWoocommerceMap mzzWoocommerceMap, int m_AttributeSetInstance_ID, Properties field, String trxn)
 	
 					mAttributeSetInstance.saveEx();
@@ -1865,6 +1872,9 @@ public final class WcOrder {
 				+ " is missing Fabric Sample WAPF metadata.");
 		}
 		validateCurtainSelectors();
+		if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)) {
+			resolveCurtainFloorClearance(metaData, orderLineProductID, masterZzWoocommerceMapListFromMeta);
+		}
 		validateFabricCollectionSelectors(masterZzWoocommerceMapListFromMeta);
 		return masterZzWoocommerceMapListFromMeta;
 		
@@ -2021,6 +2031,41 @@ public final class WcOrder {
 			}
 		}
 		return null;
+	}
+
+	private void resolveCurtainFloorClearance(List<LinkedHashMap<String, Object>> metadata,
+			int productId, List<MzzWoocommerceMap> mappings) {
+		String clearance = getCurtainFieldValue(mappings, CURTAIN_FLOOR_CLEARANCE_FIELD);
+		// Native curtain checkout can store the clearance separately from the WAPF fields.
+		for (Map<String, Object> item : metadata) {
+			if (CURTAIN_FLOOR_CLEARANCE_LABEL.equalsIgnoreCase(String.valueOf(item.get("key")))) {
+				String storedClearance = String.valueOf(item.get("value")).strip();
+				if (clearance != null && !clearance.equals(storedClearance)) {
+					throw curtainMappingError("has conflicting curtain floor clearance values");
+				}
+				clearance = storedClearance;
+			}
+		}
+		if (clearance == null || !clearance.matches("0|[1-9][0-9]?|100")) {
+			throw curtainMappingError("requires a floor clearance from 0 to 100 mm");
+		}
+		MzzWoocommerceMap mapping = MzzWoocommerceMap.getMzzWoocommerceMap(productId,
+				CURTAIN_FLOOR_CLEARANCE_FIELD, clearance, ctx);
+		if (mapping == null) {
+			throw curtainMappingError("requires an active floor clearance mapping");
+		}
+		MzzWoocommerceMapLine[] destinations = mapping.getMzzWoocommerceMapLines(mapping.get_ID(), ctx, "", "");
+		if (destinations.length != 1 || !WOOCOMMERCE_MAP_TYPE_ATTRIBUTE.equals(destinations[0].getzz_woocommerce_map_type())) {
+			throw curtainMappingError("requires one floor clearance attribute mapping");
+		}
+		MAttribute attribute = new MAttribute(ctx, destinations[0].getM_Attribute_ID(), trxName);
+		if (!attribute.isActive() || !"N".equals(attribute.getAttributeValueType())
+				|| !CURTAIN_FLOOR_CLEARANCE_LABEL.equalsIgnoreCase(attribute.getName())) {
+			throw curtainMappingError("requires a numeric Floor Clearance (mm) attribute");
+		}
+		mappings.removeIf(candidate -> CURTAIN_FLOOR_CLEARANCE_FIELD.equals(candidate.getwoocommerce_field_key()));
+		mappings.add(mapping);
+		fieldValues.put(mapping.get_ID(), clearance);
 	}
 
 	private boolean isCurtainColourMapping(MzzWoocommerceMap mapping, String collection) {
