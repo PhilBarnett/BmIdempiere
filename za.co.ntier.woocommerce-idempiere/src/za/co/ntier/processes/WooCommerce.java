@@ -71,7 +71,7 @@ public class WooCommerce extends SvrProcess {
 
 			List<?> wcOrders = wooCommerce.getAll(EndpointBaseType.ORDERS.getValue(), params);
 			Connection connection = Trx.get(get_TrxName(), false).getConnection();
-			int rejectedSamples = 0;
+			int rejectedOrders = 0;
 			// Iterate through each order
 			for (int i = 0; i < wcOrders.size(); i++) 
 			{
@@ -101,11 +101,11 @@ public class WooCommerce extends SvrProcess {
 							+ " failed line mapping; iDempiere import must be rolled back.");
 					}
 
-				} catch (WcOrder.FabricSampleMappingError error) {
-					// A rejected sample must not roll back previously imported orders.
+				} catch (WcOrder.FabricSampleMappingError | WcOrder.InvalidWapfPayload error) {
+					// A rejected order must not roll back previously imported orders.
 					connection.rollback(beforeOrder);
 					connection.releaseSavepoint(beforeOrder);
-					rejectedSamples++;
+					rejectedOrders++;
 					log.warning(error.getMessage());
 					addLog(error.getMessage());
 					continue;
@@ -161,9 +161,9 @@ public class WooCommerce extends SvrProcess {
 
 				}	
 			}
-			return rejectedSamples == 0 ? "Synchronisation from WooCommerce completed"
-				: "WooCommerce synchronisation completed with " + rejectedSamples
-					+ " order(s) rejected for invalid Fabric Sample mappings. See the process log.";
+			return rejectedOrders == 0 ? "Synchronisation from WooCommerce completed"
+				: "WooCommerce synchronisation completed with " + rejectedOrders
+					+ " order(s) rejected for invalid product options or Fabric Sample mappings. See the process log.";
 		}
 	}
 

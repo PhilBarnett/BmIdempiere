@@ -335,10 +335,7 @@ public final class WcOrder {
 		if (orderLine.getC_UOM_ID()==0)
 			orderLine.setC_UOM_ID(orderLine.getM_Product().getC_UOM_ID());
 		// Resolve all option mappings before the first order-line write.
-		ArrayList<LinkedHashMap<String,Object>> metaData = (ArrayList<LinkedHashMap<String, Object>>) line.get("meta_data");
-		if (metaData == null) {
-			throw new AdempiereUserError("Order " + order.getDocumentNo() + " has no line metadata.");
-		}
+		Object metaData = line.get("meta_data");
 		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = createdMapListFromMetaData(metaData, orderLine.getM_Product_ID());
 		//IF there's been an error with the MapList, abort.
@@ -1678,201 +1675,100 @@ public final class WcOrder {
 		return 0;
 	}
 	
-	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(ArrayList<LinkedHashMap<String, Object>> metaData, int orderLineProductID) {
-		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapListFromMeta = new ArrayList<>(); 
-		fieldValues = new LinkedHashMap<Object, Object>();
-		boolean foundWapfMeta = false;
-		for (LinkedHashMap<String, Object> metaItem : metaData)
-		{
-			
-			if(metaItem.get("key").equals("_wapf_meta"))
-				 /*_wapf_meta contains the unique id of each field that
-				  * can be matched to the backend product  */
-			 {
-				 foundWapfMeta = true;
-				 // WAPF normally serializes this as an array containing one fields/settings object.
-				 // Older orders may contain the object directly; accept both forms.
-				 Object rawWapfMeta = metaItem.get("value");
-				 if (rawWapfMeta instanceof List<?>) {
-					 List<?> groups = (List<?>) rawWapfMeta;
-					 if (groups.size() != 1 || !(groups.get(0) instanceof Map<?, ?>)) {
-						 throw new AdempiereUserError("Order " + order.getDocumentNo()
-							 + " has an invalid _wapf_meta array; expected one fields/settings object.");
-					 }
-					 rawWapfMeta = groups.get(0);
-				 }
-				 if (!(rawWapfMeta instanceof Map<?, ?>)) {
-					 throw new AdempiereUserError("Order " + order.getDocumentNo()
-						 + " has invalid _wapf_meta; expected a fields/settings object.");
-				 }
-				 Map<String, Object> wapfMeta = (Map<String, Object>) rawWapfMeta;
-				 if (!(wapfMeta.get("fields") instanceof Map<?, ?>)
-					 || ((Map<?, ?>) wapfMeta.get("fields")).isEmpty()) {
-					 throw new AdempiereUserError("Order " + order.getDocumentNo()
-						 + " has no readable WAPF fields.");
-				 }
-				 //Create a list of mapping object for this WC order line
-				 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
-				 {
-					 System.out.println(wapfMetaItem.getValue());
-					 //Get a LinkedHashMap of all the fields and their IDs.
-					 
-					 LinkedHashMap<String, Object> fields = (LinkedHashMap<String, Object>) wapfMetaItem.getValue();
-					 for(Map.Entry<String, Object> fieldItem : fields.entrySet())
-					 { 
-						try 
-						{
-							 //System.out.println(fieldItem.getValue());
-							if(fieldItem.getValue().getClass().equals(LinkedHashMap.class)) 
-							{                        
-								 LinkedHashMap<String, Object> field = (LinkedHashMap<String, Object>) fieldItem.getValue();
-									
-								 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLineProductID,(String)field.get("id"), (String)field.get("value"), ctx);
-								 if(zzWoocommerceMap == null)
-								 {
-									 if (isFabricSample()) {
-										throw fabricSampleError("No active mapping for field " + field.get("id")
-											+ " (" + field.get("label") + "), value '" + field.get("value") + "'.");
-									 }
-									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
-									 msg.append(field.get("id"));
-									 msg.append(" with label: ");
-									 msg.append(field.get("label"));
-									 msg.append(" with value: ");
-									 msg.append(field.get("value"));
-									 msg.append(" in product: ");
-									 msg.append(MProduct.get(orderLineProductID).getName());
-									 msg.append(" with WooCommerce name: ");
-									 msg.append(wooCommProductName);
-									 msg.append("and Woocommerce product ID: ");
-									 msg.append(wooCommProductID);
-									 msg.append(". Empty field mappings have been added automatically, please find them and update as needed. ");
-									 msg.append(". Once the mappings are complete, delete order no. ");
-									 msg.append(order.getDocumentNo());
-									 msg.append(" and try running the Woocomerce sync process manually.");
-									 msg.append("\n\n");
-									 
-									 log.warning(msg.toString());
-									 
-									 if(mapNotFound != null)
-									 {
-										 mapNotFound.append(msg);
-									 }
-									 else
-									 {
-										 mapNotFound = new StringBuilder(msg);
-									 }
-									 
-									 zzWoocommerceMap = new MzzWoocommerceMap(ctx, 0, trxName);
-									 zzWoocommerceMap.setM_Product_ID(orderLineProductID);
-									 zzWoocommerceMap.setwoocommerce_field_key((String)field.get("id"));
-									 if(field.get("value") != null) zzWoocommerceMap.setwoocommerce_field_value((String)field.get("value"));
-									 StringBuilder description = new StringBuilder("Empty record auto created by WooCommerce Sync process.");
-									 description.append(" Please either add appropriate mapping records (child records)");
-									 description.append(" or check the 'Ignore No Child Records' box so the system does not throw an error on this record.");
-									 zzWoocommerceMap.setDescription(description.toString());
-									 zzWoocommerceMap.setAdd_To_Duplicate(false);
-									 zzWoocommerceMap.setwoocommerce_field_label((String)field.get("label"));
-									 zzWoocommerceMap.save(trxName);
-									 
-									 /*TODO: Create behaviour for unmatched WooCommerce fields as follows:
-										 * 1. Create an empty StringBuilder field. DONE: private StringBuilder mapNotFound;
-										 * 2. When a mapping record cannot be found, create the record in the database with no child records. DONE
-										 * 3. Set the 'Ignore children' column to 'N'. DONE - that's it's default
-										 * 4. Modify the above message to advise that the record has been added with empty child records, that the sync has failed and that the new record will need to have child records added 
-										 * or the 'Ignore empty children' column set to 'Y'. Done
-										 * 5.add the above message to the field.
-										 * 5a. Modify the code that finds the mapping child records to throw an error when a field mapping is found, the children are empty and the 
-										 * 'Ignore Children' field is set to 'N', send an email then throw an error.
-										 * 6. Outside the loop, log the message, Email the message, then throw an error to stop the process.
-										 * It's then up to the user to handle the further set up that is needed. What this does is at least do some of the setup
-										 * by creating the empty records.
-										 * 
-										 * */
-									 
-								
-									 
-								 }
-								 /*/Handle multi-select WooCommerce fields. These are fields where the user can select more than one option, like fabric.
-								  * The call field.get("value") returns data like "Snow,Flint".
-								  * with multiple colours selected. It is initially used for fabric sample products.
-								  * Desired behaviour: created multiple orderlines for each colour.
-								  * Throw error if it is more than can be currently handled?
-								  */
-								 
-								String multiSelect = zzWoocommerceMap.getzz_woocommerce_m_select_type();
-								if (WOOCOMMERCE_MAP_MULTISELECT_PARENT.equalsIgnoreCase(multiSelect)) {
-									String fieldContents = (String) field.get("value");
-									if (isFabricSample() && fieldContents == null) {
-										throw fabricSampleError("Missing value for field " + field.get("id")
-											+ " (" + field.get("label") + ").");
-									}
-									for (String value : fieldContents.split(",", isFabricSample() ? -1 : 0)) {
-										String choice = value.trim();
-										MzzWoocommerceMap child = MzzWoocommerceMap.getMzzWoocommerceMapChild(
-											orderLineProductID, (String) field.get("id"), choice, ctx);
-										boolean activeChild = child != null && child.isActive();
-										if (isFabricSample() && (choice.isEmpty() || !activeChild
-												|| !choice.equals(child.getwoocommerce_field_value()))) {
-											throw fabricSampleError("No exact active mapping for field "
-												+ field.get("id") + " (" + field.get("label")
-												+ "), choice '" + choice + "'.");
-										}
-										if (activeChild) {
-											masterZzWoocommerceMapListFromMeta.add(child);
-										}
-									}
-								} else
-								 {
-									 if(zzWoocommerceMap.isActive()) 
-									{
-										masterZzWoocommerceMapListFromMeta.add(zzWoocommerceMap); //Add all found mappings to List
-									}
-								 }
-								
-								 //Parse out the different options from the field values.
-								 
-								 //Create separate MzzWoocommerceMap records for each field value?
-								 
-								 
-								
-								 if(field.get("value") != null)fieldValues.put(zzWoocommerceMap.get_ID(), field.get("value"));
-								 
-								 System.out.println(field.get("id"));
-								 System.out.println(field.get("label"));
-								 System.out.println(field.get("value"));
-								 //break;//There's no more useful stuff.
-								 //processWooCommMeta(orderLine, field, orderLine.getM_Product_ID(), ctx, trxName);
-							}
-							
-						}
-						catch(java.lang.ClassCastException e)
-						{
-							if (isFabricSample()) {
-								throw fabricSampleError("Invalid sample option metadata for field " + fieldItem.getKey() + ".");
-							}
-							System.out.println("Exception thrown.");
-						}
-					 }//End field mapping loop.
-					 if(mapNotFound != null)//There were field mappings from WooCommerce not in the system.
-					 {
-						 int orgID = order.getAD_Org_ID();
-						 MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
-						 String email = mzzWoocommerce.getnotify_email();
-						 WcMailNotify.sendEmail(email, mapNotFound.toString(), "", ctx, trxName);//Email any issues found.
-						 log.warning(mapNotFound.toString());
-						 //throw new AdempiereUserError(mapNotFound.toString());//Commented out 12/11/24 to improve error handling
-						 return null;//Throw a spanner in the works to trigger error
-					 }
-				 } 
-			 }
+	public static final class InvalidWapfPayload extends IllegalArgumentException {
+		private static final long serialVersionUID = 1L;
+
+		private InvalidWapfPayload(String message, Throwable cause) {
+			super(message, cause);
 		}
-		if (isFabricSample() && !foundWapfMeta) {
-			throw fabricSampleError("Missing Fabric Sample WAPF metadata.");
-		}
-		return masterZzWoocommerceMapListFromMeta;
-		
 	}
+
+	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(Object metadata, int orderLineProductID) {
+		List<WapfOrderMetadata.Field> fields;
+		try {
+			fields = WapfOrderMetadata.parse(metadata, isFabricSample());
+		} catch (IllegalArgumentException error) {
+			throw new InvalidWapfPayload("WooCommerce order " + order.getDocumentNo()
+				+ ", item " + WooLineData.get("id") + ": invalid WAPF payload at "
+				+ error.getMessage(), error);
+		}
+
+		ArrayList<MzzWoocommerceMap> mappings = new ArrayList<>();
+		fieldValues = new LinkedHashMap<>();
+		for (WapfOrderMetadata.Field field : fields) {
+			MzzWoocommerceMap mapping = MzzWoocommerceMap.getMzzWoocommerceMap(
+				orderLineProductID, field.id, field.value, ctx);
+			if (mapping == null) {
+				if (isFabricSample()) {
+					throw fabricSampleError("No active mapping for field " + field.id
+						+ " (" + field.label + "), value '" + field.value + "'.");
+				}
+				mapping = createMissingOptionMapping(orderLineProductID, field);
+			}
+
+			if (WOOCOMMERCE_MAP_MULTISELECT_PARENT.equalsIgnoreCase(mapping.getzz_woocommerce_m_select_type())) {
+				if (field.value == null) {
+					throw new InvalidWapfPayload("WooCommerce order " + order.getDocumentNo()
+						+ ", item " + WooLineData.get("id") + ": missing value for multi-select field "
+						+ field.id + " (" + field.label + ").", null);
+				}
+				for (String value : field.value.split(",", isFabricSample() ? -1 : 0)) {
+					String choice = value.trim();
+					MzzWoocommerceMap child = MzzWoocommerceMap.getMzzWoocommerceMapChild(
+						orderLineProductID, field.id, choice, ctx);
+					boolean activeChild = child != null && child.isActive();
+					if (isFabricSample() && (choice.isEmpty() || !activeChild
+							|| !choice.equals(child.getwoocommerce_field_value()))) {
+						throw fabricSampleError("No exact active mapping for field " + field.id
+							+ " (" + field.label + "), choice '" + choice + "'.");
+					}
+					if (activeChild) {
+						mappings.add(child);
+					}
+				}
+			} else if (mapping.isActive()) {
+				mappings.add(mapping);
+			}
+
+			if (field.value != null) {
+				fieldValues.put(mapping.get_ID(), field.value);
+			}
+		}
+
+		if (mapNotFound != null) {
+			MzzWoocommerce defaults = MzzWoocommerce.get(order.getAD_Org_ID(), ctx, trxName);
+			WcMailNotify.sendEmail(defaults.getnotify_email(), mapNotFound.toString(), "", ctx, trxName);
+			log.warning(mapNotFound.toString());
+			return null;
+		}
+		return mappings;
+	}
+
+	private MzzWoocommerceMap createMissingOptionMapping(int productId, WapfOrderMetadata.Field field) {
+		if (mapNotFound == null) {
+			mapNotFound = new StringBuilder();
+		}
+		mapNotFound.append("No mapping for WooCommerce order ").append(order.getDocumentNo())
+			.append(", item ").append(WooLineData.get("id"))
+			.append(", field ").append(field.id).append(" (").append(field.label)
+			.append("), value '").append(field.value).append("' on ERP product ")
+			.append(MProduct.get(productId).getName())
+			.append(" (WooCommerce product ").append(wooCommProductID).append(").\n");
+
+		MzzWoocommerceMap mapping = new MzzWoocommerceMap(ctx, 0, trxName);
+		mapping.setM_Product_ID(productId);
+		mapping.setwoocommerce_field_key(field.id);
+		if (field.value != null) {
+			mapping.setwoocommerce_field_value(field.value);
+		}
+		mapping.setDescription("Empty record auto created by WooCommerce Sync process. "
+			+ "Add the appropriate child mappings or select Ignore No Child Records.");
+		mapping.setAdd_To_Duplicate(false);
+		mapping.setwoocommerce_field_label(field.label);
+		mapping.save(trxName);
+		return mapping;
+	}
+
 	public int getOrderBpID() {
 		return orderBpID;
 	}
