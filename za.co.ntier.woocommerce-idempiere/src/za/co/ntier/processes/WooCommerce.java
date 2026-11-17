@@ -3,6 +3,7 @@ package za.co.ntier.processes;
 import org.compiere.model.MOrder;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
+import org.compiere.process.DocAction;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
@@ -40,6 +41,10 @@ public class WooCommerce extends SvrProcess {
 	private static final String PROCESSING_STATUS = "processing";
 	private static final String STAGING_WOO_HOST = "staging-online.blindmotion.com.au";
 	private static final int CURTAIN_WOO_PRODUCT_ID = 1298;
+	// Temporary rehearsal for the single unpaid production WooCommerce test order.
+	private static final int LIVE_CURTAIN_QA_ORDER_ID = 10192;
+	private static final String LIVE_WOO_HOST = "online.blindmotion.com.au";
+	private static final String LIVE_CURTAIN_QA_LOCATION = "QA double curtain - do not fulfil";
 	private Integer wooCommerceOrderId;
 
 	public class MyRunnable implements Runnable {
@@ -66,13 +71,14 @@ public class WooCommerce extends SvrProcess {
 			{
 				Map<?, ?> order = (Map<?, ?>) wcOrders.get(i);
 				int id = (int) order.get("id");
-				boolean rehearsal = isMarkedCurtainRehearsal(order);
+				boolean liveRehearsal = isLiveCurtainRehearsal(order, wcDefaults);
+				boolean rehearsal = liveRehearsal || isMarkedCurtainRehearsal(order);
 				if (rehearsal && wooCommerceOrderId == null) {
 					continue;
 				}
 				log.warning("Importing WooCommerce order " + id);
 				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
-				wcOrder.createOrder(order, documentNoFor(order));
+				wcOrder.createOrder(order, documentNoFor(order, rehearsal));
 
 				// Iterate through each order Line
 				boolean linesSuccessful = true;
@@ -101,9 +107,13 @@ public class WooCommerce extends SvrProcess {
 
 				if (rehearsal) {
 					MOrder draft = new MOrder(getCtx(), wcOrder.getcOrderID(), get_TrxName());
-					draft.setDescription("STAGING CURTAIN QA - DO NOT FULFIL");
+					if (liveRehearsal && (!DocAction.STATUS_Drafted.equals(draft.getDocStatus())
+							|| wcOrder.getOrderLineCount() != 2)) {
+						throw new AdempiereUserError("The live curtain QA order must produce two draft curtain lines.");
+					}
+					draft.setDescription((liveRehearsal ? "LIVE" : "STAGING") + " CURTAIN QA - DO NOT FULFIL");
 					draft.saveEx();
-					addLog("Imported staging curtain QA order " + id + " as iDempiere draft " + draft.getDocumentNo()
+					addLog("Imported " + (liveRehearsal ? "live" : "staging") + " curtain QA order " + id + " as iDempiere draft " + draft.getDocumentNo()
 							+ ". WooCommerce order left On hold.");
 					continue;
 				}
@@ -170,25 +180,59 @@ public class WooCommerce extends SvrProcess {
 		if (!(order.get("line_items") instanceof List<?> items) || items.isEmpty()) {
 			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " has no order items.");
 		}
-		if (isMarkedCurtainRehearsal(order)) {
+		boolean liveRehearsal = isLiveCurtainRehearsal(order, defaults);
+		boolean markedRehearsal = isMarkedCurtainRehearsal(order);
+		if (liveRehearsal) {
+			validateLiveCurtainRehearsal(order, items);
+		} else if (markedRehearsal) {
 			validateCurtainRehearsal(order, items, (String) defaults.get_Value("url"));
 		} else if (!PROCESSING_STATUS.equals(order.get("status"))) {
 			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " must be in Processing status.");
 		}
-		String documentNo = documentNoFor(order);
-		boolean existing = new Query(getCtx(), MOrder.Table_Name,
-				"AD_Client_ID=? AND AD_Org_ID=? AND IsSOTrx='Y' AND DocumentNo=?", get_TrxName())
-				.setParameters(Env.getAD_Client_ID(getCtx()), defaults.getAD_Org_ID(), documentNo)
-				.match();
-		if (existing) {
+		String documentNo = documentNoFor(order, liveRehearsal || markedRehearsal);
+		if (salesOrderExists(defaults, documentNo)
+				|| (liveRehearsal && salesOrderExists(defaults, order.get("id").toString()))) {
 			throw new AdempiereUserError("Sales order " + documentNo + " already exists in iDempiere.");
 		}
 		return List.of(order);
 	}
 
-	private static String documentNoFor(Map<?, ?> order) {
+	private boolean salesOrderExists(PO defaults, String documentNo) {
+		return new Query(getCtx(), MOrder.Table_Name,
+				"AD_Client_ID=? AND AD_Org_ID=? AND IsSOTrx='Y' AND DocumentNo=?", get_TrxName())
+				.setParameters(Env.getAD_Client_ID(getCtx()), defaults.getAD_Org_ID(), documentNo)
+				.match();
+	}
+
+	private static String documentNoFor(Map<?, ?> order, boolean rehearsal) {
 		String orderId = order.get("id").toString();
-		return isMarkedCurtainRehearsal(order) ? "QA-CURTAIN-" + orderId : orderId;
+		return rehearsal ? "QA-CURTAIN-" + orderId : orderId;
+	}
+
+	private static boolean isLiveCurtainRehearsal(Map<?, ?> order, PO defaults) {
+		if (!Integer.valueOf(LIVE_CURTAIN_QA_ORDER_ID).equals(order.get("id"))) {
+			return false;
+		}
+		URI store = URI.create((String) defaults.get_Value("url"));
+		return "https".equalsIgnoreCase(store.getScheme()) && LIVE_WOO_HOST.equalsIgnoreCase(store.getHost());
+	}
+
+	private static void validateLiveCurtainRehearsal(Map<?, ?> order, List<?> items) {
+		if (!"on-hold".equals(order.get("status")) || !"bacs".equals(order.get("payment_method"))
+				|| order.get("date_paid") != null || !isBlankPaymentTransaction(order.get("transaction_id"))
+				|| items.size() != 1 || !(items.get(0) instanceof Map<?, ?> line)
+				|| !Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(line.get("product_id"))
+				|| !Integer.valueOf(1).equals(line.get("quantity"))
+				|| !(line.get("meta_data") instanceof List<?> metadata)
+				|| metadata.stream().noneMatch(entry -> entry instanceof Map<?, ?> meta
+						&& "Room / Location".equals(meta.get("key"))
+						&& LIVE_CURTAIN_QA_LOCATION.equals(meta.get("value")))) {
+			throw new AdempiereUserError("The live QA order must be the unpaid, marked curtain-only bank transfer order.");
+		}
+	}
+
+	private static boolean isBlankPaymentTransaction(Object transactionId) {
+		return transactionId == null || "".equals(transactionId);
 	}
 
 	private static boolean isMarkedCurtainRehearsal(Map<?, ?> order) {
