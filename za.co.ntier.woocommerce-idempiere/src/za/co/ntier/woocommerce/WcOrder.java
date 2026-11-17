@@ -58,6 +58,7 @@ public final class WcOrder {
 	private final String DOC_BASE_TYPE = "SOO";
 	private final String ORDER_TYPE = "BM Order";
 	//private final int POS_ORDER = 135;//Hard coded to Garden World, does not work in all clients.
+	private static final int FABRIC_SAMPLE_WOO_PRODUCT_ID = 128;
 	public static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
@@ -704,6 +705,9 @@ public final class WcOrder {
 		for(ArrayList<MzzWoocommerceMap> mzzWoocommerceMapList : mapList)
 		{
 			processWooCommMeta(mzzWoocommerceMapList, line, ctx, trxn);
+			if (isFabricSample()) {
+				validateFabricSample(line, trxn);
+			}
 			System.out.println(mapList.indexOf(mzzWoocommerceMapList));
 			if(calcOrderLineUnitPrice(WooLineData)==Env.ZERO)//
 			{
@@ -719,6 +723,9 @@ public final class WcOrder {
 			{
 				MOrderLine duplicateOrderLine = new MOrderLine(order);
 				MOrderLine.copyValues(line, duplicateOrderLine);
+				if (isFabricSample()) {
+					duplicateOrderLine.set_ValueNoCheck("bld_line_productsetinstance_id", null);
+				}
 				if(line.getM_AttributeSetInstance_ID() > 0)
 				{
 						MAttributeSetInstance duplicateMAttributeSetInstance = new MAttributeSetInstance(ctx, 0 ,trxn);
@@ -1373,6 +1380,42 @@ public final class WcOrder {
 		   }//End for(MzzWoocommerceMap currentMapItem : currentMapList) loop
 	}
 
+	private boolean isFabricSample() {
+		return Integer.valueOf(FABRIC_SAMPLE_WOO_PRODUCT_ID).equals(wooCommProductID);
+	}
+
+	public static final class FabricSampleMappingError extends AdempiereUserError {
+		private static final long serialVersionUID = 1L;
+
+		private FabricSampleMappingError(String message) {
+			super(message);
+		}
+	}
+
+	private FabricSampleMappingError fabricSampleError(String detail) {
+		return new FabricSampleMappingError("WooCommerce order " + order.getDocumentNo()
+			+ ", item " + WooLineData.get("id") + ": " + detail);
+	}
+
+	private void validateFabricSample(MOrderLine line, String trxn) {
+		// Sample fulfilment uses the fabric component and its Colour attribute.
+		int components = DB.getSQLValueEx(trxn,
+			"SELECT COUNT(*) FROM BLD_Line_ProductInstance component "
+			+ "JOIN M_Product product ON product.M_Product_ID = component.M_Product_ID "
+			+ "JOIN M_PartType part ON part.M_PartType_ID = product.M_PartType_ID "
+			+ "WHERE component.BLD_Line_ProductSetInstance_ID = ? AND component.IsActive = 'Y' "
+			+ "AND LOWER(part.Name) = 'fabric' "
+			+ "AND EXISTS (SELECT 1 FROM M_AttributeInstance instance "
+			+ "JOIN M_Attribute attribute ON attribute.M_Attribute_ID = instance.M_Attribute_ID "
+			+ "WHERE instance.M_AttributeSetInstance_ID = component.M_AttributeSetInstance_ID "
+			+ "AND LOWER(attribute.Name) LIKE '%colour%' AND TRIM(instance.Value) <> '')",
+			line.get_ValueAsInt("bld_line_productsetinstance_id"));
+		if (components < 1) {
+			throw fabricSampleError("ERP line " + line.getLine()
+				+ " has no fabric component with a colour. Check the Fabric Sample product mappings.");
+		}
+	}
+
 	public void setAttribute(String attributeValueType, 
 			MzzWoocommerceMapLine mzzWoocommerceMapLine, 
 			int m_AttributeSetInstance_ID, 
@@ -1687,6 +1730,10 @@ public final class WcOrder {
 								 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLineProductID,(String)field.get("id"), (String)field.get("value"), ctx);
 								 if(zzWoocommerceMap == null)
 								 {
+									 if (isFabricSample()) {
+										throw fabricSampleError("No active mapping for field " + field.get("id")
+											+ " (" + field.get("label") + "), value '" + field.get("value") + "'.");
+									 }
 									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
 									 msg.append(field.get("id"));
 									 msg.append(" with label: ");
@@ -1753,31 +1800,29 @@ public final class WcOrder {
 								  * Throw error if it is more than can be currently handled?
 								  */
 								 
-								/*Test to see if this mapping originates from a multi select field.
-								 *TODO: If the record 'zz_woocommerce_multi_select_type' is set as 'Multi Select Parent'
-								 * and the 'Ignore no child records' is 'Y' then the child records should be ignored, whether they exist or not.
-								 * Currently the non-existent child records are loaded and throwing NPE???
-								 * 24/3/2025 -> Why didn't I fix this?? I am dumb.*/
-								 String multiSelect = zzWoocommerceMap.getzz_woocommerce_m_select_type();
-								 if(multiSelect != null && multiSelect.equalsIgnoreCase(WOOCOMMERCE_MAP_MULTISELECT_PARENT) 
-										 /*&& !(zzWoocommerceMap.isignore_no_child_records())*/) 
-								 {
-									 String fieldContents = ((String) field.get("value"));
-									 String[] values = fieldContents.split(",");
-									 for(int t =0; t < values.length; t++)
-									 {
-										 values[t] = values[t].trim();
-									 }
-									 for(int p = 0; p < values.length; p++)
-									 {
-										 MzzWoocommerceMap zzWoocommerceMapChild = MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID,(String)field.get("id"), values[p], ctx);
-										 if(zzWoocommerceMapChild != null && zzWoocommerceMapChild.isActive())//Changed 24/3/2025 to prevent NPE
-										 {
-											 masterZzWoocommerceMapListFromMeta.add(zzWoocommerceMapChild);
-										 }
-									 }
-								 }
-								 else
+								String multiSelect = zzWoocommerceMap.getzz_woocommerce_m_select_type();
+								if (WOOCOMMERCE_MAP_MULTISELECT_PARENT.equalsIgnoreCase(multiSelect)) {
+									String fieldContents = (String) field.get("value");
+									if (isFabricSample() && fieldContents == null) {
+										throw fabricSampleError("Missing value for field " + field.get("id")
+											+ " (" + field.get("label") + ").");
+									}
+									for (String value : fieldContents.split(",", isFabricSample() ? -1 : 0)) {
+										String choice = value.trim();
+										MzzWoocommerceMap child = MzzWoocommerceMap.getMzzWoocommerceMapChild(
+											orderLineProductID, (String) field.get("id"), choice, ctx);
+										boolean activeChild = child != null && child.isActive();
+										if (isFabricSample() && (choice.isEmpty() || !activeChild
+												|| !choice.equals(child.getwoocommerce_field_value()))) {
+											throw fabricSampleError("No exact active mapping for field "
+												+ field.get("id") + " (" + field.get("label")
+												+ "), choice '" + choice + "'.");
+										}
+										if (activeChild) {
+											masterZzWoocommerceMapListFromMeta.add(child);
+										}
+									}
+								} else
 								 {
 									 if(zzWoocommerceMap.isActive()) 
 									{
@@ -1803,6 +1848,9 @@ public final class WcOrder {
 						}
 						catch(java.lang.ClassCastException e)
 						{
+							if (isFabricSample()) {
+								throw fabricSampleError("Invalid sample option metadata for field " + fieldItem.getKey() + ".");
+							}
 							System.out.println("Exception thrown.");
 						}
 					 }//End field mapping loop.
@@ -1819,9 +1867,8 @@ public final class WcOrder {
 				 } 
 			 }
 		}
-		if (Integer.valueOf(128).equals(wooCommProductID) && !foundWapfMeta) {
-			throw new AdempiereUserError("Order " + order.getDocumentNo()
-				+ " is missing Fabric Sample WAPF metadata.");
+		if (isFabricSample() && !foundWapfMeta) {
+			throw fabricSampleError("Missing Fabric Sample WAPF metadata.");
 		}
 		return masterZzWoocommerceMapListFromMeta;
 		
