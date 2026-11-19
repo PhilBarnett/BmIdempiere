@@ -257,17 +257,9 @@ public class MzzWoocommerceMap extends X_ZZ_Woocommerce_Map {
 			} else if (WcOrder.WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(type)
 					|| WcOrder.WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE.equals(type)) {
 				int component = line.getM_Product_Line_ID();
-				int match = DB.getSQLValueEx(get_TrxName(),
-						"SELECT COUNT(*) FROM PP_Product_BOM b"
-						+ " JOIN PP_Product_BOMLine bl ON bl.PP_Product_BOM_ID=b.PP_Product_BOM_ID"
-						+ " JOIN M_Product p ON p.M_Product_ID=bl.M_Product_ID"
-						+ " JOIN BLD_Product_PartType pt ON pt.M_PartType_ID=p.M_PartType_ID"
-						+ " WHERE b.M_Product_ID=? AND b.IsActive='Y' AND b.BOMType='A'"
-						+ " AND bl.M_Product_ID=? AND bl.IsActive='Y' AND p.IsActive='Y'"
-						+ " AND pt.BLD_Product_PartType_ID=? AND pt.M_Product_ID=b.M_Product_ID AND pt.IsActive='Y'",
-						getM_Product_ID(), component, line.getBLD_Product_PartType_ID());
-				if (match == 0) {
-					throw new AdempiereUserError("The mapped component is not in this product's active BOM and part type.");
+				if (!WooCommerceComponentLookup.contains(getCtx(), getM_Product_ID(),
+						line.getBLD_Product_PartType_ID(), component, get_TrxName())) {
+					throw new AdempiereUserError("The mapped component is not in this selector's configured active BOM source.");
 				}
 				if (WcOrder.WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE.equals(type)) {
 					validateAttribute(component, line.getM_Attribute_Product_ID(), line.getM_Attributevalue_Product_ID());
@@ -315,3 +307,4 @@ public class MzzWoocommerceMap extends X_ZZ_Woocommerce_Map {
 		
 	}
 }
+
