@@ -269,7 +269,8 @@ public class WooCommerceProductSetup extends SvrProcess {
 		List<MProduct> components = fabricSets.stream().flatMap(set -> set.products.stream())
 				.distinct().collect(Collectors.toList());
 		List<MProduct> fabrics = WooCommerceNameMatcher.match(collection, components,
-				product -> product.getName().strip().replaceFirst("(?i)^hoads?\\s+", ""));
+				product -> product.getName().strip().replaceFirst("(?i)^hoads?\\s+", "")
+						.replaceFirst("(?i)\\s+-\\s+hoads?$", ""));
 		List<MProduct> withColour = fabrics.stream()
 				.filter(product -> collectionColourAttributes(product).size() == 1)
 				.collect(Collectors.toList());

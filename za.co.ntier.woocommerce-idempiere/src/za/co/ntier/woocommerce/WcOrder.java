@@ -75,6 +75,8 @@ public final class WcOrder {
 	private static final String SINGLE_MOTOR_SIDE_FIELD = "33607f4f3c30c";
 	private static final String SHEER_MOTOR_SIDE_FIELD = "a45bb1cc8b4f2";
 	private static final String BLOCKOUT_MOTOR_SIDE_FIELD = "f5594fa1f9e6e";
+	private static final String SHEER_HEM_FIELD = "bm_curtain_sheer_hem";
+	private static final String BLOCKOUT_HEM_FIELD = "bm_curtain_blockout_hem";
 
 
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
@@ -2007,9 +2009,11 @@ public final class WcOrder {
 					|| CURTAIN_HEADING_FIELD.equals(field) || SINGLE_MOTOR_SIDE_FIELD.equals(field)) {
 				continue;
 			}
-			if (SHEER_MOTOR_SIDE_FIELD.equals(field) || isCurtainColourMapping(mapping, sheerCollection)) {
+			if (SHEER_MOTOR_SIDE_FIELD.equals(field) || SHEER_HEM_FIELD.equals(field)
+					|| isCurtainColourMapping(mapping, sheerCollection)) {
 				sheer.add(mapping);
-			} else if (BLOCKOUT_MOTOR_SIDE_FIELD.equals(field) || isCurtainColourMapping(mapping, blockoutCollection)) {
+			} else if (BLOCKOUT_MOTOR_SIDE_FIELD.equals(field) || BLOCKOUT_HEM_FIELD.equals(field)
+					|| isCurtainColourMapping(mapping, blockoutCollection)) {
 				blockout.add(mapping);
 			} else if (isCurtainColourMapping(mapping, null)) {
 				throw curtainMappingError("has a fabric colour outside the selected curtain collections");
