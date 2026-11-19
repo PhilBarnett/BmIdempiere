@@ -26,6 +26,7 @@ import com.icoderman.woocommerce.oauth.OAuthConfig;
 
 import au.blindmot.model.MBLDProductPartType;
 import za.co.ntier.model.MzzWoocommerceMap;
+import za.co.ntier.model.WooCommerceComponentLookup;
 import za.co.ntier.model.MzzWoocommerceMapLine;
 import za.co.ntier.model.X_zz_woocommerce;
 import za.co.ntier.woocommerce.WcOrder;
@@ -80,7 +81,7 @@ public class WooCommerceProductSetup extends SvrProcess {
 		List<MAttribute> attributes = attributesOf(erpProduct);
 		List<PartSet> partSets = Arrays.stream(MBLDProductPartType.getMBLDProductPartTypes(
 				getCtx(), productId, get_TrxName()))
-				.map(type -> new PartSet(type, bomComponents(type.getM_PartTypeID())))
+				.map(type -> new PartSet(type, WooCommerceComponentLookup.products(getCtx(), productId, type.get_ID(), get_TrxName())))
 				.filter(set -> !set.products.isEmpty())
 				.collect(Collectors.toList());
 		List<String> collections = fields.stream().filter(field -> isFabricCollection(field.get("label")))
@@ -99,15 +100,6 @@ public class WooCommerceProductSetup extends SvrProcess {
 				+ needsReview + ", existing mappings preserved: " + existing
 				+ ". Exceptions were left unchanged.", MProduct.Table_ID, productId);
 		return "@OK@";
-	}
-
-	private List<MProduct> bomComponents(int partTypeId) {
-		return new Query(getCtx(), MProduct.Table_Name,
-				"IsActive='Y' AND M_PartType_ID=? AND EXISTS (SELECT 1 FROM PP_Product_BOMLine bl"
-				+ " JOIN PP_Product_BOM b ON b.PP_Product_BOM_ID=bl.PP_Product_BOM_ID"
-				+ " WHERE bl.M_Product_ID=M_Product.M_Product_ID AND bl.IsActive='Y'"
-				+ " AND b.M_Product_ID=? AND b.IsActive='Y' AND b.BOMType='A')", get_TrxName())
-				.setParameters(partTypeId, productId).list();
 	}
 
 	private static List<Map<?, ?>> getFields(Map<?, ?> product, int wooProductId) {
@@ -481,3 +473,4 @@ public class WooCommerceProductSetup extends SvrProcess {
 		}
 	}
 }
+
