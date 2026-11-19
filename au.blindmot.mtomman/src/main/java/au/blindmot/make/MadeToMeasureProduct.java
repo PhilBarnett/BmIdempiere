@@ -344,6 +344,16 @@ public static String EACH_1 = "Ea ";//Each with space
 			}
 			MAttributeInstance attributeInstance = attribute.getMAttributeInstance(instanceId);
 			String value = attributeInstance == null ? null : attributeInstance.getValue();
+			if (attributeInstance != null && "N".equals(attribute.getAttributeValueType())) {
+				// Manufacturing must use the numeric value, not its cached display text.
+				value = attributeInstance.get_Value("ValueNumber") == null ? null
+						: attributeInstance.getValueNumber().stripTrailingZeros().toPlainString();
+			} else if (attributeInstance != null && "L".equals(attribute.getAttributeValueType())) {
+				// WooCommerce labels can differ from the mapped ERP list value's name.
+				int valueId = attributeInstance.getM_AttributeValue_ID();
+				value = valueId <= 0 ? null
+						: new MAttributeValue(attribute.getCtx(), valueId, attribute.get_TrxName()).getName();
+			}
 			boolean dimension = name.equalsIgnoreCase("Width") || name.equalsIgnoreCase("Drop")
 					|| name.equalsIgnoreCase("Height") || name.equalsIgnoreCase("Depth");
 			if (value == null || value.trim().isEmpty()) {
