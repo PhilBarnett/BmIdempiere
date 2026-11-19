@@ -332,93 +332,42 @@ public static String EACH_1 = "Ea ";//Each with space
 	}
 	
 	public AttributePair[] getMAttributeSetInstance() {
-		int mAttributeSetInstance_ID = mBLDMtomItemLine.getattributesetinstance_id();
-		MAttributeSetInstance mAttributeSetInstance = new MAttributeSetInstance(null, mAttributeSetInstance_ID, null);
-		
-		MAttributeSet mAttributeSet = new MAttributeSet(null, mAttributeSetInstance.getM_AttributeSet_ID(), null);
-		
-		/*Notes: mai contains the actual instance value, like '1600' or 'Right hand chain'
-		 * attributes[] holds the names of the attributes in order that they appear in the Attribute Set Instance dialog box.
-		 * Original plan was to 'interpret' parts required from the MAI then match them to BOM items. This is a bad idea.
-		 * BETTER would be to select the parts directly from BOM via the MtmButton.
-		 * HACK: Add to MProducts something like 'blind control', 'blind bracket', 'blind tube', 'blind bottom bar' etc.
-		 * 
-		 * So what do we set with MAIs? Things that aren't directly related to parts!
-		 * Width, drop, control side, location - what else?
-		 * MbldLineProduct instance (Product options) in conjunction with BOM triggers handle changes in parts related to size and Mattribute instance triggered changes.
-		 */
-		
-		MAttribute[] attributes = mAttributeSet.getMAttributes(true);
+		int instanceId = mBLDMtomItemLine.getattributesetinstance_id();
+		MAttributeSetInstance instance = new MAttributeSetInstance(null, instanceId, null);
+		MAttributeSet attributeSet = new MAttributeSet(null, instance.getM_AttributeSet_ID(), null);
 		List<AttributePair> list = new ArrayList<AttributePair>();
-		for (int i = 0; i < attributes.length; i++) {
-			MAttributeInstance mai = attributes[i].getMAttributeInstance(mAttributeSetInstance.getM_AttributeSetInstance_ID());
-			//Below commented out 26/7/22; was causing termination of loop when a null attribute value was found.
-			/*if (mai == null || mai.getValue() == null || attributes[i] == null)
-			{
-				break;
+		for (MAttribute attribute : attributeSet.getMAttributes(true)) {
+			String name = attribute.getName();
+			if (name == null) {
+				log.log(Level.SEVERE, "Attribute name missing from mtom_item_line_id: " + mtom_item_line_id);
+				continue;
 			}
-			else*/
-			{
-				
-				if(attributes[i].getName() == null)
-				{
-					log.log(Level.SEVERE, "Atrributes missing from mtom_item_line_id: " + mtom_item_line_id);
+			MAttributeInstance attributeInstance = attribute.getMAttributeInstance(instanceId);
+			String value = attributeInstance == null ? null : attributeInstance.getValue();
+			boolean dimension = name.equalsIgnoreCase("Width") || name.equalsIgnoreCase("Drop")
+					|| name.equalsIgnoreCase("Height") || name.equalsIgnoreCase("Depth");
+			if (value == null || value.trim().isEmpty()) {
+				if (attribute.isMandatory() || dimension) {
+					throw new AdempiereUserError("The attribute: " + name + " of line: "
+							+ mBLDMtomItemLine.getLine() + " is missing a value.");
 				}
-				
-				else if(attributes[i].getName().equalsIgnoreCase("Width"))
-				{
-					wide = Integer.parseInt(mai.getValue());
-				}
-				else if(attributes[i].getName().equalsIgnoreCase("Drop"))
-				{
-					high = Integer.parseInt(mai.getValue());
-				}
-				else if(attributes[i].getName().equalsIgnoreCase("Height"))
-				{
-					high = Integer.parseInt(mai.getValue());
-				}
-				else if(attributes[i].getName().equalsIgnoreCase("Depth"))
-				{
-					deep = Integer.parseInt(mai.getValue());
-				}
-				
-				else 
-					{
-					try {
-						
-						
-						if (mai.getValue() == null || mai != null || attributes[i] != null)
-							{
-								list.add(new AttributePair(attributes[i].getName().toString(), mai.getValue()));//Add the remaining attributes to an AtributePair
-							}
-					
-						
-					} catch (NullPointerException e) {
-						
-					throw new AdempiereUserError("The attribute: " + attributes[i].getName().toString() + " of line: " + mBLDMtomItemLine.getLine() + " is missing a value.");
-						// TODO: handle exception
-					}
-					//System.out.println("mai.getValue(): " + mai.getValue());
-						
-
-					}
-				
-				/*
-				 * Notes: mai contains the actual instance value, like '1600' or 'Right hand chain'
-				 * attributes[] holds the names of the attributes in order that appear in the Attribute Set Instance dialog box.
-				 * 
-				 */
+				// Optional attributes may have no instance row, for example manual curtain control side.
+				continue;
 			}
-				
+			if (name.equalsIgnoreCase("Width")) {
+				wide = Integer.parseInt(value);
+			} else if (name.equalsIgnoreCase("Drop") || name.equalsIgnoreCase("Height")) {
+				high = Integer.parseInt(value);
+			} else if (name.equalsIgnoreCase("Depth")) {
+				deep = Integer.parseInt(value);
+			} else {
+				list.add(new AttributePair(name, value));
+			}
 		}
-		if(mBLDMtomItemLine.getinstance_string() != null)mtmInstanceParts = mBLDMtomItemLine.getinstance_string();
+		if (mBLDMtomItemLine.getinstance_string() != null) {
+			mtmInstanceParts = mBLDMtomItemLine.getinstance_string();
+		}
 		return list.toArray(new AttributePair[list.size()]);
-		/*mtmInstanceParts
-		 * TODO: Add fields for fabric and chain get/set/handle MBLDMtomItemLine.instance_string
-		 * Note MBLDMtomItemLine.instance_string holds the values for chain and fabric product_ids
-		 */
-		
-		
 	}
 	
 	public int getWaste(int mprodID) {
