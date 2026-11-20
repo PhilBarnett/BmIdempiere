@@ -5,8 +5,11 @@ import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.Env;
+import org.compiere.util.Trx;
 
-import java.sql.Timestamp;
+import java.sql.Connection;
+import java.sql.Savepoint;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -33,10 +36,8 @@ import za.co.ntier.woocommerce.WcOrder;
 
 public class WooCommerce extends SvrProcess {
 
-	public class MyRunnable implements Runnable {
-
-		@Override
-		public void run() {
+	private class OrderSync {
+		String run() throws SQLException {
 
 			// Get WooCommerce defaults
 			final PO wcDefaults;
@@ -59,7 +60,7 @@ public class WooCommerce extends SvrProcess {
 			//params.put("meta_value", "no");
 			params.put("status", "processing");//See comment below
 			//params.put("status", "completed");//See comment below
-			
+
 			/*Current sync behaviour:
 			 * Orders with status 'processing' are retrieved from WooComm.
 			 * Once orders are processed, orders with orderlines have their status set to 'completed' and 
@@ -69,6 +70,8 @@ public class WooCommerce extends SvrProcess {
 			 */
 
 			List<?> wcOrders = wooCommerce.getAll(EndpointBaseType.ORDERS.getValue(), params);
+			Connection connection = Trx.get(get_TrxName(), false).getConnection();
+			int rejectedOrders = 0;
 			// Iterate through each order
 			for (int i = 0; i < wcOrders.size(); i++) 
 			{
@@ -76,31 +79,44 @@ public class WooCommerce extends SvrProcess {
 				int id = (int) order.get("id");
 				log.warning("Importing WooCommerce order " + id);
 				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
-				wcOrder.createOrder(order);
+				Savepoint beforeOrder = connection.setSavepoint();
+				try {
+					wcOrder.createOrder(order);
 
-				// Iterate through each order Line
-				boolean linesSuccessful = true;
-				List<?> lines = (List<?>) order.get("line_items");
-				for (int j = 0; j < lines.size(); j++) 
-				{
-					Map<?, ?> line = (Map<?, ?>) lines.get(j);
-					if(!wcOrder.createOrderLine(line, order))//Will return false if errors
+					// Iterate through each order Line
+					boolean linesSuccessful = true;
+					List<?> lines = (List<?>) order.get("line_items");
+					for (int j = 0; j < lines.size(); j++)
 					{
-						linesSuccessful = false;
+						Map<?, ?> line = (Map<?, ?>) lines.get(j);
+						if(!wcOrder.createOrderLine(line, order))//Will return false if errors
+						{
+							linesSuccessful = false;
+						}
+						Object name = line.get("name");
+						log.warning("Name of Product = " + name.toString());
 					}
-					Object name = line.get("name");
-					log.warning("Name of Product = " + name.toString());
+					if (!linesSuccessful) {
+						throw new IllegalStateException("WooCommerce order " + id
+							+ " failed line mapping; iDempiere import must be rolled back.");
+					}
+
+				} catch (WcOrder.FabricSampleMappingError | WcOrder.InvalidWapfPayload error) {
+					// A rejected order must not roll back previously imported orders.
+					connection.rollback(beforeOrder);
+					connection.releaseSavepoint(beforeOrder);
+					rejectedOrders++;
+					log.warning(error.getMessage());
+					addLog(error.getMessage());
+					continue;
 				}
-				if (!linesSuccessful) {
-					throw new IllegalStateException("WooCommerce order " + id
-						+ " failed line mapping; iDempiere import must be rolled back.");
-				}
+				connection.releaseSavepoint(beforeOrder);
 
 				// Update syncedToIdempiere to 'yes'
 				//PB 06062024 Will not get executed if 'wcOrder.completeOrder()' has been disabled.
-				
+
 				//Do not flag orders that have no order lines as complete and synced; they will need to be synced manually.
-				if(wcOrder.getOrderLineCount() > 0 && linesSuccessful)
+				if(wcOrder.getOrderLineCount() > 0)
 				{	
 
 					//Create installation record
@@ -130,7 +146,7 @@ public class WooCommerce extends SvrProcess {
 					Map<?, ?> response = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body);
 					System.out.println(response.toString());
 					log.warning("---------Response from WooCommerce: " + response.toString());
-					
+
 					//Pass 2 -> Update syncedToIdempiere to 'yes', must be done separately to status=completed.
 					Map<String, Object> body2 = new HashMap<>();
 					List<Map<String, String>> listOfMetaData = new ArrayList<Map<String, String>>();
@@ -142,9 +158,12 @@ public class WooCommerce extends SvrProcess {
 					Map<?, ?> response2 = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body2);
 					System.out.println(response2.toString());
 					log.warning("---------Response2 from WooCommerce: " + response2.toString());
-					
+
 				}	
 			}
+			return rejectedOrders == 0 ? "Synchronisation from WooCommerce completed"
+				: "WooCommerce synchronisation completed with " + rejectedOrders
+					+ " order(s) rejected for invalid product options or Fabric Sample mappings. See the process log.";
 		}
 	}
 
@@ -156,8 +175,7 @@ public class WooCommerce extends SvrProcess {
 	protected String doIt() throws Exception {
 		// Keep the import inside the process lifecycle so its transaction is
 		// available until all line mappings have completed or an error propagates.
-		new MyRunnable().run();
-		return "Synchronisation from WooCommerce completed";
+		return new OrderSync().run();
 	}
 
 }
