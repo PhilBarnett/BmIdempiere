@@ -179,7 +179,11 @@ public class WooCommerceProductSetup extends SvrProcess {
 				return;
 			}
 		}
-		List<MAttribute> candidates = suggest(label, attributes, MAttribute::getName);
+		boolean motorPosition = WcOrder.isCurtainMotorPositionField(wooProductId, key);
+		List<MAttribute> candidates = motorPosition
+				? attributes.stream().filter(attribute -> "Curtain Control Side".equalsIgnoreCase(attribute.getName()))
+						.collect(Collectors.toList())
+				: suggest(label, attributes, MAttribute::getName);
 		if (candidates.size() == 1) {
 			MAttribute attribute = candidates.get(0);
 			String type = attribute.getAttributeValueType();
@@ -187,6 +191,9 @@ public class WooCommerceProductSetup extends SvrProcess {
 				for (Map<?, ?> choice : choices) {
 					String value = choiceLabel(choice, key);
 					List<MAttributeValue> matches = attributeValues(attribute, value);
+					if (motorPosition && matches.isEmpty() && value.startsWith("Motor on ")) {
+						matches = attributeValues(attribute, value.substring("Motor on ".length()));
+					}
 					MzzWoocommerceMap map = proposal(field, value, null, matches, "attribute value");
 					if (map != null && matches.size() == 1) {
 						saveAttribute(map, attribute, matches.get(0).get_ID());

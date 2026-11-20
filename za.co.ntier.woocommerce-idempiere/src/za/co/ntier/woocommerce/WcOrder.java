@@ -76,6 +76,12 @@ public final class WcOrder {
 	private static final String SHEER_MOTOR_SIDE_FIELD = "a45bb1cc8b4f2";
 	private static final String BLOCKOUT_MOTOR_SIDE_FIELD = "f5594fa1f9e6e";
 
+	public static boolean isCurtainMotorPositionField(int productId, String fieldKey) {
+		return productId == CURTAIN_WOO_PRODUCT_ID
+				&& (SINGLE_MOTOR_SIDE_FIELD.equals(fieldKey) || SHEER_MOTOR_SIDE_FIELD.equals(fieldKey)
+						|| BLOCKOUT_MOTOR_SIDE_FIELD.equals(fieldKey));
+	}
+
 
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
