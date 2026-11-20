@@ -72,13 +72,14 @@ public class WooCommerce extends SvrProcess {
 				Map<?, ?> order = (Map<?, ?>) wcOrders.get(i);
 				int id = (int) order.get("id");
 				boolean liveRehearsal = isLiveCurtainRehearsal(order, wcDefaults);
-				boolean rehearsal = liveRehearsal || isMarkedCurtainRehearsal(order);
+				boolean sampleRehearsal = isStagingSampleRehearsal(order, wcDefaults);
+				boolean rehearsal = liveRehearsal || isMarkedCurtainRehearsal(order) || sampleRehearsal;
 				if (rehearsal && wooCommerceOrderId == null) {
 					continue;
 				}
 				log.warning("Importing WooCommerce order " + id);
 				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
-				wcOrder.createOrder(order, documentNoFor(order, rehearsal));
+				wcOrder.createOrder(order, documentNoFor(order, rehearsal, sampleRehearsal));
 
 				// Iterate through each order Line
 				boolean linesSuccessful = true;
@@ -107,9 +108,16 @@ public class WooCommerce extends SvrProcess {
 
 				if (rehearsal) {
 					MOrder draft = new MOrder(getCtx(), wcOrder.getcOrderID(), get_TrxName());
-					if (liveRehearsal && (!DocAction.STATUS_Drafted.equals(draft.getDocStatus())
+					if ((liveRehearsal || sampleRehearsal) && (!DocAction.STATUS_Drafted.equals(draft.getDocStatus())
 							|| wcOrder.getOrderLineCount() != 2)) {
-						throw new AdempiereUserError("The live curtain QA order must produce two draft curtain lines.");
+						throw new AdempiereUserError("The QA order must produce exactly two draft order lines.");
+					}
+					if (sampleRehearsal) {
+						draft.setDescription("STAGING FABRIC SAMPLE QA - DO NOT FULFIL");
+						draft.saveEx();
+						addLog("Imported staging sample order " + id + " as iDempiere draft "
+								+ draft.getDocumentNo() + ". WooCommerce status unchanged.");
+						continue;
 					}
 					draft.setDescription((liveRehearsal ? "LIVE" : "STAGING") + " CURTAIN QA - DO NOT FULFIL");
 					draft.saveEx();
@@ -182,6 +190,14 @@ public class WooCommerce extends SvrProcess {
 		}
 		boolean liveRehearsal = isLiveCurtainRehearsal(order, defaults);
 		boolean markedRehearsal = isMarkedCurtainRehearsal(order);
+		boolean sampleRehearsal = isStagingSampleRehearsal(order, defaults);
+		if (sampleRehearsal && (!PROCESSING_STATUS.equals(order.get("status"))
+				|| !"0.00".equals(order.get("total")) || items.size() != 1
+				|| !(items.get(0) instanceof Map<?, ?> line)
+				|| !Integer.valueOf(128).equals(line.get("product_id"))
+				|| !Integer.valueOf(1).equals(line.get("quantity")))) {
+			throw new AdempiereUserError("The staging sample QA order must be Processing with one free Fabric Sample item.");
+		}
 		if (liveRehearsal) {
 			validateLiveCurtainRehearsal(order, items);
 		} else if (markedRehearsal) {
@@ -189,7 +205,7 @@ public class WooCommerce extends SvrProcess {
 		} else if (!PROCESSING_STATUS.equals(order.get("status"))) {
 			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " must be in Processing status.");
 		}
-		String documentNo = documentNoFor(order, liveRehearsal || markedRehearsal);
+		String documentNo = documentNoFor(order, liveRehearsal || markedRehearsal, sampleRehearsal);
 		if (salesOrderExists(defaults, documentNo)
 				|| (liveRehearsal && salesOrderExists(defaults, order.get("id").toString()))) {
 			throw new AdempiereUserError("Sales order " + documentNo + " already exists in iDempiere.");
@@ -204,9 +220,23 @@ public class WooCommerce extends SvrProcess {
 				.match();
 	}
 
-	private static String documentNoFor(Map<?, ?> order, boolean rehearsal) {
+	private static String documentNoFor(Map<?, ?> order, boolean rehearsal, boolean sampleRehearsal) {
 		String orderId = order.get("id").toString();
+		if (sampleRehearsal) {
+			return "QA-SAMPLE-" + orderId;
+		}
 		return rehearsal ? "QA-CURTAIN-" + orderId : orderId;
+	}
+
+	// Staging and live WooCommerce can issue the same numeric ID. Isolate this
+	// test fixture so the ERP copy stays a draft and the store status is untouched.
+	private static boolean isStagingSampleRehearsal(Map<?, ?> order, PO defaults) {
+		if (!Integer.valueOf(9230).equals(order.get("id"))
+				|| !"TestERP two-swatch import QA. Do not dispatch.".equals(order.get("customer_note"))) {
+			return false;
+		}
+		URI store = URI.create((String) defaults.get_Value("url"));
+		return "https".equalsIgnoreCase(store.getScheme()) && STAGING_WOO_HOST.equalsIgnoreCase(store.getHost());
 	}
 
 	private static boolean isLiveCurtainRehearsal(Map<?, ?> order, PO defaults) {
