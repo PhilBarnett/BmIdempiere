@@ -346,6 +346,10 @@ public final class WcOrder {
 		orderLine.saveEx();
 		orderLine.set_ValueOfColumn("lockprice", "Y");
 		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
+		if (isFabricSample()) {
+			createFabricSampleLines(orderLine, masterZzWoocommerceMapList);
+			return true;
+		}
 		
 	/*	for (LinkedHashMap<String, Object> metaItem : metaData)
 			{
@@ -699,13 +703,13 @@ public final class WcOrder {
 	 * @param trxn
 	 */
 	public void processOrderLine(MOrderLine line, ArrayList<ArrayList<MzzWoocommerceMap>> mapList, String trxn /*, List<?> changeItems*/) {		
-		for(ArrayList<MzzWoocommerceMap> mzzWoocommerceMapList : mapList)
+		for (int index = 0; index < mapList.size(); index++)
 		{
-			processWooCommMeta(mzzWoocommerceMapList, line, ctx, trxn);
+			processWooCommMeta(mapList.get(index), line, ctx, trxn);
 			if (isFabricSample()) {
 				validateFabricSample(line, trxn);
 			}
-			System.out.println(mapList.indexOf(mzzWoocommerceMapList));
+			System.out.println(index);
 			if(calcOrderLineUnitPrice(WooLineData)==Env.ZERO)//
 			{
 				line.setPriceList(Env.ZERO);
@@ -716,7 +720,7 @@ public final class WcOrder {
 			if (line.getC_UOM_ID()==0)
 				line.setC_UOM_ID(line.getM_Product().getC_UOM_ID());
 			line.saveEx();
-			if(1 + mapList.indexOf(mzzWoocommerceMapList) < mapList.size())//Don't copy the last line.
+			if(index + 1 < mapList.size())//Don't copy the last line.
 			{
 				MOrderLine duplicateOrderLine = new MOrderLine(order);
 				MOrderLine.copyValues(line, duplicateOrderLine);
@@ -1195,6 +1199,12 @@ public final class WcOrder {
 		{
 			
 			String mapType = mzzWoocommerceMapLines[l].getzz_woocommerce_map_type();
+			if (isFabricSample()
+					&& (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(mapType)
+							|| WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE.equals(mapType))) {
+				applyMappedComponent(line, mzzWoocommerceMapLines[l], currentMapItem.getFieldValue(), trxn);
+				continue;
+			}
 			/*if(mzzWoocommerceMapLines[l].isAdd_To_Duplicate())
 			{
 				//Set flags, add duplicate field to ArrayList, skip processing the field on this MOrderLine.
@@ -1377,6 +1387,85 @@ public final class WcOrder {
 		   }//End for(MzzWoocommerceMap currentMapItem : currentMapList) loop
 	}
 
+	private void applyMappedComponent(MOrderLine line, MzzWoocommerceMapLine mapping,
+			String fieldValue, String trxn) {
+		String setColumn = "BLD_Line_ProductSetInstance_ID";
+		int partTypeId = mapping.getBLD_Product_PartType_ID();
+		int componentProductId = mapping.getM_Product_Line_ID();
+		MBLDProductPartType partType = new MBLDProductPartType(ctx, partTypeId, trxn);
+		if (partType.get_ID() <= 0 || !partType.isActive() || !partType.isUserSelect()
+				|| partType.getM_Product_ID() != line.getM_Product_ID() || componentProductId <= 0) {
+			throw fabricSampleError("has an invalid fabric component destination for " + fieldValue);
+		}
+
+		MBLDLineProductSetInstance components = new MBLDLineProductSetInstance(ctx,
+				line.get_ValueAsInt(setColumn), trxn);
+		if (components.get_ID() <= 0) {
+			components.setAD_Org_ID(line.getAD_Org_ID());
+			components.saveEx(trxn);
+		}
+		int instanceId = DB.getSQLValueEx(trxn,
+				"SELECT BLD_Line_ProductInstance_ID FROM BLD_Line_ProductInstance"
+						+ " WHERE BLD_Line_ProductSetInstance_ID=? AND BLD_Product_PartType_ID=?",
+				components.get_ID(), partTypeId);
+		MBLDLineProductInstance component = new MBLDLineProductInstance(ctx, Math.max(instanceId, 0), trxn);
+		if (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(mapping.getzz_woocommerce_map_type())) {
+			if (component.get_ID() <= 0) {
+				component.setAD_Org_ID(line.getAD_Org_ID());
+				component.setBLD_Line_ProductSetInstance_ID(components.get_ID());
+				component.setBLD_Product_PartType_ID(partTypeId);
+			}
+			if (component.getM_Product_ID() != componentProductId) {
+				component.setM_AttributeSetInstance_ID(0);
+			}
+			component.setM_Product_ID(componentProductId);
+			component.saveEx(trxn);
+			line.set_ValueNoCheck(setColumn, components.get_ID());
+			line.saveEx(trxn);
+			components.setDescription(line.getM_Product_ID());
+			components.saveEx(trxn);
+			return;
+		}
+
+		if (component.getM_Product_ID() != componentProductId) {
+			throw fabricSampleError("could not find the saved fabric component for " + fieldValue);
+		}
+		MAttribute attribute = new MAttribute(ctx, mapping.getM_Attribute_Product_ID(), trxn);
+		MAttributeValue value = new MAttributeValue(ctx, mapping.getM_Attributevalue_Product_ID(), trxn);
+		if (!attribute.isActive() || value.get_ID() <= 0 || !value.isActive()
+				|| value.getM_Attribute_ID() != attribute.get_ID()) {
+			throw fabricSampleError("has an invalid fabric component attribute for " + fieldValue);
+		}
+		MAttributeSetInstance attributes = new MAttributeSetInstance(ctx, component.getM_AttributeSetInstance_ID(), trxn);
+		attributes.setM_AttributeSet_ID(MProduct.get(componentProductId).getM_AttributeSet_ID());
+		attributes.saveEx(trxn);
+		attribute.setMAttributeInstance(attributes.get_ID(), value);
+		component.setM_AttributeSetInstance_ID(attributes.get_ID());
+		component.saveEx(trxn);
+	}
+
+	private void createFabricSampleLines(MOrderLine orderLine, ArrayList<MzzWoocommerceMap> mappings) {
+		ArrayList<MzzWoocommerceMap> commonMappings = new ArrayList<>();
+		ArrayList<MzzWoocommerceMap> swatches = new ArrayList<>();
+		for (MzzWoocommerceMap mapping : mappings) {
+			if (WOOCOMMERCE_MAP_MULTISELECT_CHILD.equals(mapping.getzz_woocommerce_m_select_type())) {
+				swatches.add(mapping);
+			} else {
+				commonMappings.add(mapping);
+			}
+		}
+		ArrayList<ArrayList<MzzWoocommerceMap>> swatchLines = new ArrayList<>();
+		if (swatches.isEmpty()) {
+			swatchLines.add(commonMappings);
+		}
+		for (MzzWoocommerceMap swatch : swatches) {
+			ArrayList<MzzWoocommerceMap> lineMappings = new ArrayList<>(commonMappings);
+			lineMappings.add(swatch);
+			swatchLines.add(lineMappings);
+		}
+		processOrderLine(orderLine, swatchLines, trxName);
+	}
+
 	private boolean isFabricSample() {
 		return Integer.valueOf(FABRIC_SAMPLE_WOO_PRODUCT_ID).equals(wooCommProductID);
 	}
@@ -1405,11 +1494,11 @@ public final class WcOrder {
 			+ "AND EXISTS (SELECT 1 FROM M_AttributeInstance instance "
 			+ "JOIN M_Attribute attribute ON attribute.M_Attribute_ID = instance.M_Attribute_ID "
 			+ "WHERE instance.M_AttributeSetInstance_ID = component.M_AttributeSetInstance_ID "
-			+ "AND LOWER(attribute.Name) LIKE '%colour%' AND TRIM(instance.Value) <> '')",
+			+ "AND LOWER(attribute.Name) LIKE '%colour%' AND (instance.M_AttributeValue_ID > 0 OR TRIM(instance.Value) <> ''))",
 			line.get_ValueAsInt("bld_line_productsetinstance_id"));
-		if (components < 1) {
+		if (components != 1) {
 			throw fabricSampleError("ERP line " + line.getLine()
-				+ " has no fabric component with a colour. Check the Fabric Sample product mappings.");
+				+ " must have exactly one fabric component with a colour. Check the Fabric Sample product mappings.");
 		}
 	}
 
