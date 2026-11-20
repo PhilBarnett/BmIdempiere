@@ -79,7 +79,7 @@ public class MBLDLineProductInstance extends X_BLD_Line_ProductInstance {
 		
 		try
 		{
-			pstmt = DB.prepareStatement(sql.toString(), null);
+			pstmt = DB.prepareStatement(sql.toString(), trxn);
 			pstmt.setInt(1, bld_Line_ProductSetInstance_ID);
 			rs = pstmt.executeQuery();
 			while(rs.next())
