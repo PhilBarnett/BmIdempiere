@@ -9,10 +9,8 @@ import au.blindmot.gridprice.processes.GridPrice;
 import au.blindmot.mtmlabels.processes.MtmLabels;
 import au.blindmot.mtmproductinfo.processes.MtmProductGetConfig;
 import au.blindmot.processes.bmleadconvert.BMConvertLead;
-import au.blindmot.processes.bmleadconvert.BMCreateCalendarEntry;
 import au.blindmot.processes.mtmcreate.MtmCreate;
-import au.blindmot.utils.FixMBomProductIDs;
-//import main.java.BMGoogleCalendar.BMConvertLead;
+import au.blindmot.utils.FixMBomProductIDs; 
 
 public class MtmProcessFactory implements IProcessFactory {
 
@@ -48,10 +46,6 @@ public class MtmProcessFactory implements IProcessFactory {
 			else if (className.equals("au.blindmot.processes.bmleadconvert.BMConvertLead"))
 			{						   
 				return new BMConvertLead();
-			}
-			else if (className.equals("au.blindmot.processes.bmleadconvert.BMCreateCalendarEntry"))
-			{						   
-				return new BMCreateCalendarEntry();
 			}
 			else if (className.equals("au.blindmot.utils.FixMBomProductIDs"))
 			{						   
