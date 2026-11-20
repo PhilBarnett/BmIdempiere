@@ -725,6 +725,7 @@ public final class WcOrder {
 				MOrderLine duplicateOrderLine = new MOrderLine(order);
 				MOrderLine.copyValues(line, duplicateOrderLine);
 				if (isFabricSample()) {
+					// Sharing the copied component set would let the next swatch overwrite this colour.
 					duplicateOrderLine.set_ValueNoCheck("bld_line_productsetinstance_id", null);
 				}
 				if(line.getM_AttributeSetInstance_ID() > 0)
@@ -1387,6 +1388,8 @@ public final class WcOrder {
 		   }//End for(MzzWoocommerceMap currentMapItem : currentMapList) loop
 	}
 
+	// Component and colour mappings arrive separately. Use the same transaction to find
+	// the component just saved for this order line and attach the colour to it.
 	private void applyMappedComponent(MOrderLine line, MzzWoocommerceMapLine mapping,
 			String fieldValue, String trxn) {
 		String setColumn = "BLD_Line_ProductSetInstance_ID";
@@ -1444,6 +1447,8 @@ public final class WcOrder {
 		component.saveEx(trxn);
 	}
 
+	// A WooCommerce sample item can contain several swatches. Fulfilment needs one ERP
+	// line per swatch, with the common product selections applied to each line.
 	private void createFabricSampleLines(MOrderLine orderLine, ArrayList<MzzWoocommerceMap> mappings) {
 		ArrayList<MzzWoocommerceMap> commonMappings = new ArrayList<>();
 		ArrayList<MzzWoocommerceMap> swatches = new ArrayList<>();
