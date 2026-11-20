@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -124,11 +125,19 @@ public final class WcOrder {
 		int BP_Id = getBPId(getWcCustomerEmail(orderWc), orderWc);
 		order.setC_BPartner_ID(BP_Id);
 		orderBpID = BP_Id;
-		int BPLocationId = getBPLocationId(BP_Id);
-		bPLocationId = BPLocationId;
-		order.setC_BPartner_Location_ID(BPLocationId); // order.setAD_User_ID(101);
+		// Serialize location matching and creation for orders for the same partner.
+		if (DB.getSQLValueEx(trxName, "SELECT C_BPartner_ID FROM C_BPartner WHERE C_BPartner_ID=? FOR UPDATE", BP_Id) <= 0) {
+			throw new AdempiereUserError("WooCommerce order " + documentNo + " has no valid business partner.");
+		}
+		Map<?, ?> billing = (Map<?, ?>) orderWc.get("billing");
+		int billingLocationId = resolveCheckoutLocation(BP_Id, billing, true);
+		Map<?, ?> shipping = orderWc.get("shipping") instanceof Map<?, ?> address ? address : Map.of();
+		bPLocationId = addressValue(shipping, "address_1").isEmpty()
+				? resolveCheckoutLocation(BP_Id, billing, false)
+				: resolveCheckoutLocation(BP_Id, shipping, false);
+		order.setC_BPartner_Location_ID(bPLocationId);
 		order.setBill_BPartner_ID(BP_Id);
-		order.setBill_Location_ID(BPLocationId);
+		order.setBill_Location_ID(billingLocationId);
 		// order.setBill_User_ID(); order.setSalesRep_ID(101);
 		/*isTaxInclusive = (orderWc.get("prices_include_tax").toString().equals("true")) ? true : false;//TODO:Problem: prices don't actually include tax.*/
 		isTaxInclusive = false;//Hard coded 2/2/24 because WooComm returns true when the price does not include tax.
@@ -237,8 +246,7 @@ public final class WcOrder {
 		businessPartner.setIsProspect(false);
 		businessPartner.setIsVendor(false);
 		businessPartner.saveEx();
-		int C_Location_ID = createLocation(orderWc);
-		int C_BPartner_Location_ID = createBPLocation(businessPartner.getC_BPartner_ID(), C_Location_ID);
+		int C_BPartner_Location_ID = resolveCheckoutLocation(businessPartner.get_ID(), billing, true);
 		createUser(businessPartner, email, phone, C_BPartner_Location_ID);
 
 		return businessPartner.get_ID();
@@ -256,30 +264,72 @@ public final class WcOrder {
 		user.saveEx();
 	}
 
-	private int createLocation(Map<?, ?> orderWc) {
-		Map<?, ?> billing = (Map<?, ?>) orderWc.get("billing");
-		String countryCode = (String) billing.get("country");
-		int c_country_id;
-		if (isBlankOrNull(countryCode))
-			c_country_id = (int) wcDefaults.get_Value("c_country_id");
-		else
-			c_country_id = DB.getSQLValue(trxName, "select c_country_id " + "from c_country " + "where countrycode = ?",
-					countryCode);
-		String address1 = (String) billing.get("address_1");
-		if (isBlankOrNull(address1))
-			address1 = (String) wcDefaults.get_Value("c_country_id");
-		String address2 = (String) billing.get("address_2");
-		String city = (String) billing.get("city");
-		if (isBlankOrNull(city))
-			city = (String) wcDefaults.get_Value("city");
-		String postal = (String) billing.get("postcode");
-		MLocation location = new MLocation(ctx, c_country_id, 0, city, trxName);
+	private int resolveCheckoutLocation(int partnerId, Map<?, ?> address, boolean billing) {
+		String countryCode = addressValue(address, "country").toUpperCase(Locale.ROOT);
+		int countryId = countryCode.isEmpty()
+				? (int) wcDefaults.get_Value("c_country_id")
+				: DB.getSQLValueEx(trxName,
+						"SELECT C_Country_ID FROM C_Country WHERE UPPER(CountryCode)=?", countryCode);
+		if (countryId <= 0) {
+			throw new AdempiereUserError("WooCommerce checkout address has an unknown country: " + countryCode);
+		}
+
+		String street = addressValue(address, "address_1");
+		if (street.isEmpty()) {
+			throw new AdempiereUserError("WooCommerce checkout is missing the "
+					+ (billing ? "billing" : "delivery") + " street address.");
+		}
+		String address2 = addressValue(address, "address_2");
+		String city = addressValue(address, "city");
+		String postal = addressValue(address, "postcode");
+		String state = addressValue(address, "state");
+		if ("AU".equals(countryCode)) {
+			state = switch (state.toUpperCase(Locale.ROOT)) {
+				case "ACT" -> "Australian Capital Territory";
+				case "NSW" -> "New South Wales";
+				case "NT" -> "Northern Territory";
+				case "QLD" -> "Queensland";
+				case "SA" -> "South Australia";
+				case "TAS" -> "Tasmania";
+				case "VIC" -> "Victoria";
+				case "WA" -> "Western Australia";
+				default -> state;
+			};
+		}
+		String stateCode = addressValue(address, "state");
+		int regionId = state.isEmpty() ? 0 : Math.max(0, DB.getSQLValueEx(trxName,
+				"SELECT C_Region_ID FROM C_Region WHERE C_Country_ID=? AND IsActive='Y'"
+						+ " AND (UPPER(Name)=UPPER(?) OR UPPER(Name)=UPPER(?)) ORDER BY C_Region_ID",
+				countryId, state, stateCode));
+
+		// Reuse a location only when its address and order role match the checkout.
+		String role = billing ? "IsBillTo" : "IsShipTo";
+		int partnerLocationId = DB.getSQLValueEx(trxName,
+				"SELECT bp.C_BPartner_Location_ID FROM C_BPartner_Location bp"
+						+ " JOIN C_Location loc ON loc.C_Location_ID=bp.C_Location_ID"
+						+ " WHERE bp.C_BPartner_ID=? AND bp.IsActive='Y' AND loc.IsActive='Y'"
+						+ " AND bp." + role + "='Y' AND loc.C_Country_ID=? AND COALESCE(loc.C_Region_ID,0)=?"
+						+ " AND UPPER(TRIM(COALESCE(loc.Address1,'')))=UPPER(?)"
+						+ " AND UPPER(TRIM(COALESCE(loc.Address2,'')))=UPPER(?)"
+						+ " AND UPPER(TRIM(COALESCE(loc.City,'')))=UPPER(?)"
+						+ " AND UPPER(TRIM(COALESCE(loc.Postal,'')))=UPPER(?)"
+						+ " ORDER BY bp.C_BPartner_Location_ID",
+				partnerId, countryId, regionId, street, address2, city, postal);
+		if (partnerLocationId > 0) {
+			return partnerLocationId;
+		}
+
+		MLocation location = new MLocation(ctx, countryId, regionId, city, trxName);
 		location.setAD_Org_ID(0);
-		location.setAddress1(address1);
+		location.setAddress1(street);
 		location.setAddress2(address2);
 		location.setPostal(postal);
 		location.saveEx();
-		return location.get_ID();
+		return createBPLocation(partnerId, location.get_ID());
+	}
+
+	private static String addressValue(Map<?, ?> address, String key) {
+		return address != null && address.get(key) instanceof String value ? value.trim() : "";
 	}
 
 	private int createBPLocation(int C_BPartner_ID, int C_Location_ID) {
