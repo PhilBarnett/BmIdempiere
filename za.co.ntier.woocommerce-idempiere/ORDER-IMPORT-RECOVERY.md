@@ -1,6 +1,6 @@
 # WooCommerce order import recovery
 
-This change requires the PostgreSQL script `migration/postgresql/20261123_woo_import_receipts.sql` before installing the bundle. The table exists per ERP database and receipts are scoped to the configured Woo store and Woo order ID. Keep each Woo Defaults record bound to the same store; do not repoint an existing Defaults record to another store with pending receipts.
+This change requires the PostgreSQL script `migration/postgresql/20261123_woo_import_receipts.sql` before installing the bundle. The table exists per ERP database and receipts are scoped to the configured Woo store and Woo order ID. Read-back also checks the original configured store URL; changing or repointing an existing Defaults record cannot acknowledge a receipt at another store. For a distinct Woo store, use a distinct Defaults record and reconcile old pending receipts first.
 
 The ERP order, its dependent records, and its import receipt are committed together. A committed receipt is the only evidence permitting automatic Woo acknowledgement. A legacy/manual order matched by Document No. or PO reference is deliberately blocked for reconciliation if it has no receipt. An order deleted in ERP leaves a tombstone, not permission to import it again.
 
@@ -16,3 +16,5 @@ A separate acknowledgement transaction only updates Woo after a committed receip
 6. Run curtain-only, mixed curtain/outdoor, and conventional paid fixtures. Confirm all selected ERP fabric/colour components, shipping, payment and installation records as applicable. The six-range catalogue mapping verification is separate from this importer change.
 
 The standalone Java test in `test/za/co/ntier/processes/WooOrderAcknowledgementTest.java` covers Woo acknowledgement ordering, error recovery, idempotency and refusal cases without an ERP dependency. It does not replace the database/iDempiere test above.
+
+Run the fake integration regression from the bundle directory with `python3 test/order_import_orchestration.py` (JDK 17+). It runs the actual importer class against synthetic JDBC/ERP doubles and a fake Woo endpoint, including good→bad→good and retry after lost remote responses; it does not assert real PostgreSQL or iDempiere semantics.

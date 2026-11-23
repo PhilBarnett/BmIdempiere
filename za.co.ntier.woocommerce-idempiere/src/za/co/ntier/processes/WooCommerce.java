@@ -66,14 +66,15 @@ public class WooCommerce extends SvrProcess {
 		if (defaults == null) {
 			throw new AdempiereUserError("WooCommerce Defaults must be configured in iDempiere.");
 		}
-		Woocommerce woo = new WooCommerceAPI(new OAuthConfig((String) defaults.get_Value("url"),
+		String storeUrl = (String) defaults.get_Value("url");
+		Woocommerce woo = new WooCommerceAPI(new OAuthConfig(storeUrl,
 				(String) defaults.get_Value("consumerkey"), (String) defaults.get_Value("consumersecret")),
 				ApiVersionType.V3);
 		int storeId = defaults.get_ID();
 		List<?> orders = ordersToSync(woo, defaults);
 		// Use receipts, not Woo status, to find pending acknowledgements. A status
 		// write can succeed while its response or the following metadata write fails.
-		List<Integer> previous = pending(storeId);
+		List<Integer> previous = pending(storeId, storeUrl);
 		Set<Integer> attempted = new HashSet<>();
 		int imported = 0, failed = 0, pending = 0;
 		for (Object data : orders) {
@@ -105,13 +106,13 @@ public class WooCommerce extends SvrProcess {
 				report(id, "ERP import not confirmed; WooCommerce not changed.", error);
 				continue;
 			}
-			if (!rehearsal && attempted.add(id) && !tryAcknowledge(woo, storeId, id)) {
+			if (!rehearsal && attempted.add(id) && !tryAcknowledge(woo, storeId, storeUrl, id)) {
 				pending++;
 			}
 		}
 		if (wooCommerceOrderId == null) {
 			for (int id : previous) {
-				if (attempted.add(id) && !tryAcknowledge(woo, storeId, id)) {
+				if (attempted.add(id) && !tryAcknowledge(woo, storeId, storeUrl, id)) {
 					pending++;
 				}
 			}
@@ -134,8 +135,8 @@ public class WooCommerce extends SvrProcess {
 			// The unique claim serialises concurrent batches/targeted imports
 			// for one store and order. It is never committed without its ERP link.
 			if (!rehearsal && update(name, "INSERT INTO " + RECEIPTS
-					+ " (zz_woocommerce_id, woo_order_id) VALUES (?,?) ON CONFLICT DO NOTHING",
-					storeId, id) == 0) {
+					+ " (zz_woocommerce_id, woo_order_id, store_url) VALUES (?,?,?) ON CONFLICT DO NOTHING",
+					storeId, id, defaults.get_Value("url")) == 0) {
 				return false;
 			}
 			if (rehearsal) {
@@ -217,12 +218,13 @@ public class WooCommerce extends SvrProcess {
 		order.setBldMtmInstallID(install.get_ID());
 	}
 
-	private List<Integer> pending(int storeId) throws SQLException {
+	private List<Integer> pending(int storeId, String storeUrl) throws SQLException {
 		List<Integer> ids = new ArrayList<>();
 		try (PreparedStatement sql = DB.prepareStatement("SELECT woo_order_id FROM " + RECEIPTS
-				+ " WHERE zz_woocommerce_id=? AND c_order_id IS NOT NULL AND acknowledged_at IS NULL"
+				+ " WHERE zz_woocommerce_id=? AND store_url=? AND c_order_id IS NOT NULL AND acknowledged_at IS NULL"
 				+ " ORDER BY woo_order_id", null)) {
 			sql.setInt(1, storeId);
+			sql.setString(2, storeUrl);
 			try (ResultSet rows = sql.executeQuery()) {
 				while (rows.next()) {
 					ids.add(rows.getInt(1));
@@ -232,9 +234,9 @@ public class WooCommerce extends SvrProcess {
 		return ids;
 	}
 
-	private boolean tryAcknowledge(Woocommerce woo, int storeId, int id) throws SQLException {
+	private boolean tryAcknowledge(Woocommerce woo, int storeId, String storeUrl, int id) throws SQLException {
 		try {
-			acknowledge(woo, storeId, id);
+			acknowledge(woo, storeId, storeUrl, id);
 			return true;
 		} catch (RuntimeException | SQLException error) {
 			if (databaseUnavailable(error)) {
@@ -245,7 +247,7 @@ public class WooCommerce extends SvrProcess {
 		}
 	}
 
-	private void acknowledge(Woocommerce woo, int storeId, int id) throws SQLException {
+	private void acknowledge(Woocommerce woo, int storeId, String storeUrl, int id) throws SQLException {
 		Trx trx = Trx.get(Trx.createTrxName("WooAck"), true);
 		String name = trx.getTrxName();
 		boolean committed = false;
@@ -253,9 +255,10 @@ public class WooCommerce extends SvrProcess {
 		try {
 			connection = trx.getConnection();
 			try (PreparedStatement sql = DB.prepareStatement("SELECT acknowledged_at FROM " + RECEIPTS + " WHERE "
-					+ STORE_ORDER + " AND c_order_id IS NOT NULL FOR UPDATE", name)) {
+					+ STORE_ORDER + " AND store_url=? AND c_order_id IS NOT NULL FOR UPDATE", name)) {
 				sql.setInt(1, storeId);
 				sql.setInt(2, id);
+				sql.setString(3, storeUrl);
 				try (ResultSet row = sql.executeQuery()) {
 					if (!row.next()) {
 						throw new SQLException("No committed ERP import receipt for WooCommerce order " + id);
@@ -277,10 +280,10 @@ public class WooCommerce extends SvrProcess {
 		}
 	}
 
-	private static int update(String trxName, String statement, int... args) throws SQLException {
+	private static int update(String trxName, String statement, Object... args) throws SQLException {
 		try (PreparedStatement sql = DB.prepareStatement(statement, trxName)) {
 			for (int i = 0; i < args.length; i++) {
-				sql.setInt(i + 1, args[i]);
+				sql.setObject(i + 1, args[i]);
 			}
 			return sql.executeUpdate();
 		}
