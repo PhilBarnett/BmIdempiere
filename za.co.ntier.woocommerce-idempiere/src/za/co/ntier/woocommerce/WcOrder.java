@@ -687,7 +687,7 @@ public final class WcOrder {
 			msg.append(". The WooCommerce sync process may need to be run manually.");
 			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
 			log.warning(msg.toString());
-			throw new IllegalStateException("Could not save shipping line for order " + order.getDocumentNo());//Commented out 12/11/24 to improve error handling
+			//throw new IllegalStateException("Could not create Order Line");//Commented out 12/11/24 to improve error handling
 			return false;
 		}
 		
@@ -1165,8 +1165,8 @@ public final class WcOrder {
 			msg.append(". The WooCommerce sync process may need to be run manually.");
 			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
 			log.warning(msg.toString());
-			//throw new IllegalStateException("Could not create Order Line");
-			//log.warning(msg.toString());
+			// Do not acknowledge an order that is missing its shipping charge.
+			throw new IllegalStateException("Could not save shipping line for order " + order.getDocumentNo());
 		}
 	}
 
