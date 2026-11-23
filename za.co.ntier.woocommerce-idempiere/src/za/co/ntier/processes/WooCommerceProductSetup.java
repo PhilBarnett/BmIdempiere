@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -73,6 +74,9 @@ public class WooCommerceProductSetup extends SvrProcess {
 				(String) defaults.get_Value("consumerkey"), (String) defaults.get_Value("consumersecret"));
 		Map<?, ?> product = new WooCommerceAPI(config, ApiVersionType.V3)
 				.get(EndpointBaseType.PRODUCTS.getValue(), wooProductId);
+		if (product == null || !(product.get("id") instanceof Number sourceId) || sourceId.intValue() != wooProductId) {
+			throw new AdempiereUserError("WooCommerce did not return the linked product " + wooProductId + ".");
+		}
 		List<Map<?, ?>> fields = getFields(product, wooProductId);
 		log.info("Reviewing " + fields.size() + " WooCommerce fields for product " + wooProductId);
 
@@ -89,6 +93,16 @@ public class WooCommerceProductSetup extends SvrProcess {
 				.distinct().collect(Collectors.toList());
 		List<PartSet> fabricSets = collections.isEmpty()
 				? List.of() : partSets.stream().filter(this::isFabricPartSet).collect(Collectors.toList());
+		// Setup uses the caller's transaction. A product lock serialises
+		// preflight and activation for concurrent setup runs on this product.
+		if (fields.stream().anyMatch(field -> isMultiselectCollection(field, collections))) {
+			MProduct lockedProduct = new Query(getCtx(), MProduct.Table_Name,
+					MProduct.COLUMNNAME_M_Product_ID + "=?", get_TrxName())
+					.setParameters(productId).setClient_ID().setOnlyActiveRecords(true).setForUpdate(true).firstOnly();
+			if (lockedProduct == null) {
+				throw new AdempiereUserError("The linked ERP product is not active in this client.");
+			}
+		}
 		for (Map<?, ?> field : fields) {
 			reviewField(wooProductId, field, attributes, partSets, collections, fabricSets);
 		}
@@ -164,6 +178,11 @@ public class WooCommerceProductSetup extends SvrProcess {
 					reportException(key, label, value, "Unsupported curtain selection");
 				}
 			}
+			return;
+		}
+
+		if (isMultiselectCollection(field, collections)) {
+			reviewMultiselectCollection(field, choices, WooCollectionSwatches.collection(label), collections, fabricSets);
 			return;
 		}
 
@@ -264,19 +283,170 @@ public class WooCommerceProductSetup extends SvrProcess {
 		return "Fabric".equalsIgnoreCase(partType) || "Lining".equalsIgnoreCase(partType);
 	}
 
-	private void reviewCollectionColours(Map<?, ?> field, List<Map<?, ?>> choices, String collection,
-			List<PartSet> fabricSets) {
-		List<MProduct> components = fabricSets.stream().flatMap(set -> set.products.stream())
+
+	private static boolean isMultiselectCollection(Map<?, ?> field, List<String> collections) {
+		String collection = WooCollectionSwatches.collection(field.get("label"));
+		return collection != null && "multi-image-swatch".equals(field.get("type"))
+				&& !WooCommerceNameMatcher.match(collection, collections, Function.identity()).isEmpty();
+	}
+
+	/**
+	 * A null-valued parent takes precedence in the order reader. Do not add it
+	 * unless this field's full palette and existing mapping shape are usable.
+	 * An existing ordinary row is an operator decision, not permission to edit it.
+	 */
+	private void reviewMultiselectCollection(Map<?, ?> field, List<Map<?, ?>> choices, String collection,
+			List<String> collections, List<PartSet> fabricSets) {
+		String key = (String) field.get("id");
+		String label = (String) field.get("label");
+		List<String> values = choices.stream().map(choice -> choiceLabel(choice, key)).collect(Collectors.toList());
+		if (!WooCollectionSwatches.validChoiceLabels(values)
+				|| collections.stream().filter(collection::equalsIgnoreCase).count() != 1) {
+			reportException(key, label, null, "No distinct exact swatches or matching collection selector");
+			return;
+		}
+
+		// A Fabric Sample line must carry one Fabric (not Lining) plus an
+		// instance colour. Reuse the active BOM; do not auto-create fabric SKUs.
+		List<PartSet> sampleSets = fabricSets.stream().filter(set -> set.type.isActive())
+				.filter(set -> "Fabric".equalsIgnoreCase(
+						new X_M_PartType(getCtx(), set.type.getM_PartTypeID(), get_TrxName()).getName()))
+				.collect(Collectors.toList());
+		List<MProduct> components = sampleSets.stream().flatMap(set -> set.products.stream())
 				.distinct().collect(Collectors.toList());
+		List<MProduct> fabrics = collectionFabrics(collection, components);
+		if (fabrics.size() != 1) {
+			reportChoiceReview(key, label, null, "sample BOM fabric", fabrics);
+			return;
+		}
+		MProduct fabric = fabrics.get(0);
+		List<PartSet> slots = sampleSets.stream()
+				.filter(set -> set.products.stream().anyMatch(product -> product.get_ID() == fabric.get_ID()))
+				.collect(Collectors.toList());
+		List<MAttribute> colours = collectionColourAttributes(fabric);
+		if (slots.size() != 1 || colours.size() != 1) {
+			reportChoiceReview(key, label, null, slots.size() != 1 ? "sample Fabric slot" : "sample colour attribute",
+					slots.size() != 1 ? slots : colours);
+			return;
+		}
+		PartSet slot = slots.get(0);
+		MAttribute colour = colours.get(0);
+		Map<String, MAttributeValue> targets = new LinkedHashMap<>();
+		for (String value : values) {
+			List<MAttributeValue> matches = attributeValues(colour, value);
+			if (matches.size() == 1) {
+				targets.put(value, matches.get(0));
+			} else {
+				reportChoiceReview(key, label, value, "sample colour", matches);
+			}
+		}
+		if (targets.size() != values.size()) {
+			return;
+		}
+		if (targets.values().stream().map(MAttributeValue::get_ID).distinct().count() != targets.size()) {
+			reportException(key, label, null, "Multiple swatches resolve to the same ERP colour");
+			return;
+		}
+		if (!existingCollectionMappingsFit(key, label, slot, fabric, colour, targets)) {
+			return;
+		}
+
+		// The exact labels from Woo become stored child keys, even where
+		// destination matching normalises names. Use the same checked model
+		// activation as the established roller/outdoor multi-select path.
+		MzzWoocommerceMap parent = proposal(field, null, MULTI_SELECT_PARENT, List.of(slot), "multi-select parent");
+		if (parent != null) {
+			activate(parent);
+		}
+		targets.forEach((value, target) -> {
+			MzzWoocommerceMap child = proposal(field, value, MULTI_SELECT_CHILD, List.of(target), "fabric colour");
+			if (child != null) {
+				saveComponent(child, slot, fabric, colour, target);
+			}
+		});
+	}
+
+	private void reportChoiceReview(String key, String label, String value, String target, List<?> matches) {
+		reportException(key, label, value, (matches.isEmpty() ? "Unmatched " : "Ambiguous ") + target);
+	}
+
+	/** Review all live rows, even an obsolete ordinary value the new parent would shadow. */
+	private boolean existingCollectionMappingsFit(String key, String label, PartSet slot, MProduct fabric,
+			MAttribute attribute, Map<String, MAttributeValue> targets) {
+		List<MzzWoocommerceMap> mappings = new Query(getCtx(), MzzWoocommerceMap.Table_Name,
+				"M_Product_ID=? AND LOWER(woocommerce_field_key)=LOWER(?)", get_TrxName())
+				.setParameters(productId, key).setClient_ID().list();
+		Map<String, Integer> exactKeys = new LinkedHashMap<>();
+		boolean valid = true;
+		for (MzzWoocommerceMap map : mappings) {
+			String value = map.getwoocommerce_field_value();
+			String mode = value == null ? MULTI_SELECT_PARENT : MULTI_SELECT_CHILD;
+			if (!key.equals(map.getwoocommerce_field_key()) || exactKeys.merge(value, 1, Integer::sum) != 1) {
+				reportException(key, label, value, "Duplicate or non-exact field mapping");
+				valid = false;
+				continue;
+			}
+			if (!map.isActive()) {
+				if ((value == null || targets.containsKey(value)) && !isEmptyGeneratedProposal(map)) {
+					reportException(key, label, value, "Existing inactive mapping preserved");
+					valid = false;
+				}
+				continue;
+			}
+			if (!mode.equals(map.getzz_woocommerce_m_select_type())
+					|| !Objects.equals(label, map.getwoocommerce_field_label())) {
+				reportException(key, label, value, "Existing active mapping kind or label differs; review before activating");
+				valid = false;
+				continue;
+			}
+			MzzWoocommerceMapLine[] lines = map.getMzzWoocommerceMapLines(map.get_ID(), getCtx(), "", "");
+			if (value == null && (!map.isignore_no_child_records() || lines.length != 0)) {
+				reportException(key, label, null, "Existing parent is not a routing-only mapping");
+				valid = false;
+			}
+			if (value != null && targets.containsKey(value)
+					&& !matchesSampleComponent(lines, slot, fabric, attribute, targets.get(value))) {
+				reportException(key, label, value, "Existing child destination differs; review before activating");
+				valid = false;
+			}
+		}
+		return valid;
+	}
+
+	private static boolean matchesSampleComponent(MzzWoocommerceMapLine[] lines, PartSet slot,
+			MProduct fabric, MAttribute attribute, MAttributeValue value) {
+		if (lines.length != 2) {
+			return false;
+		}
+		boolean component = false;
+		boolean colour = false;
+		for (MzzWoocommerceMapLine line : lines) {
+			if (line.getBLD_Product_PartType_ID() != slot.type.get_ID() || line.getM_Product_Line_ID() != fabric.get_ID()) {
+				return false;
+			}
+			component |= PRODUCT_ADD.equals(line.getzz_woocommerce_map_type());
+			colour |= PRODUCT_ATTRIBUTE.equals(line.getzz_woocommerce_map_type())
+					&& line.getM_Attribute_Product_ID() == attribute.get_ID()
+					&& line.getM_Attributevalue_Product_ID() == value.get_ID();
+		}
+		return component && colour;
+	}
+
+	private List<MProduct> collectionFabrics(String collection, List<MProduct> components) {
 		List<MProduct> fabrics = WooCommerceNameMatcher.match(collection, components,
 				product -> product.getName().strip().replaceFirst("(?i)^hoads?\\s+", "")
 						.replaceFirst("(?i)\\s+-\\s+hoads?$", ""));
 		List<MProduct> withColour = fabrics.stream()
 				.filter(product -> collectionColourAttributes(product).size() == 1)
 				.collect(Collectors.toList());
-		if (withColour.size() == 1) {
-			fabrics = withColour;
-		}
+		return withColour.size() == 1 ? withColour : fabrics;
+	}
+
+	private void reviewCollectionColours(Map<?, ?> field, List<Map<?, ?>> choices, String collection,
+			List<PartSet> fabricSets) {
+		List<MProduct> components = fabricSets.stream().flatMap(set -> set.products.stream())
+				.distinct().collect(Collectors.toList());
+		List<MProduct> fabrics = collectionFabrics(collection, components);
 		for (Map<?, ?> choice : choices) {
 			String value = choiceLabel(choice, (String) field.get("id"));
 			if (fabrics.isEmpty()) {

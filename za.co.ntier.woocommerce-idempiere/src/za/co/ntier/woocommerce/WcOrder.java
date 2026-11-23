@@ -2010,6 +2010,11 @@ public final class WcOrder {
 										 }
 										 if(zzWoocommerceMapChild != null && zzWoocommerceMapChild.isActive())//Changed 24/3/2025 to prevent NPE
 										 {
+											 // Collection validation checks each child ID against its exact swatch,
+											 // not the parent's comma-separated text.
+											 if (isFabricSample()) {
+												 fieldValues.put(zzWoocommerceMapChild.get_ID(), values[p]);
+											 }
 											 masterZzWoocommerceMapListFromMeta.add(zzWoocommerceMapChild);
 										 }
 									 }
