@@ -5,7 +5,10 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Runs only after ERP has a committed receipt for this exact store and order. */
+/**
+ * Acknowledge the exact order whose ERP transaction just committed in this
+ * process. An order already found in ERP cannot enter this path on a rerun.
+ */
 final class WooOrderAcknowledgement {
 	private static final String SYNC_KEY = "syncedToIdempiere";
 
@@ -18,9 +21,10 @@ final class WooOrderAcknowledgement {
 		if ("processing".equals(current.get("status"))) {
 			// The Woo status hook resets the flag. Read back and keep the
 			// writes ordered; replay only writes not already confirmed.
-			update.accept(Map.of("status", "completed"));
-			current = read.get();
+			current = updateAndRead(read, update, Map.of("status", "completed"));
 		}
+		// If Woo was put on hold or cancelled during the ERP work, stop. Do not
+		// overwrite the operator's status to try to finish reconciliation.
 		requireResponse(current, id, "completed");
 		List<?> flags = flags(current);
 		if (flags.size() > 1) {
@@ -31,13 +35,23 @@ final class WooOrderAcknowledgement {
 			Map<String, Object> desired = existing.get("id") instanceof Number metaId
 					? Map.of("id", metaId, "key", SYNC_KEY, "value", "yes")
 					: Map.of("key", SYNC_KEY, "value", "yes");
-			update.accept(Map.of("meta_data", List.of(desired)));
-			current = read.get();
+			current = updateAndRead(read, update, Map.of("meta_data", List.of(desired)));
 			requireResponse(current, id, "completed");
 			if (!isSynced(flags(current))) {
 				throw new IllegalStateException("WooCommerce did not confirm the synced flag.");
 			}
 		}
+	}
+
+	private static Map<?, ?> updateAndRead(Supplier<Map<?, ?>> read,
+			Consumer<Map<String, Object>> update, Map<String, Object> body) {
+		try {
+			update.accept(body);
+		} catch (RuntimeException ignored) {
+			// A lost response is not a rejected write. Read authoritative
+			// state once; never resend this mutation on an ambiguous reply.
+		}
+		return read.get();
 	}
 
 	private static void requireResponse(Map<?, ?> response, int id, String status) {

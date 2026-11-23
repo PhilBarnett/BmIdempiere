@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/** Standalone regression fixture (no ERP, database, or credentials required). */
+/** Standalone Java regression for acknowledgement ordering and uncertainty. */
 public class WooOrderAcknowledgementTest {
 	private static final String KEY = "syncedToIdempiere";
 
@@ -13,6 +13,7 @@ public class WooOrderAcknowledgementTest {
 		String status = "processing";
 		String synced = "no";
 		boolean duplicates;
+		int applyAttempts;
 		final List<String> writes = new ArrayList<>();
 
 		Map<?, ?> get() {
@@ -25,12 +26,12 @@ public class WooOrderAcknowledgementTest {
 			if (body.containsKey("status")) {
 				writes.add("status");
 				status = (String) body.get("status");
-				synced = "no";
+				synced = "no"; // The Woo status hook resets import metadata.
 			} else {
 				writes.add("meta");
-				Map<?, ?> metadata = (Map<?, ?>) ((List<?>) body.get("meta_data")).get(0);
-				require(Integer.valueOf(7).equals(metadata.get("id")), "update existing meta ID");
-				synced = (String) metadata.get("value");
+				Map<?, ?> meta = (Map<?, ?>) ((List<?>) body.get("meta_data")).get(0);
+				require(Integer.valueOf(7).equals(meta.get("id")), "must update the existing meta row");
+				synced = (String) meta.get("value");
 			}
 		}
 
@@ -43,31 +44,31 @@ public class WooOrderAcknowledgementTest {
 		Woo normal = new Woo();
 		normal.apply(normal::put);
 		normal.apply(normal::put);
-		require(normal.writes.equals(List.of("status", "meta")), "normal and idempotent replay");
+		require(normal.writes.equals(List.of("status", "meta")), "normal acknowledgement and no extra writes");
 
-		Woo statusResponseLost = new Woo();
-		expectFailure(() -> statusResponseLost.apply(body -> {
-			statusResponseLost.put(body);
-			throw new IllegalStateException("simulated lost status response");
-		}));
-		statusResponseLost.apply(statusResponseLost::put);
-		require(statusResponseLost.writes.equals(List.of("status", "meta")), "lost status response must not repeat completion");
+		Woo lostStatusResponse = new Woo();
+		lostStatusResponse.apply(body -> {
+			lostStatusResponse.put(body);
+			if (body.containsKey("status")) throw new IllegalStateException("simulated lost status response");
+		});
+		require(lostStatusResponse.writes.equals(List.of("status", "meta")), "read status back rather than resending");
 
-		Woo metaWriteFailed = new Woo();
-		expectFailure(() -> metaWriteFailed.apply(body -> {
-			if (body.containsKey("meta_data")) throw new IllegalStateException("simulated rejected metadata write");
-			metaWriteFailed.put(body);
-		}));
-		metaWriteFailed.apply(metaWriteFailed::put);
-		require(metaWriteFailed.writes.equals(List.of("status", "meta")), "recover metadata without repeating status");
-
-		Woo metaResponseLost = new Woo();
-		expectFailure(() -> metaResponseLost.apply(body -> {
-			metaResponseLost.put(body);
+		Woo lostMetaResponse = new Woo();
+		lostMetaResponse.apply(body -> {
+			lostMetaResponse.put(body);
 			if (body.containsKey("meta_data")) throw new IllegalStateException("simulated lost metadata response");
+		});
+		require(lostMetaResponse.writes.equals(List.of("status", "meta")), "read metadata back rather than resending");
+
+		Woo rejectedMeta = new Woo();
+		expectFailure(() -> rejectedMeta.apply(body -> {
+			if (body.containsKey("meta_data")) {
+				rejectedMeta.writes.add("meta-attempt");
+				throw new IllegalStateException("simulated rejected metadata write");
+			}
+			rejectedMeta.put(body);
 		}));
-		metaResponseLost.apply(metaResponseLost::put);
-		require(metaResponseLost.writes.equals(List.of("status", "meta")), "lost metadata response must not repeat writes");
+		require(rejectedMeta.writes.equals(List.of("status", "meta-attempt")), "unconfirmed metadata must not be resent");
 
 		Woo onHold = new Woo();
 		onHold.status = "on-hold";
@@ -85,10 +86,11 @@ public class WooOrderAcknowledgementTest {
 		require(duplicate.writes.isEmpty(), "do not add a third sync flag");
 
 		Woo silentFailure = new Woo();
-		expectFailure(() -> silentFailure.apply(body -> { }));
-		require("processing".equals(silentFailure.status), "unverified status change cannot proceed");
+		expectFailure(() -> silentFailure.apply(body -> { silentFailure.applyAttempts++; }));
+		require(silentFailure.applyAttempts == 1 && "processing".equals(silentFailure.status),
+				"unverified status change must stop without a second attempt");
 
-		System.out.println("8 Woo acknowledgement regression scenarios passed");
+		System.out.println("8 Woo acknowledgement regression scenarios passed.");
 	}
 
 	private static void expectFailure(Runnable action) {
@@ -97,7 +99,7 @@ public class WooOrderAcknowledgementTest {
 		} catch (IllegalStateException expected) {
 			return;
 		}
-		throw new AssertionError("Expected a recoverable acknowledgement failure");
+		throw new AssertionError("Expected an unconfirmed acknowledgement");
 	}
 
 	private static void require(boolean success, String description) {
