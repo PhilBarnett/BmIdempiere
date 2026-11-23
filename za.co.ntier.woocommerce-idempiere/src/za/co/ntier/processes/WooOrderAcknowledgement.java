@@ -20,7 +20,7 @@ final class WooOrderAcknowledgement {
 		requireResponse(current, id, null);
 		if ("processing".equals(current.get("status"))) {
 			// The Woo status hook resets the flag. Read back and keep the
-			// writes ordered; replay only writes not already confirmed.
+			// writes ordered and confirm status before touching metadata.
 			current = updateAndRead(read, update, Map.of("status", "completed"));
 		}
 		// If Woo was put on hold or cancelled during the ERP work, stop. Do not
