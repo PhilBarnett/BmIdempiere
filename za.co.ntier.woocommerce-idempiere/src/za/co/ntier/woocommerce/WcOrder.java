@@ -58,6 +58,7 @@ public final class WcOrder {
 	private final String DOC_BASE_TYPE = "SOO";
 	private final String ORDER_TYPE = "BM Order";
 	//private final int POS_ORDER = 135;//Hard coded to Garden World, does not work in all clients.
+	private static final int FABRIC_SAMPLE_WOO_PRODUCT_ID = 128;
 	public static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
@@ -334,10 +335,7 @@ public final class WcOrder {
 		if (orderLine.getC_UOM_ID()==0)
 			orderLine.setC_UOM_ID(orderLine.getM_Product().getC_UOM_ID());
 		// Resolve all option mappings before the first order-line write.
-		ArrayList<LinkedHashMap<String,Object>> metaData = (ArrayList<LinkedHashMap<String, Object>>) line.get("meta_data");
-		if (metaData == null) {
-			throw new AdempiereUserError("Order " + order.getDocumentNo() + " has no line metadata.");
-		}
+		Object metaData = line.get("meta_data");
 		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = createdMapListFromMetaData(metaData, orderLine.getM_Product_ID());
 		//IF there's been an error with the MapList, abort.
@@ -348,6 +346,10 @@ public final class WcOrder {
 		orderLine.saveEx();
 		orderLine.set_ValueOfColumn("lockprice", "Y");
 		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
+		if (isFabricSample()) {
+			createFabricSampleLines(orderLine, masterZzWoocommerceMapList);
+			return true;
+		}
 		
 	/*	for (LinkedHashMap<String, Object> metaItem : metaData)
 			{
@@ -701,10 +703,13 @@ public final class WcOrder {
 	 * @param trxn
 	 */
 	public void processOrderLine(MOrderLine line, ArrayList<ArrayList<MzzWoocommerceMap>> mapList, String trxn /*, List<?> changeItems*/) {		
-		for(ArrayList<MzzWoocommerceMap> mzzWoocommerceMapList : mapList)
+		for (int index = 0; index < mapList.size(); index++)
 		{
-			processWooCommMeta(mzzWoocommerceMapList, line, ctx, trxn);
-			System.out.println(mapList.indexOf(mzzWoocommerceMapList));
+			processWooCommMeta(mapList.get(index), line, ctx, trxn);
+			if (isFabricSample()) {
+				validateFabricSample(line, trxn);
+			}
+			System.out.println(index);
 			if(calcOrderLineUnitPrice(WooLineData)==Env.ZERO)//
 			{
 				line.setPriceList(Env.ZERO);
@@ -715,10 +720,14 @@ public final class WcOrder {
 			if (line.getC_UOM_ID()==0)
 				line.setC_UOM_ID(line.getM_Product().getC_UOM_ID());
 			line.saveEx();
-			if(1 + mapList.indexOf(mzzWoocommerceMapList) < mapList.size())//Don't copy the last line.
+			if(index + 1 < mapList.size())//Don't copy the last line.
 			{
 				MOrderLine duplicateOrderLine = new MOrderLine(order);
 				MOrderLine.copyValues(line, duplicateOrderLine);
+				if (isFabricSample()) {
+					// Sharing the copied component set would let the next swatch overwrite this colour.
+					duplicateOrderLine.set_ValueNoCheck("bld_line_productsetinstance_id", null);
+				}
 				if(line.getM_AttributeSetInstance_ID() > 0)
 				{
 						MAttributeSetInstance duplicateMAttributeSetInstance = new MAttributeSetInstance(ctx, 0 ,trxn);
@@ -1191,6 +1200,12 @@ public final class WcOrder {
 		{
 			
 			String mapType = mzzWoocommerceMapLines[l].getzz_woocommerce_map_type();
+			if (isFabricSample()
+					&& (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(mapType)
+							|| WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE.equals(mapType))) {
+				applyMappedComponent(line, mzzWoocommerceMapLines[l], currentMapItem.getFieldValue(), trxn);
+				continue;
+			}
 			/*if(mzzWoocommerceMapLines[l].isAdd_To_Duplicate())
 			{
 				//Set flags, add duplicate field to ArrayList, skip processing the field on this MOrderLine.
@@ -1371,6 +1386,125 @@ public final class WcOrder {
 			} */
 	    	}//End for(int l = 0; l < mzzWoocommerceMapLines.length; l++) loop
 		   }//End for(MzzWoocommerceMap currentMapItem : currentMapList) loop
+	}
+
+	// Component and colour mappings arrive separately. Use the same transaction to find
+	// the component just saved for this order line and attach the colour to it.
+	private void applyMappedComponent(MOrderLine line, MzzWoocommerceMapLine mapping,
+			String fieldValue, String trxn) {
+		String setColumn = "BLD_Line_ProductSetInstance_ID";
+		int partTypeId = mapping.getBLD_Product_PartType_ID();
+		int componentProductId = mapping.getM_Product_Line_ID();
+		MBLDProductPartType partType = new MBLDProductPartType(ctx, partTypeId, trxn);
+		if (partType.get_ID() <= 0 || !partType.isActive() || !partType.isUserSelect()
+				|| partType.getM_Product_ID() != line.getM_Product_ID() || componentProductId <= 0) {
+			throw fabricSampleError("has an invalid fabric component destination for " + fieldValue);
+		}
+
+		MBLDLineProductSetInstance components = new MBLDLineProductSetInstance(ctx,
+				line.get_ValueAsInt(setColumn), trxn);
+		if (components.get_ID() <= 0) {
+			components.setAD_Org_ID(line.getAD_Org_ID());
+			components.saveEx(trxn);
+		}
+		int instanceId = DB.getSQLValueEx(trxn,
+				"SELECT BLD_Line_ProductInstance_ID FROM BLD_Line_ProductInstance"
+						+ " WHERE BLD_Line_ProductSetInstance_ID=? AND BLD_Product_PartType_ID=?",
+				components.get_ID(), partTypeId);
+		MBLDLineProductInstance component = new MBLDLineProductInstance(ctx, Math.max(instanceId, 0), trxn);
+		if (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(mapping.getzz_woocommerce_map_type())) {
+			if (component.get_ID() <= 0) {
+				component.setAD_Org_ID(line.getAD_Org_ID());
+				component.setBLD_Line_ProductSetInstance_ID(components.get_ID());
+				component.setBLD_Product_PartType_ID(partTypeId);
+			}
+			if (component.getM_Product_ID() != componentProductId) {
+				component.setM_AttributeSetInstance_ID(0);
+			}
+			component.setM_Product_ID(componentProductId);
+			component.saveEx(trxn);
+			line.set_ValueNoCheck(setColumn, components.get_ID());
+			line.saveEx(trxn);
+			components.setDescription(line.getM_Product_ID());
+			components.saveEx(trxn);
+			return;
+		}
+
+		if (component.getM_Product_ID() != componentProductId) {
+			throw fabricSampleError("could not find the saved fabric component for " + fieldValue);
+		}
+		MAttribute attribute = new MAttribute(ctx, mapping.getM_Attribute_Product_ID(), trxn);
+		MAttributeValue value = new MAttributeValue(ctx, mapping.getM_Attributevalue_Product_ID(), trxn);
+		if (!attribute.isActive() || value.get_ID() <= 0 || !value.isActive()
+				|| value.getM_Attribute_ID() != attribute.get_ID()) {
+			throw fabricSampleError("has an invalid fabric component attribute for " + fieldValue);
+		}
+		MAttributeSetInstance attributes = new MAttributeSetInstance(ctx, component.getM_AttributeSetInstance_ID(), trxn);
+		attributes.setM_AttributeSet_ID(MProduct.get(componentProductId).getM_AttributeSet_ID());
+		attributes.saveEx(trxn);
+		attribute.setMAttributeInstance(attributes.get_ID(), value);
+		component.setM_AttributeSetInstance_ID(attributes.get_ID());
+		component.saveEx(trxn);
+	}
+
+	// A WooCommerce sample item can contain several swatches. Fulfilment needs one ERP
+	// line per swatch, with the common product selections applied to each line.
+	private void createFabricSampleLines(MOrderLine orderLine, ArrayList<MzzWoocommerceMap> mappings) {
+		ArrayList<MzzWoocommerceMap> commonMappings = new ArrayList<>();
+		ArrayList<MzzWoocommerceMap> swatches = new ArrayList<>();
+		for (MzzWoocommerceMap mapping : mappings) {
+			if (WOOCOMMERCE_MAP_MULTISELECT_CHILD.equals(mapping.getzz_woocommerce_m_select_type())) {
+				swatches.add(mapping);
+			} else {
+				commonMappings.add(mapping);
+			}
+		}
+		ArrayList<ArrayList<MzzWoocommerceMap>> swatchLines = new ArrayList<>();
+		if (swatches.isEmpty()) {
+			swatchLines.add(commonMappings);
+		}
+		for (MzzWoocommerceMap swatch : swatches) {
+			ArrayList<MzzWoocommerceMap> lineMappings = new ArrayList<>(commonMappings);
+			lineMappings.add(swatch);
+			swatchLines.add(lineMappings);
+		}
+		processOrderLine(orderLine, swatchLines, trxName);
+	}
+
+	private boolean isFabricSample() {
+		return Integer.valueOf(FABRIC_SAMPLE_WOO_PRODUCT_ID).equals(wooCommProductID);
+	}
+
+	public static final class FabricSampleMappingError extends AdempiereUserError {
+		private static final long serialVersionUID = 1L;
+
+		private FabricSampleMappingError(String message) {
+			super(message);
+		}
+	}
+
+	private FabricSampleMappingError fabricSampleError(String detail) {
+		return new FabricSampleMappingError("WooCommerce order " + order.getDocumentNo()
+			+ ", item " + WooLineData.get("id") + ": " + detail);
+	}
+
+	private void validateFabricSample(MOrderLine line, String trxn) {
+		// Sample fulfilment uses the fabric component and its Colour attribute.
+		int components = DB.getSQLValueEx(trxn,
+			"SELECT COUNT(*) FROM BLD_Line_ProductInstance component "
+			+ "JOIN M_Product product ON product.M_Product_ID = component.M_Product_ID "
+			+ "JOIN M_PartType part ON part.M_PartType_ID = product.M_PartType_ID "
+			+ "WHERE component.BLD_Line_ProductSetInstance_ID = ? AND component.IsActive = 'Y' "
+			+ "AND LOWER(part.Name) = 'fabric' "
+			+ "AND EXISTS (SELECT 1 FROM M_AttributeInstance instance "
+			+ "JOIN M_Attribute attribute ON attribute.M_Attribute_ID = instance.M_Attribute_ID "
+			+ "WHERE instance.M_AttributeSetInstance_ID = component.M_AttributeSetInstance_ID "
+			+ "AND LOWER(attribute.Name) LIKE '%colour%' AND (instance.M_AttributeValue_ID > 0 OR TRIM(instance.Value) <> ''))",
+			line.get_ValueAsInt("bld_line_productsetinstance_id"));
+		if (components != 1) {
+			throw fabricSampleError("ERP line " + line.getLine()
+				+ " must have exactly one fabric component with a colour. Check the Fabric Sample product mappings.");
+		}
 	}
 
 	public void setAttribute(String attributeValueType, 
@@ -1635,197 +1769,100 @@ public final class WcOrder {
 		return 0;
 	}
 	
-	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(ArrayList<LinkedHashMap<String, Object>> metaData, int orderLineProductID) {
-		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapListFromMeta = new ArrayList<>(); 
-		fieldValues = new LinkedHashMap<Object, Object>();
-		boolean foundWapfMeta = false;
-		for (LinkedHashMap<String, Object> metaItem : metaData)
-		{
-			
-			if(metaItem.get("key").equals("_wapf_meta"))
-				 /*_wapf_meta contains the unique id of each field that
-				  * can be matched to the backend product  */
-			 {
-				 foundWapfMeta = true;
-				 // WAPF normally serializes this as an array containing one fields/settings object.
-				 // Older orders may contain the object directly; accept both forms.
-				 Object rawWapfMeta = metaItem.get("value");
-				 if (rawWapfMeta instanceof List<?>) {
-					 List<?> groups = (List<?>) rawWapfMeta;
-					 if (groups.size() != 1 || !(groups.get(0) instanceof Map<?, ?>)) {
-						 throw new AdempiereUserError("Order " + order.getDocumentNo()
-							 + " has an invalid _wapf_meta array; expected one fields/settings object.");
-					 }
-					 rawWapfMeta = groups.get(0);
-				 }
-				 if (!(rawWapfMeta instanceof Map<?, ?>)) {
-					 throw new AdempiereUserError("Order " + order.getDocumentNo()
-						 + " has invalid _wapf_meta; expected a fields/settings object.");
-				 }
-				 Map<String, Object> wapfMeta = (Map<String, Object>) rawWapfMeta;
-				 if (!(wapfMeta.get("fields") instanceof Map<?, ?>)
-					 || ((Map<?, ?>) wapfMeta.get("fields")).isEmpty()) {
-					 throw new AdempiereUserError("Order " + order.getDocumentNo()
-						 + " has no readable WAPF fields.");
-				 }
-				 //Create a list of mapping object for this WC order line
-				 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
-				 {
-					 System.out.println(wapfMetaItem.getValue());
-					 //Get a LinkedHashMap of all the fields and their IDs.
-					 
-					 LinkedHashMap<String, Object> fields = (LinkedHashMap<String, Object>) wapfMetaItem.getValue();
-					 for(Map.Entry<String, Object> fieldItem : fields.entrySet())
-					 { 
-						try 
-						{
-							 //System.out.println(fieldItem.getValue());
-							if(fieldItem.getValue().getClass().equals(LinkedHashMap.class)) 
-							{                        
-								 LinkedHashMap<String, Object> field = (LinkedHashMap<String, Object>) fieldItem.getValue();
-									
-								 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLineProductID,(String)field.get("id"), (String)field.get("value"), ctx);
-								 if(zzWoocommerceMap == null)
-								 {
-									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
-									 msg.append(field.get("id"));
-									 msg.append(" with label: ");
-									 msg.append(field.get("label"));
-									 msg.append(" with value: ");
-									 msg.append(field.get("value"));
-									 msg.append(" in product: ");
-									 msg.append(MProduct.get(orderLineProductID).getName());
-									 msg.append(" with WooCommerce name: ");
-									 msg.append(wooCommProductName);
-									 msg.append("and Woocommerce product ID: ");
-									 msg.append(wooCommProductID);
-									 msg.append(". Empty field mappings have been added automatically, please find them and update as needed. ");
-									 msg.append(". Once the mappings are complete, delete order no. ");
-									 msg.append(order.getDocumentNo());
-									 msg.append(" and try running the Woocomerce sync process manually.");
-									 msg.append("\n\n");
-									 
-									 log.warning(msg.toString());
-									 
-									 if(mapNotFound != null)
-									 {
-										 mapNotFound.append(msg);
-									 }
-									 else
-									 {
-										 mapNotFound = new StringBuilder(msg);
-									 }
-									 
-									 zzWoocommerceMap = new MzzWoocommerceMap(ctx, 0, trxName);
-									 zzWoocommerceMap.setM_Product_ID(orderLineProductID);
-									 zzWoocommerceMap.setwoocommerce_field_key((String)field.get("id"));
-									 if(field.get("value") != null) zzWoocommerceMap.setwoocommerce_field_value((String)field.get("value"));
-									 StringBuilder description = new StringBuilder("Empty record auto created by WooCommerce Sync process.");
-									 description.append(" Please either add appropriate mapping records (child records)");
-									 description.append(" or check the 'Ignore No Child Records' box so the system does not throw an error on this record.");
-									 zzWoocommerceMap.setDescription(description.toString());
-									 zzWoocommerceMap.setAdd_To_Duplicate(false);
-									 zzWoocommerceMap.setwoocommerce_field_label((String)field.get("label"));
-									 zzWoocommerceMap.save(trxName);
-									 
-									 /*TODO: Create behaviour for unmatched WooCommerce fields as follows:
-										 * 1. Create an empty StringBuilder field. DONE: private StringBuilder mapNotFound;
-										 * 2. When a mapping record cannot be found, create the record in the database with no child records. DONE
-										 * 3. Set the 'Ignore children' column to 'N'. DONE - that's it's default
-										 * 4. Modify the above message to advise that the record has been added with empty child records, that the sync has failed and that the new record will need to have child records added 
-										 * or the 'Ignore empty children' column set to 'Y'. Done
-										 * 5.add the above message to the field.
-										 * 5a. Modify the code that finds the mapping child records to throw an error when a field mapping is found, the children are empty and the 
-										 * 'Ignore Children' field is set to 'N', send an email then throw an error.
-										 * 6. Outside the loop, log the message, Email the message, then throw an error to stop the process.
-										 * It's then up to the user to handle the further set up that is needed. What this does is at least do some of the setup
-										 * by creating the empty records.
-										 * 
-										 * */
-									 
-								
-									 
-								 }
-								 /*/Handle multi-select WooCommerce fields. These are fields where the user can select more than one option, like fabric.
-								  * The call field.get("value") returns data like "Snow,Flint".
-								  * with multiple colours selected. It is initially used for fabric sample products.
-								  * Desired behaviour: created multiple orderlines for each colour.
-								  * Throw error if it is more than can be currently handled?
-								  */
-								 
-								/*Test to see if this mapping originates from a multi select field.
-								 *TODO: If the record 'zz_woocommerce_multi_select_type' is set as 'Multi Select Parent'
-								 * and the 'Ignore no child records' is 'Y' then the child records should be ignored, whether they exist or not.
-								 * Currently the non-existent child records are loaded and throwing NPE???
-								 * 24/3/2025 -> Why didn't I fix this?? I am dumb.*/
-								 String multiSelect = zzWoocommerceMap.getzz_woocommerce_m_select_type();
-								 if(multiSelect != null && multiSelect.equalsIgnoreCase(WOOCOMMERCE_MAP_MULTISELECT_PARENT) 
-										 /*&& !(zzWoocommerceMap.isignore_no_child_records())*/) 
-								 {
-									 String fieldContents = ((String) field.get("value"));
-									 String[] values = fieldContents.split(",");
-									 for(int t =0; t < values.length; t++)
-									 {
-										 values[t] = values[t].trim();
-									 }
-									 for(int p = 0; p < values.length; p++)
-									 {
-										 MzzWoocommerceMap zzWoocommerceMapChild = MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID,(String)field.get("id"), values[p], ctx);
-										 if(zzWoocommerceMapChild != null && zzWoocommerceMapChild.isActive())//Changed 24/3/2025 to prevent NPE
-										 {
-											 masterZzWoocommerceMapListFromMeta.add(zzWoocommerceMapChild);
-										 }
-									 }
-								 }
-								 else
-								 {
-									 if(zzWoocommerceMap.isActive()) 
-									{
-										masterZzWoocommerceMapListFromMeta.add(zzWoocommerceMap); //Add all found mappings to List
-									}
-								 }
-								
-								 //Parse out the different options from the field values.
-								 
-								 //Create separate MzzWoocommerceMap records for each field value?
-								 
-								 
-								
-								 if(field.get("value") != null)fieldValues.put(zzWoocommerceMap.get_ID(), field.get("value"));
-								 
-								 System.out.println(field.get("id"));
-								 System.out.println(field.get("label"));
-								 System.out.println(field.get("value"));
-								 //break;//There's no more useful stuff.
-								 //processWooCommMeta(orderLine, field, orderLine.getM_Product_ID(), ctx, trxName);
-							}
-							
-						}
-						catch(java.lang.ClassCastException e)
-						{
-							System.out.println("Exception thrown.");
-						}
-					 }//End field mapping loop.
-					 if(mapNotFound != null)//There were field mappings from WooCommerce not in the system.
-					 {
-						 int orgID = order.getAD_Org_ID();
-						 MzzWoocommerce mzzWoocommerce = MzzWoocommerce.get(orgID, ctx, trxName);
-						 String email = mzzWoocommerce.getnotify_email();
-						 WcMailNotify.sendEmail(email, mapNotFound.toString(), "", ctx, trxName);//Email any issues found.
-						 log.warning(mapNotFound.toString());
-						 //throw new AdempiereUserError(mapNotFound.toString());//Commented out 12/11/24 to improve error handling
-						 return null;//Throw a spanner in the works to trigger error
-					 }
-				 } 
-			 }
+	public static final class InvalidWapfPayload extends IllegalArgumentException {
+		private static final long serialVersionUID = 1L;
+
+		private InvalidWapfPayload(String message, Throwable cause) {
+			super(message, cause);
 		}
-		if (Integer.valueOf(128).equals(wooCommProductID) && !foundWapfMeta) {
-			throw new AdempiereUserError("Order " + order.getDocumentNo()
-				+ " is missing Fabric Sample WAPF metadata.");
-		}
-		return masterZzWoocommerceMapListFromMeta;
-		
 	}
+
+	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(Object metadata, int orderLineProductID) {
+		List<WapfOrderMetadata.Field> fields;
+		try {
+			fields = WapfOrderMetadata.parse(metadata, isFabricSample());
+		} catch (IllegalArgumentException error) {
+			throw new InvalidWapfPayload("WooCommerce order " + order.getDocumentNo()
+				+ ", item " + WooLineData.get("id") + ": invalid WAPF payload at "
+				+ error.getMessage(), error);
+		}
+
+		ArrayList<MzzWoocommerceMap> mappings = new ArrayList<>();
+		fieldValues = new LinkedHashMap<>();
+		for (WapfOrderMetadata.Field field : fields) {
+			MzzWoocommerceMap mapping = MzzWoocommerceMap.getMzzWoocommerceMap(
+				orderLineProductID, field.id, field.value, ctx);
+			if (mapping == null) {
+				if (isFabricSample()) {
+					throw fabricSampleError("No active mapping for field " + field.id
+						+ " (" + field.label + "), value '" + field.value + "'.");
+				}
+				mapping = createMissingOptionMapping(orderLineProductID, field);
+			}
+
+			if (WOOCOMMERCE_MAP_MULTISELECT_PARENT.equalsIgnoreCase(mapping.getzz_woocommerce_m_select_type())) {
+				if (field.value == null) {
+					throw new InvalidWapfPayload("WooCommerce order " + order.getDocumentNo()
+						+ ", item " + WooLineData.get("id") + ": missing value for multi-select field "
+						+ field.id + " (" + field.label + ").", null);
+				}
+				for (String value : field.value.split(",", isFabricSample() ? -1 : 0)) {
+					String choice = value.trim();
+					MzzWoocommerceMap child = MzzWoocommerceMap.getMzzWoocommerceMapChild(
+						orderLineProductID, field.id, choice, ctx);
+					boolean activeChild = child != null && child.isActive();
+					if (isFabricSample() && (choice.isEmpty() || !activeChild
+							|| !choice.equals(child.getwoocommerce_field_value()))) {
+						throw fabricSampleError("No exact active mapping for field " + field.id
+							+ " (" + field.label + "), choice '" + choice + "'.");
+					}
+					if (activeChild) {
+						mappings.add(child);
+					}
+				}
+			} else if (mapping.isActive()) {
+				mappings.add(mapping);
+			}
+
+			if (field.value != null) {
+				fieldValues.put(mapping.get_ID(), field.value);
+			}
+		}
+
+		if (mapNotFound != null) {
+			MzzWoocommerce defaults = MzzWoocommerce.get(order.getAD_Org_ID(), ctx, trxName);
+			WcMailNotify.sendEmail(defaults.getnotify_email(), mapNotFound.toString(), "", ctx, trxName);
+			log.warning(mapNotFound.toString());
+			return null;
+		}
+		return mappings;
+	}
+
+	private MzzWoocommerceMap createMissingOptionMapping(int productId, WapfOrderMetadata.Field field) {
+		if (mapNotFound == null) {
+			mapNotFound = new StringBuilder();
+		}
+		mapNotFound.append("No mapping for WooCommerce order ").append(order.getDocumentNo())
+			.append(", item ").append(WooLineData.get("id"))
+			.append(", field ").append(field.id).append(" (").append(field.label)
+			.append("), value '").append(field.value).append("' on ERP product ")
+			.append(MProduct.get(productId).getName())
+			.append(" (WooCommerce product ").append(wooCommProductID).append(").\n");
+
+		MzzWoocommerceMap mapping = new MzzWoocommerceMap(ctx, 0, trxName);
+		mapping.setM_Product_ID(productId);
+		mapping.setwoocommerce_field_key(field.id);
+		if (field.value != null) {
+			mapping.setwoocommerce_field_value(field.value);
+		}
+		mapping.setDescription("Empty record auto created by WooCommerce Sync process. "
+			+ "Add the appropriate child mappings or select Ignore No Child Records.");
+		mapping.setAdd_To_Duplicate(false);
+		mapping.setwoocommerce_field_label(field.label);
+		mapping.save(trxName);
+		return mapping;
+	}
+
 	public int getOrderBpID() {
 		return orderBpID;
 	}
