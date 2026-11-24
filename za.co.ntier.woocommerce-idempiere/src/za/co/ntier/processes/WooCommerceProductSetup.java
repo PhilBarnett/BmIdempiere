@@ -506,6 +506,11 @@ public class WooCommerceProductSetup extends SvrProcess {
 		List<MProduct> fabrics = suggest((String) field.get("label"), set.products, MProduct::getName);
 		boolean multi = "multi-image-swatch".equals(field.get("type"));
 		if (multi) {
+			// A parent changes how the order reader interprets every choice on this
+			// field. Inspect duplicates before activating any parent or children.
+			if (hasDuplicateFabricMappings(field, choices)) {
+				return;
+			}
 			MzzWoocommerceMap parent = proposal(field, null, MULTI_SELECT_PARENT,
 					List.of(set), "multi-select parent");
 			if (parent != null) {
@@ -532,12 +537,53 @@ public class WooCommerceProductSetup extends SvrProcess {
 		}
 	}
 
+	private boolean hasDuplicateFabricMappings(Map<?, ?> field, List<Map<?, ?>> choices) {
+		String key = (String) field.get("id");
+		String label = (String) field.get("label");
+		List<MzzWoocommerceMap> rows = new Query(getCtx(), MzzWoocommerceMap.Table_Name,
+				"M_Product_ID=? AND woocommerce_field_key=?", get_TrxName())
+				.setParameters(productId, key).setClient_ID().list();
+		Map<String, List<MzzWoocommerceMap>> byValue = new LinkedHashMap<>();
+		for (MzzWoocommerceMap row : rows) {
+			byValue.computeIfAbsent(row.getwoocommerce_field_value(), ignored -> new ArrayList<>()).add(row);
+		}
+		boolean conflict = false;
+		List<String> keys = new ArrayList<>();
+		keys.add(null); // Null is the routing parent, not an empty-string child.
+		for (Map<?, ?> choice : choices) {
+			keys.add(choiceLabel(choice, key));
+		}
+		for (String value : keys.stream().distinct().collect(Collectors.toList())) {
+			List<MzzWoocommerceMap> candidates = byValue.getOrDefault(value, List.of());
+			if (candidates.size() > 1) {
+				reportDuplicateMapping(key, label, value, candidates);
+				conflict = true;
+			}
+		}
+		return conflict;
+	}
+
+	private void reportDuplicateMapping(String key, String label, String value, List<MzzWoocommerceMap> rows) {
+		String records = rows.stream().map(row -> row.get_ID() + (row.isActive() ? " active" : " inactive"))
+				.sorted().collect(Collectors.joining(", "));
+		reportException(key, label, value,
+				"Duplicate ERP " + (value == null ? "null-valued routing parent" : "field value")
+				+ " mappings (records " + records + "); no row selected");
+	}
+
 	private MzzWoocommerceMap proposal(Map<?, ?> field, String value, String mode, List<?> matches, String target) {
 		String key = (String) field.get("id");
 		String label = (String) field.get("label");
-		MzzWoocommerceMap map = new Query(getCtx(), MzzWoocommerceMap.Table_Name,
+		List<MzzWoocommerceMap> rows = new Query(getCtx(), MzzWoocommerceMap.Table_Name,
 				"M_Product_ID=? AND woocommerce_field_key=? AND woocommerce_field_value IS NOT DISTINCT FROM ?",
-				get_TrxName()).setParameters(productId, key, value).firstOnly();
+				get_TrxName()).setParameters(productId, key, value).setClient_ID().list();
+		// Both active and inactive rows matter here. Don't select an arbitrary
+		// winner or hide a conflict by adding another record of the same key.
+		if (rows.size() > 1) {
+			reportDuplicateMapping(key, label, value, rows);
+			return null;
+		}
+		MzzWoocommerceMap map = rows.isEmpty() ? null : rows.get(0);
 		if (map != null && map.isActive()) {
 			existing++;
 			return null;
