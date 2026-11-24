@@ -29,6 +29,7 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MUser;
 import org.compiere.model.PO;
+import org.compiere.model.Query;
 import org.compiere.model.X_C_POSPayment;
 import org.compiere.model.X_C_Payment;
 import org.compiere.process.DocAction;
@@ -1838,6 +1839,53 @@ public final class WcOrder {
 				+ ", item " + WooLineData.get("id") + ": " + detail);
 	}
 
+	private List<MzzWoocommerceMap> activeSampleFieldMappings(int productId, String fieldKey) {
+		if (fieldKey == null) {
+			return List.of();
+		}
+		return new Query(ctx, MzzWoocommerceMap.Table_Name,
+				"M_Product_ID=? AND LOWER(woocommerce_field_key)=LOWER(?)", trxName)
+				.setParameters(productId, fieldKey).setClient_ID().setOnlyActiveRecords(true).list();
+	}
+
+	private MzzWoocommerceMap sampleSwatchParent(List<MzzWoocommerceMap> maps, String fieldKey, Object label) {
+		boolean swatchField = maps.stream().anyMatch(map -> WOOCOMMERCE_MAP_MULTISELECT_PARENT
+				.equalsIgnoreCase(map.getzz_woocommerce_m_select_type())
+				|| WOOCOMMERCE_MAP_MULTISELECT_CHILD.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()));
+		if (!swatchField) {
+			return null; // Keep the established lookup for non-swatch fields.
+		}
+
+		// The legacy lookup returns the first null-valued record. Reject a competing
+		// parent, including an ordinary null mapping which could shadow this one.
+		List<MzzWoocommerceMap> parents = maps.stream()
+				.filter(map -> !WOOCOMMERCE_MAP_MULTISELECT_CHILD.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()))
+				.filter(map -> map.getwoocommerce_field_value() == null
+						|| WOOCOMMERCE_MAP_MULTISELECT_PARENT.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()))
+				.toList();
+		if (parents.size() == 1) {
+			MzzWoocommerceMap parent = parents.get(0);
+			if (fieldKey.equals(parent.getwoocommerce_field_key()) && parent.getwoocommerce_field_value() == null
+					&& WOOCOMMERCE_MAP_MULTISELECT_PARENT.equalsIgnoreCase(parent.getzz_woocommerce_m_select_type())) {
+				return parent;
+			}
+		}
+		throw sampleMappingError("expected one exact active multi-select parent for " + label
+				+ " [" + fieldKey + "]; found " + parents.size() + " parent candidates");
+	}
+
+	private MzzWoocommerceMap sampleSwatchChild(List<MzzWoocommerceMap> maps, String fieldKey, Object label,
+			String value) {
+		List<MzzWoocommerceMap> matches = maps.stream()
+				.filter(map -> WOOCOMMERCE_MAP_MULTISELECT_CHILD.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()))
+				.filter(map -> value.equals(map.getwoocommerce_field_value())).toList();
+		if (!value.isEmpty() && matches.size() == 1 && fieldKey.equals(matches.get(0).getwoocommerce_field_key())) {
+			return matches.get(0);
+		}
+		throw sampleMappingError("expected one exact active colour mapping for " + label + " [" + fieldKey
+				+ "] = " + value + "; found " + matches.size() + " child candidates");
+	}
+
 	private void validateSampleFabric(MOrderLine line, String trxn) {
 		int fabricCount = DB.getSQLValueEx(trxn,
 				"SELECT COUNT(*) FROM BLD_Line_ProductInstance component"
@@ -1915,7 +1963,14 @@ public final class WcOrder {
 									 }
 									 continue;
 								 }
-								 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLineProductID,(String)field.get("id"), (String)field.get("value"), ctx);
+								 List<MzzWoocommerceMap> sampleFieldMappings = isFabricSample()
+										 ? activeSampleFieldMappings(orderLineProductID, fieldKey) : List.of();
+									 MzzWoocommerceMap zzWoocommerceMap = isFabricSample()
+										 ? sampleSwatchParent(sampleFieldMappings, fieldKey, field.get("label")) : null;
+									 if (zzWoocommerceMap == null) {
+										 zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(
+												 orderLineProductID, fieldKey, (String) field.get("value"), ctx);
+									 }
 								 if(zzWoocommerceMap == null)
 								 {
 									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
@@ -2001,13 +2056,9 @@ public final class WcOrder {
 									 }
 									 for(int p = 0; p < values.length; p++)
 									 {
-										 MzzWoocommerceMap zzWoocommerceMapChild = MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID,(String)field.get("id"), values[p], ctx);
-										 if (isFabricSample()) {
-											if (values[p].isEmpty() || zzWoocommerceMapChild == null || !zzWoocommerceMapChild.isActive()
-													|| !values[p].equals(zzWoocommerceMapChild.getwoocommerce_field_value())) {
-												throw sampleMappingError("no exact colour mapping for " + field.get("label") + " = " + values[p]);
-											}
-										 }
+										 MzzWoocommerceMap zzWoocommerceMapChild = isFabricSample()
+											 ? sampleSwatchChild(sampleFieldMappings, fieldKey, field.get("label"), values[p])
+											 : MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID, fieldKey, values[p], ctx);
 										 if(zzWoocommerceMapChild != null && zzWoocommerceMapChild.isActive())//Changed 24/3/2025 to prevent NPE
 										 {
 											 // Collection validation checks each child ID against its exact swatch,
