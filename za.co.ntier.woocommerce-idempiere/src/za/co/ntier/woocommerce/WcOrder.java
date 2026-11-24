@@ -189,7 +189,7 @@ public final class WcOrder {
 	}
 	
 	public int orderTotalOverZero() {
-		MOrder copyOrder = new MOrder(Env.getCtx(), order.get_ID(), null);//Created copy as this.order was returning no total;
+		MOrder copyOrder = new MOrder(ctx, order.get_ID(), trxName); // Read totals including this transaction's lines.
 		//if(order.getTotalLines().compareTo(Env.ZERO) > 0) 
 		if(copyOrder.getGrandTotal().compareTo(Env.ZERO) > 0) 
 		{
@@ -1165,8 +1165,8 @@ public final class WcOrder {
 			msg.append(". The WooCommerce sync process may need to be run manually.");
 			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
 			log.warning(msg.toString());
-			//throw new IllegalStateException("Could not create Order Line");
-			//log.warning(msg.toString());
+			// Do not acknowledge an order that is missing its shipping charge.
+			throw new IllegalStateException("Could not save shipping line for order " + order.getDocumentNo());
 		}
 	}
 

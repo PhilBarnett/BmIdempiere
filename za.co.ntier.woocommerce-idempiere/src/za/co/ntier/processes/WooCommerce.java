@@ -7,14 +7,14 @@ import org.compiere.process.DocAction;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
-import org.compiere.util.Env;
+import org.compiere.util.Trx;
 
 import java.net.URI;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +30,7 @@ import za.co.ntier.woocommerce.WcOrder;
 
 /**
  *
- * Start a thread to collect unsynchronised orders from WooCommerce website
+ * Import unsynchronised WooCommerce orders into iDempiere.
  *
  * @author yogan naidoo, Phil Barnett.
  */
@@ -47,134 +47,276 @@ public class WooCommerce extends SvrProcess {
 	private static final String LIVE_CURTAIN_QA_LOCATION = "QA double curtain - do not fulfil";
 	private Integer wooCommerceOrderId;
 
-	public class MyRunnable implements Runnable {
 
-		@Override
-		public void run() {
-
-			// Get WooCommerce defaults
-			final PO wcDefaults;
-			String whereClause = " isactive = 'Y' AND AD_Client_ID = ?";
-			wcDefaults = new Query(getCtx(), X_zz_woocommerce.Table_Name, whereClause, null)
-					.setParameters(new Object[] { Env.getAD_Client_ID(getCtx()) }).firstOnly();
-			if (wcDefaults == null)
-				throw new IllegalStateException("/nWooCommerce Defaults need to be set on iDempiere /n");
-
-			// Setup client
-			OAuthConfig config = new OAuthConfig((String) wcDefaults.get_Value("url"),
-					(String) wcDefaults.get_Value("consumerkey"), (String) wcDefaults.get_Value("consumersecret"));
-			Woocommerce wooCommerce = new WooCommerceAPI(config, ApiVersionType.V3);
-
-			List<?> wcOrders = ordersToSync(wooCommerce, wcDefaults);
-			// Iterate through each order
-			for (int i = 0; i < wcOrders.size(); i++) 
-			{
-				Map<?, ?> order = (Map<?, ?>) wcOrders.get(i);
-				int id = (int) order.get("id");
-				boolean liveRehearsal = isLiveCurtainRehearsal(order, wcDefaults);
-				boolean sampleRehearsal = isStagingSampleRehearsal(order, wcDefaults);
-				boolean rehearsal = liveRehearsal || isMarkedCurtainRehearsal(order) || sampleRehearsal;
-				if (rehearsal && wooCommerceOrderId == null) {
-					continue;
-				}
-				log.warning("Importing WooCommerce order " + id);
-				WcOrder wcOrder = new WcOrder(getCtx(), get_TrxName(), wcDefaults);
-				wcOrder.createOrder(order, documentNoFor(order, rehearsal, sampleRehearsal));
-
-				// Iterate through each order Line
-				boolean linesSuccessful = true;
-				List<?> lines = (List<?>) order.get("line_items");
-				for (int j = 0; j < lines.size(); j++) 
-				{
-					Map<?, ?> line = (Map<?, ?>) lines.get(j);
-					if(!wcOrder.createOrderLine(line, order))//Will return false if errors
-					{
-						linesSuccessful = false;
-					}
-					Object name = line.get("name");
-					log.warning("Name of Product = " + name.toString());
-				}
-				if (!linesSuccessful) {
-					throw new IllegalStateException("WooCommerce order " + id
-						+ " failed line mapping; iDempiere import must be rolled back.");
-				}
-
-				// Update syncedToIdempiere to 'yes'
-				//PB 06062024 Will not get executed if 'wcOrder.completeOrder()' has been disabled.
-				
-				if (wooCommerceOrderId != null && wcOrder.getOrderLineCount() == 0) {
-					throw new AdempiereUserError("WooCommerce order " + id + " produced no sales order lines.");
-				}
-
-				if (rehearsal) {
-					MOrder draft = new MOrder(getCtx(), wcOrder.getcOrderID(), get_TrxName());
-					if ((liveRehearsal || sampleRehearsal) && (!DocAction.STATUS_Drafted.equals(draft.getDocStatus())
-							|| wcOrder.getOrderLineCount() != 2)) {
-						throw new AdempiereUserError("The QA order must produce exactly two draft order lines.");
-					}
-					if (sampleRehearsal) {
-						draft.setDescription("STAGING FABRIC SAMPLE QA - DO NOT FULFIL");
-						draft.saveEx();
-						addLog("Imported staging sample order " + id + " as iDempiere draft "
-								+ draft.getDocumentNo() + ". WooCommerce status unchanged.");
-						continue;
-					}
-					draft.setDescription((liveRehearsal ? "LIVE" : "STAGING") + " CURTAIN QA - DO NOT FULFIL");
-					draft.saveEx();
-					addLog("Imported " + (liveRehearsal ? "live" : "staging") + " curtain QA order " + id + " as iDempiere draft " + draft.getDocumentNo()
-							+ ". WooCommerce order left On hold.");
-					continue;
-				}
-
-				//Do not flag orders that have no order lines as complete and synced; they will need to be synced manually.
-				if(wcOrder.getOrderLineCount() > 0 && linesSuccessful)
-				{	
-
-					//Create installation record
-					if(wcOrder.orderTotalOverZero() > 0)//Sample orders are 0 total and don't require installation records.
-					{
-						MBldMtmInstall mBldMtmInstall = new MBldMtmInstall(Env.getCtx(), 0, get_TrxName());
-						mBldMtmInstall.setStatus("Acc");
-						mBldMtmInstall.setC_BPartner_ID(wcOrder.getOrderBpID());
-						mBldMtmInstall.setC_BPartner_Location_ID(wcOrder.getbPLocationId());
-						mBldMtmInstall.setName("****ONLINE****");
-						Instant instant = Instant.now();
-						instant = instant.plus(10, ChronoUnit.DAYS);//TODO: add column 'days_promised' to adempiere.zz_woocommerce and get as a setting from the 'WooCommerce Defaults' window. 
-						mBldMtmInstall.setdate_promised(Timestamp.from(instant));
-						mBldMtmInstall.setComments(wcOrder.getCustomerNote());
-						mBldMtmInstall.setis_checkmeasured(true);
-						mBldMtmInstall.setcontract_received(true);
-						mBldMtmInstall.saveEx();
-						wcOrder.setBldMtmInstallID(mBldMtmInstall.get_ID());
-					}
-					wcOrder.createShippingCharge(order);
-					wcOrder.createPosPayment(order);
-					wcOrder.completeOrder();//PB 06062024 wcOrder.completeOrder()' has been disabled for testing, re-enabled 23/10/24
-					// Mark WooCommerce complete only after all ERP order work succeeds.
-					//Pass 1 -> change status to completed. When this happens WooCommerce sets "syncedToIdempiere" to "no".
-					Map<String, Object> body = new HashMap<>();
-					body.put("status","completed");
-					Map<?, ?> response = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body);
-					System.out.println(response.toString());
-					log.warning("---------Response from WooCommerce: " + response.toString());
-					
-					//Pass 2 -> Update syncedToIdempiere to 'yes', must be done separately to status=completed.
-					Map<String, Object> body2 = new HashMap<>();
-					List<Map<String, String>> listOfMetaData = new ArrayList<Map<String, String>>();
-					Map<String, String> metaData = new HashMap<>();
-					metaData.put("key", "syncedToIdempiere");
-					metaData.put("value", "yes");
-					listOfMetaData.add(metaData);
-					body2.put("meta_data", listOfMetaData);
-					Map<?, ?> response2 = wooCommerce.update(EndpointBaseType.ORDERS.getValue(), id, body2);
-					System.out.println(response2.toString());
-					log.warning("---------Response2 from WooCommerce: " + response2.toString());
-					
-				}	
+	/**
+	 * Import each eligible order on its own, then acknowledge Woo. A later bad
+	 * order must not undo either of the good orders around it.
+	 */
+	private String syncOrders() throws SQLException {
+		PO defaults = new Query(getCtx(), X_zz_woocommerce.Table_Name, null, null)
+				.setClient_ID().setOnlyActiveRecords(true).firstOnly();
+		if (defaults == null) {
+			throw new AdempiereUserError("WooCommerce Defaults must be configured in iDempiere.");
+		}
+		Woocommerce woo = new WooCommerceAPI(new OAuthConfig((String) defaults.get_Value("url"),
+				(String) defaults.get_Value("consumerkey"), (String) defaults.get_Value("consumersecret")),
+				ApiVersionType.V3);
+		String endpoint = EndpointBaseType.ORDERS.getValue();
+		int imported = 0, rejected = 0, unacknowledged = 0;
+		for (Object item : ordersToSync(woo, defaults)) {
+			if (!(item instanceof Map<?, ?> order) || !(order.get("id") instanceof Integer id) || id <= 0) {
+				rejected++;
+				addLog("Skipped a WooCommerce response without a valid order ID.");
+				continue;
 			}
+			boolean live = isLiveCurtainRehearsal(order, defaults);
+			boolean sample = isStagingSampleRehearsal(order, defaults);
+			boolean rehearsal = live || sample || isMarkedCurtainRehearsal(order);
+			if (rehearsal && wooCommerceOrderId == null) {
+				continue;
+			}
+			// Rehearsals retain their separate document identifiers and are
+			// deliberately excluded from batch exports and Woo updates.
+			String documentNo = documentNoFor(order, rehearsal, sample);
+			try {
+				int erpOrderId = importOrder(defaults, order, documentNo, rehearsal, live, sample);
+				confirmCommittedOrder(erpOrderId, defaults.getAD_Org_ID(), documentNo);
+				imported++;
+			} catch (RuntimeException | SQLException failure) {
+				// Continue past bad order data, never past a known infrastructure
+				// failure or a transaction whose rollback could not be confirmed.
+				String message = failure instanceof ExistingOrder
+						? failure.getMessage()
+						: "WooCommerce order " + id + ": ERP import not confirmed. WooCommerce unchanged.";
+				report(message, failure);
+				if (wooCommerceOrderId != null || isDatabaseUnavailable(failure)) {
+					throw new AdempiereUserError(message + " See process log.");
+				}
+				rejected++;
+				continue;
+			}
+			addLog("WooCommerce order " + id + " committed in ERP as " + documentNo
+					+ (rehearsal ? " (QA draft); WooCommerce unchanged." : "."));
+			if (!rehearsal) {
+				// This is reachable only after this invocation committed the order.
+				// An existing ERP document is not a receipt for a previous invocation.
+				try {
+					WooOrderAcknowledgement.apply(id, () -> woo.get(endpoint, id),
+							body -> woo.update(endpoint, id, body));
+				} catch (RuntimeException failure) {
+					unacknowledged++;
+					report("WooCommerce order " + id + ": ERP " + documentNo
+							+ " is committed, but Woo acknowledgement was not confirmed. Reconcile both records; do not reimport.",
+							failure);
+				}
+			}
+		}
+		if (wooCommerceOrderId != null && imported == 1) {
+			return "WooCommerce order " + wooCommerceOrderId + " imported in ERP"
+					+ (unacknowledged == 0 ? "." : "; Woo acknowledgement unconfirmed. See process log.");
+		}
+		return "WooCommerce import: " + imported + " committed, " + rejected + " not confirmed, "
+				+ unacknowledged + " requiring Woo reconciliation. See process log.";
+	}
+
+	/** Owns the lock and the complete ERP write: header, lines and dependent records. */
+	private int importOrder(PO defaults, Map<?, ?> order, String documentNo, boolean rehearsal,
+			boolean live, boolean sample) throws SQLException {
+		int id = (Integer) order.get("id");
+		// The process transaction belongs to SvrProcess (or its caller). Do not
+		// partly commit it: all this order's models must use the owned name.
+		String name = Trx.createTrxName("WooOrder");
+		Trx trx = Trx.get(name, true);
+		Connection connection = null;
+		boolean committed = false;
+		try {
+			connection = trx.getConnection();
+			PO lockedDefaults = new Query(getCtx(), X_zz_woocommerce.Table_Name,
+					X_zz_woocommerce.COLUMNNAME_zz_woocommerce_ID + "=?", name)
+					.setParameters(defaults.get_ID()).setClient_ID().setOnlyActiveRecords(true)
+					.setForUpdate(true).firstOnly();
+			if (lockedDefaults == null || !defaults.get_Value("url").equals(lockedDefaults.get_Value("url"))
+					|| defaults.getAD_Org_ID() != lockedDefaults.getAD_Org_ID()) {
+				throw new ImportUnavailable("WooCommerce Defaults changed while the importer was running.");
+			}
+			// Serialise check + create for batches and targeted calls that use this
+			// store. The lock is released before any Woo HTTP requests.
+			String legacyRef = rehearsal && !live ? documentNo : Integer.toString(id);
+			if (new Query(getCtx(), MOrder.Table_Name,
+					"AD_Org_ID=? AND IsSOTrx='Y' AND (DocumentNo=? OR DocumentNo=? OR POReference=?)", name)
+					.setParameters(lockedDefaults.getAD_Org_ID(), documentNo, legacyRef, legacyRef)
+					.setClient_ID().match()) {
+				throw new ExistingOrder("WooCommerce order " + id
+						+ ": matching ERP document or reference already exists; reconcile it without reimporting.");
+			}
+			// Reject the entire order if a required row cannot be created.
+			if (!(order.get("line_items") instanceof List<?> lines) || lines.isEmpty()) {
+				throw new AdempiereUserError("Order has no WooCommerce items.");
+			}
+			WcOrder wcOrder = new WcOrder(getCtx(), name, lockedDefaults);
+			wcOrder.createOrder(order, documentNo);
+			for (Object item : lines) {
+				if (!(item instanceof Map<?, ?> line) || !wcOrder.createOrderLine(line, order)) {
+					throw new AdempiereUserError("Order " + id + " failed line mapping.");
+				}
+			}
+			int lineCount = wcOrder.getOrderLineCount();
+			if (lineCount == 0) {
+				throw new AdempiereUserError("Order " + id + " produced no sales order lines.");
+			}
+			if (rehearsal) {
+				MOrder draft = new MOrder(getCtx(), wcOrder.getcOrderID(), name);
+				if (!DocAction.STATUS_Drafted.equals(draft.getDocStatus()) || ((live || sample) && lineCount != 2)) {
+					throw new AdempiereUserError("The QA order did not produce the expected draft order lines.");
+				}
+				draft.setDescription(sample ? "STAGING FABRIC SAMPLE QA - DO NOT FULFIL"
+						: (live ? "LIVE" : "STAGING") + " CURTAIN QA - DO NOT FULFIL");
+				draft.saveEx();
+			} else {
+				createInstallation(wcOrder, name);
+				wcOrder.createShippingCharge(order);
+				wcOrder.createPosPayment(order);
+				wcOrder.completeOrder();
+			}
+			// Only a confirmed commit allows Woo status or customer-facing side
+			// effects. A reported commit failure may still require reconciliation.
+			commitOrder(trx, id);
+			committed = true;
+			return wcOrder.getcOrderID();
+		} finally {
+			finishTransaction(trx, connection, committed);
 		}
 	}
 
+	private static void commitOrder(Trx trx, int wooId) throws ImportUnavailable {
+		String message = "ERP commit was not confirmed for WooCommerce order " + wooId
+				+ "; inspect the ERP record before retrying.";
+		boolean confirmed;
+		try {
+			confirmed = trx.commit(true);
+		} catch (RuntimeException | SQLException failure) {
+			// A transaction listener can also fail after JDBC committed. A
+			// successful cleanup rollback cannot settle that uncertainty.
+			throw new ImportUnavailable(message, failure);
+		}
+		if (!confirmed) {
+			throw new ImportUnavailable(message);
+		}
+	}
+
+	/** Read the exact record this run committed afresh, not any matching old draft. */
+	private void confirmCommittedOrder(int erpOrderId, int orgId, String documentNo) throws ImportUnavailable {
+		String message = "ERP commit returned success for " + documentNo
+				+ ", but the saved order and lines could not be verified; inspect before retrying.";
+		MOrder durableOrder;
+		boolean hasLines;
+		try {
+			durableOrder = new Query(getCtx(), MOrder.Table_Name,
+					"C_Order_ID=? AND AD_Org_ID=? AND DocumentNo=? AND IsSOTrx='Y'", null)
+					.setParameters(erpOrderId, orgId, documentNo).setClient_ID().setOnlyActiveRecords(true).firstOnly();
+			hasLines = durableOrder != null && durableOrder.getLines().length > 0;
+		} catch (RuntimeException failure) {
+			throw new ImportUnavailable(message, failure);
+		}
+		if (!hasLines) {
+			throw new ImportUnavailable(message);
+		}
+	}
+
+	private void createInstallation(WcOrder order, String trxName) {
+		if (order.orderTotalOverZero() <= 0) {
+			return; // Free samples do not require an installation.
+		}
+		MBldMtmInstall install = new MBldMtmInstall(getCtx(), 0, trxName);
+		install.setStatus("Acc");
+		install.setC_BPartner_ID(order.getOrderBpID());
+		install.setC_BPartner_Location_ID(order.getbPLocationId());
+		install.setName("****ONLINE****");
+		install.setdate_promised(Timestamp.from(Instant.now().plus(10, ChronoUnit.DAYS)));
+		install.setComments(order.getCustomerNote());
+		install.setis_checkmeasured(true);
+		install.setcontract_received(true);
+		install.saveEx();
+		order.setBldMtmInstallID(install.get_ID());
+	}
+
+	private static void finishTransaction(Trx trx, Connection connection, boolean committed) throws ImportUnavailable {
+		if (!committed && connection != null) {
+			try {
+				if (!trx.rollback(true)) {
+					throw new SQLException("ERP rollback was not confirmed.");
+				}
+			} catch (RuntimeException | SQLException failure) {
+				// iDempiere 12 close() resets auto-commit. Abort the connection
+				// first so cleanup cannot commit a partially imported order.
+				try {
+					connection.abort(Runnable::run);
+					trx.close();
+				} catch (RuntimeException | SQLException abortFailure) {
+					failure.addSuppressed(abortFailure);
+				}
+				throw new ImportUnavailable("ERP rollback unconfirmed; stop and inspect the database.", failure);
+			}
+		}
+		try {
+			trx.close();
+		} catch (RuntimeException failure) {
+			throw new ImportUnavailable("ERP transaction cleanup failed; inspect the ERP record before retrying.", failure);
+		}
+	}
+
+	private static boolean isDatabaseUnavailable(Exception failure) {
+		for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+			if (cause instanceof ImportUnavailable) {
+				return true;
+			}
+			if (cause instanceof SQLException sql && sql.getSQLState() != null
+					&& (sql.getSQLState().startsWith("08") || sql.getSQLState().startsWith("53")
+							|| sql.getSQLState().startsWith("57P"))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void report(String message, Exception failure) {
+		// Remote exceptions can contain response bodies; log the class, not
+		// customer data or credentials from exception text or payloads.
+		String kind = failure.getClass().getSimpleName();
+		if (failure instanceof ImportUnavailable) {
+			message += " " + failure.getMessage();
+		}
+		String sqlState = null;
+		for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+			if (cause instanceof SQLException sql && sql.getSQLState() != null) {
+				sqlState = sql.getSQLState();
+				break;
+			}
+		}
+		addLog(message + " (" + kind + (sqlState == null ? "" : ", SQLState " + sqlState) + ")");
+	}
+
+	private static final class ImportUnavailable extends SQLException {
+		private static final long serialVersionUID = 1L;
+
+		ImportUnavailable(String message) {
+			super(message);
+		}
+
+		ImportUnavailable(String message, Exception cause) {
+			super(message, cause);
+		}
+	}
+
+	private static final class ExistingOrder extends AdempiereUserError {
+		private static final long serialVersionUID = 1L;
+
+		ExistingOrder(String message) {
+			super(message);
+		}
+	}
+	// Read the same Processing queue as before unless the operator supplies an
+	// exact order ID. Rehearsals still have their stricter eligibility rules.
 	private List<?> ordersToSync(Woocommerce wooCommerce, PO defaults) {
 		String endpoint = EndpointBaseType.ORDERS.getValue();
 		if (wooCommerceOrderId == null) {
@@ -205,19 +347,7 @@ public class WooCommerce extends SvrProcess {
 		} else if (!PROCESSING_STATUS.equals(order.get("status"))) {
 			throw new AdempiereUserError("WooCommerce order " + wooCommerceOrderId + " must be in Processing status.");
 		}
-		String documentNo = documentNoFor(order, liveRehearsal || markedRehearsal, sampleRehearsal);
-		if (salesOrderExists(defaults, documentNo)
-				|| (liveRehearsal && salesOrderExists(defaults, order.get("id").toString()))) {
-			throw new AdempiereUserError("Sales order " + documentNo + " already exists in iDempiere.");
-		}
 		return List.of(order);
-	}
-
-	private boolean salesOrderExists(PO defaults, String documentNo) {
-		return new Query(getCtx(), MOrder.Table_Name,
-				"AD_Client_ID=? AND AD_Org_ID=? AND IsSOTrx='Y' AND DocumentNo=?", get_TrxName())
-				.setParameters(Env.getAD_Client_ID(getCtx()), defaults.getAD_Org_ID(), documentNo)
-				.match();
 	}
 
 	private static String documentNoFor(Map<?, ?> order, boolean rehearsal, boolean sampleRehearsal) {
@@ -307,11 +437,7 @@ public class WooCommerce extends SvrProcess {
 
 	@Override
 	protected String doIt() throws Exception {
-		// Keep the import inside the process lifecycle so its transaction is
-		// available until all line mappings have completed or an error propagates.
-		new MyRunnable().run();
-		return wooCommerceOrderId == null ? "Synchronisation from WooCommerce completed"
-				: "WooCommerce order " + wooCommerceOrderId + " imported";
+		return syncOrders();
 	}
 
 }
