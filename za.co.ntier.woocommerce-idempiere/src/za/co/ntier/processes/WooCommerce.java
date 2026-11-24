@@ -80,7 +80,7 @@ public class WooCommerce extends SvrProcess {
 			String documentNo = documentNoFor(order, rehearsal, sample);
 			try {
 				int erpOrderId = importOrder(defaults, order, documentNo, rehearsal, live, sample);
-				verifyCommittedOrder(erpOrderId, defaults.getAD_Org_ID(), documentNo);
+				confirmCommittedOrder(erpOrderId, defaults.getAD_Org_ID(), documentNo);
 				imported++;
 			} catch (RuntimeException | SQLException failure) {
 				// Continue past bad order data, never past a known infrastructure
@@ -180,9 +180,7 @@ public class WooCommerce extends SvrProcess {
 			}
 			// Only a confirmed commit allows Woo status or customer-facing side
 			// effects. A reported commit failure may still require reconciliation.
-			if (!trx.commit(true)) {
-				throw new SQLException("ERP commit was not confirmed for WooCommerce order " + id);
-			}
+			commitOrder(trx, id);
 			committed = true;
 			return wcOrder.getcOrderID();
 		} finally {
@@ -190,13 +188,38 @@ public class WooCommerce extends SvrProcess {
 		}
 	}
 
+	private static void commitOrder(Trx trx, int wooId) throws ImportUnavailable {
+		String message = "ERP commit was not confirmed for WooCommerce order " + wooId
+				+ "; inspect the ERP record before retrying.";
+		boolean confirmed;
+		try {
+			confirmed = trx.commit(true);
+		} catch (RuntimeException | SQLException failure) {
+			// A transaction listener can also fail after JDBC committed. A
+			// successful cleanup rollback cannot settle that uncertainty.
+			throw new ImportUnavailable(message, failure);
+		}
+		if (!confirmed) {
+			throw new ImportUnavailable(message);
+		}
+	}
+
 	/** Read the exact record this run committed afresh, not any matching old draft. */
-	private void verifyCommittedOrder(int erpOrderId, int orgId, String documentNo) {
-		MOrder durableOrder = new Query(getCtx(), MOrder.Table_Name,
-				"C_Order_ID=? AND AD_Org_ID=? AND DocumentNo=? AND IsSOTrx='Y'", null)
-				.setParameters(erpOrderId, orgId, documentNo).setClient_ID().setOnlyActiveRecords(true).firstOnly();
-		if (durableOrder == null || durableOrder.getLines().length == 0) {
-			throw new AdempiereUserError("The committed ERP order could not be reloaded with sales lines.");
+	private void confirmCommittedOrder(int erpOrderId, int orgId, String documentNo) throws ImportUnavailable {
+		String message = "ERP commit returned success for " + documentNo
+				+ ", but the saved order and lines could not be verified; inspect before retrying.";
+		MOrder durableOrder;
+		boolean hasLines;
+		try {
+			durableOrder = new Query(getCtx(), MOrder.Table_Name,
+					"C_Order_ID=? AND AD_Org_ID=? AND DocumentNo=? AND IsSOTrx='Y'", null)
+					.setParameters(erpOrderId, orgId, documentNo).setClient_ID().setOnlyActiveRecords(true).firstOnly();
+			hasLines = durableOrder != null && durableOrder.getLines().length > 0;
+		} catch (RuntimeException failure) {
+			throw new ImportUnavailable(message, failure);
+		}
+		if (!hasLines) {
+			throw new ImportUnavailable(message);
 		}
 	}
 
@@ -235,7 +258,11 @@ public class WooCommerce extends SvrProcess {
 				throw new ImportUnavailable("ERP rollback unconfirmed; stop and inspect the database.", failure);
 			}
 		}
-		trx.close();
+		try {
+			trx.close();
+		} catch (RuntimeException failure) {
+			throw new ImportUnavailable("ERP transaction cleanup failed; inspect the ERP record before retrying.", failure);
+		}
 	}
 
 	private static boolean isDatabaseUnavailable(Exception failure) {
