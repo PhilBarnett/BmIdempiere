@@ -13,6 +13,7 @@ import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeValue;
 import org.compiere.model.MProduct;
+import org.compiere.model.MSysConfig;
 import org.compiere.model.Query;
 import org.compiere.model.X_M_PartType;
 import org.compiere.process.SvrProcess;
@@ -50,10 +51,11 @@ public class WooCommerceProductSetup extends SvrProcess {
 
 	@Override
 	protected String doIt() throws Exception {
-		productId = new MzzWoocommerceMap(getCtx(), getProcessInfo().getRecord_ID(),
-				get_TrxName()).getM_Product_ID();
+		productId = getProcessInfo().getTable_ID() == MProduct.Table_ID
+				? getProcessInfo().getRecord_ID()
+				: new MzzWoocommerceMap(getCtx(), getProcessInfo().getRecord_ID(), get_TrxName()).getM_Product_ID();
 		if (productId <= 0) {
-			throw new AdempiereUserError("Select a WooCommerce mapping on the product to review.");
+			throw new AdempiereUserError("Select a product or a WooCommerce mapping on the product to review.");
 		}
 		X_zz_woocommerce defaults = new Query(getCtx(), X_zz_woocommerce.Table_Name,
 				"IsActive='Y' AND AD_Client_ID=?", get_TrxName())
@@ -182,7 +184,8 @@ public class WooCommerceProductSetup extends SvrProcess {
 		}
 
 		if (isMultiselectCollection(field, collections)) {
-			reviewMultiselectCollection(field, choices, WooCollectionSwatches.collection(label), collections, fabricSets);
+			reviewMultiselectCollection(wooProductId, field, choices, WooCollectionSwatches.collection(label),
+					collections, fabricSets);
 			return;
 		}
 
@@ -295,8 +298,8 @@ public class WooCommerceProductSetup extends SvrProcess {
 	 * unless this field's full palette and existing mapping shape are usable.
 	 * An existing ordinary row is an operator decision, not permission to edit it.
 	 */
-	private void reviewMultiselectCollection(Map<?, ?> field, List<Map<?, ?>> choices, String collection,
-			List<String> collections, List<PartSet> fabricSets) {
+	private void reviewMultiselectCollection(int wooProductId, Map<?, ?> field, List<Map<?, ?>> choices,
+			String collection, List<String> collections, List<PartSet> fabricSets) {
 		String key = (String) field.get("id");
 		String label = (String) field.get("label");
 		List<String> values = choices.stream().map(choice -> choiceLabel(choice, key)).collect(Collectors.toList());
@@ -314,7 +317,17 @@ public class WooCommerceProductSetup extends SvrProcess {
 				.collect(Collectors.toList());
 		List<MProduct> components = sampleSets.stream().flatMap(set -> set.products.stream())
 				.distinct().collect(Collectors.toList());
-		List<MProduct> fabrics = collectionFabrics(collection, components);
+		String binding = MSysConfig.getValue("BM_WOO_SWATCH_" + wooProductId + "_" + key, "",
+				Env.getAD_Client_ID(getCtx()));
+		if (!binding.isBlank() && !binding.matches("[1-9][0-9]*:[1-9][0-9]*(?:,[A-Za-z0-9_-]+=[1-9][0-9]*)+")) {
+			reportException(key, label, null, "Invalid configured swatch binding");
+			return;
+		}
+		String[] entries = binding.split(",");
+		String[] destination = entries[0].split(":");
+		List<MProduct> fabrics = binding.isBlank() ? collectionFabrics(collection, components)
+				: components.stream().filter(product -> Integer.toString(product.get_ID()).equals(destination[0]))
+						.collect(Collectors.toList());
 		if (fabrics.size() != 1) {
 			reportChoiceReview(key, label, null, "sample BOM fabric", fabrics);
 			return;
@@ -323,7 +336,11 @@ public class WooCommerceProductSetup extends SvrProcess {
 		List<PartSet> slots = sampleSets.stream()
 				.filter(set -> set.products.stream().anyMatch(product -> product.get_ID() == fabric.get_ID()))
 				.collect(Collectors.toList());
-		List<MAttribute> colours = collectionColourAttributes(fabric);
+		List<MAttribute> colours = binding.isBlank() ? collectionColourAttributes(fabric)
+				: attributesOf(fabric).stream().filter(MAttribute::isActive)
+						.filter(attribute -> attribute.isInstanceAttribute() && "L".equals(attribute.getAttributeValueType()))
+						.filter(attribute -> Integer.toString(attribute.get_ID()).equals(destination[1]))
+						.collect(Collectors.toList());
 		if (slots.size() != 1 || colours.size() != 1) {
 			reportChoiceReview(key, label, null, slots.size() != 1 ? "sample Fabric slot" : "sample colour attribute",
 					slots.size() != 1 ? slots : colours);
@@ -332,13 +349,34 @@ public class WooCommerceProductSetup extends SvrProcess {
 		PartSet slot = slots.get(0);
 		MAttribute colour = colours.get(0);
 		Map<String, MAttributeValue> targets = new LinkedHashMap<>();
-		for (String value : values) {
-			List<MAttributeValue> matches = attributeValues(colour, value);
+		Map<String, String> colourIds = new LinkedHashMap<>();
+		for (int i = 1; i < entries.length; i++) {
+			String[] choice = entries[i].split("=");
+			if (colourIds.putIfAbsent(choice[0], choice[1]) != null) {
+				reportException(key, label, choice[0], "Duplicate configured Woo choice slug");
+				return;
+			}
+		}
+		// Durable bindings live outside generated mappings. Retain current Woo labels
+		// as order lookup keys because older order payloads may carry labels only.
+		MAttributeValue[] available = colour.getMAttributeValues();
+		for (int i = 0; i < choices.size(); i++) {
+			String value = values.get(i);
+			String colourId = colourIds.remove(choices.get(i).get("slug"));
+			List<MAttributeValue> matches = binding.isBlank() ? attributeValues(colour, value)
+					: available == null || colourId == null ? List.of()
+					: Arrays.stream(available).filter(MAttributeValue::isActive)
+							.filter(candidate -> Integer.toString(candidate.get_ID()).equals(colourId))
+							.collect(Collectors.toList());
 			if (matches.size() == 1) {
 				targets.put(value, matches.get(0));
 			} else {
 				reportChoiceReview(key, label, value, "sample colour", matches);
 			}
+		}
+		if (!colourIds.isEmpty()) {
+			reportException(key, label, null, "Configured Woo slugs absent from the field: " + colourIds.keySet());
+			return;
 		}
 		if (targets.size() != values.size()) {
 			return;
