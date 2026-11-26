@@ -5,10 +5,12 @@ import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -16,6 +18,7 @@ import java.util.logging.Level;
 
 import org.compiere.model.MAttribute;
 import org.compiere.model.MAttributeInstance;
+import org.compiere.model.MAttributeSet;
 import org.compiere.model.MAttributeSetInstance;
 import org.compiere.model.MAttributeValue;
 import org.compiere.model.MBPartner;
@@ -27,6 +30,7 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MUser;
 import org.compiere.model.PO;
+import org.compiere.model.Query;
 import org.compiere.model.X_C_POSPayment;
 import org.compiere.model.X_C_Payment;
 import org.compiere.process.DocAction;
@@ -52,6 +56,7 @@ import za.co.ntier.model.X_ZZ_Woocommerce_Match;
  */
 
 public final class WcOrder {
+	private int expectedItemLineCount;
 	private final Properties ctx;
 	private final String trxName;
 	private final int POSTENDERTYPE_ID = 1000000;
@@ -59,6 +64,25 @@ public final class WcOrder {
 	private final String ORDER_TYPE = "BM Order";
 	//private final int POS_ORDER = 135;//Hard coded to Garden World, does not work in all clients.
 	public static final String WOOCOMMERCE_MAP_TYPE_ATTRIBUTE = "10000003";
+	public static final String FABRIC_COLLECTION_SELECTOR_DESCRIPTION = "Automatically mapped fabric collection selector.";
+
+	private static final int CURTAIN_WOO_PRODUCT_ID = 1298;
+	private static final String CURTAIN_CONFIGURATION_FIELD = "de9a14efa7384";
+	private static final String DOUBLE_CURTAIN = "Double Curtain – Sheer + Blockout";
+	private static final String CURTAIN_HEADING_FIELD = "ce4ef1711247d";
+	private static final String CURTAIN_FLOOR_CLEARANCE_FIELD = "bm_curtain_floor_clearance";
+	private static final String CURTAIN_FLOOR_CLEARANCE_LABEL = "Floor Clearance (mm)";
+	private static final String CURTAIN_HEADING_ARRANGEMENT_FIELD = "f8fe601e980e1";
+	private static final String DOUBLE_CURTAIN_HEADING_ARRANGEMENT = "Front Sheer: S-Wave / Rear Blockout: Knife Pleat";
+	private static final String SHEER_COLLECTION_FIELD = "92db9fc815954";
+	private static final String BLOCKOUT_COLLECTION_FIELD = "636f72a6ea7b1";
+	private static final String SINGLE_MOTOR_SIDE_FIELD = "33607f4f3c30c";
+	private static final String SHEER_MOTOR_SIDE_FIELD = "a45bb1cc8b4f2";
+	private static final String BLOCKOUT_MOTOR_SIDE_FIELD = "f5594fa1f9e6e";
+	private static final String SHEER_HEM_FIELD = "bm_curtain_sheer_hem";
+	private static final String BLOCKOUT_HEM_FIELD = "bm_curtain_blockout_hem";
+
+
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD = "10000004";
 	public static final String WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE = "10000005";
 	public static final String WOOCOMMERCE_MAP_MULTISELECT_PARENT = "10000006";
@@ -81,6 +105,7 @@ public final class WcOrder {
 	private String wooCommProductName ="";
 	private Integer wooCommProductID;
 	private StringBuilder mapNotFound;
+	private final Map<String, String> curtainSelectors = new HashMap<>();
 	private int orderBpID = 0;
 	private int cOrderID = 0;
 	private int bPLocationId = 0;
@@ -94,16 +119,28 @@ public final class WcOrder {
 	}
 
 	public void createOrder(Map<?, ?> orderWc) {
-		order.setDocumentNo((orderWc.get("id").toString()));
+		createOrder(orderWc, orderWc.get("id").toString());
+	}
+
+	public void createOrder(Map<?, ?> orderWc, String documentNo) {
+		order.setDocumentNo(documentNo);
 		order.setAD_Org_ID((int) wcDefaults.get_Value("ad_org_id"));
 		int BP_Id = getBPId(getWcCustomerEmail(orderWc), orderWc);
 		order.setC_BPartner_ID(BP_Id);
 		orderBpID = BP_Id;
-		int BPLocationId = getBPLocationId(BP_Id);
-		bPLocationId = BPLocationId;
-		order.setC_BPartner_Location_ID(BPLocationId); // order.setAD_User_ID(101);
+		// Serialize location matching and creation for orders for the same partner.
+		if (DB.getSQLValueEx(trxName, "SELECT C_BPartner_ID FROM C_BPartner WHERE C_BPartner_ID=? FOR UPDATE", BP_Id) <= 0) {
+			throw new AdempiereUserError("WooCommerce order " + documentNo + " has no valid business partner.");
+		}
+		Map<?, ?> billing = (Map<?, ?>) orderWc.get("billing");
+		int billingLocationId = resolveCheckoutLocation(BP_Id, billing, true);
+		Map<?, ?> shipping = orderWc.get("shipping") instanceof Map<?, ?> address ? address : Map.of();
+		bPLocationId = addressValue(shipping, "address_1").isEmpty()
+				? resolveCheckoutLocation(BP_Id, billing, false)
+				: resolveCheckoutLocation(BP_Id, shipping, false);
+		order.setC_BPartner_Location_ID(bPLocationId);
 		order.setBill_BPartner_ID(BP_Id);
-		order.setBill_Location_ID(BPLocationId);
+		order.setBill_Location_ID(billingLocationId);
 		// order.setBill_User_ID(); order.setSalesRep_ID(101);
 		/*isTaxInclusive = (orderWc.get("prices_include_tax").toString().equals("true")) ? true : false;//TODO:Problem: prices don't actually include tax.*/
 		isTaxInclusive = false;//Hard coded 2/2/24 because WooComm returns true when the price does not include tax.
@@ -153,9 +190,13 @@ public final class WcOrder {
 	public int getOrderLineCount() {
 		return order.getLines().length;
 	}
+
+	public int getExpectedItemLineCount() {
+		return expectedItemLineCount;
+	}
 	
 	public int orderTotalOverZero() {
-		MOrder copyOrder = new MOrder(Env.getCtx(), order.get_ID(), null);//Created copy as this.order was returning no total;
+		MOrder copyOrder = new MOrder(ctx, order.get_ID(), trxName); // Read totals including this transaction's lines.
 		//if(order.getTotalLines().compareTo(Env.ZERO) > 0) 
 		if(copyOrder.getGrandTotal().compareTo(Env.ZERO) > 0) 
 		{
@@ -212,8 +253,7 @@ public final class WcOrder {
 		businessPartner.setIsProspect(false);
 		businessPartner.setIsVendor(false);
 		businessPartner.saveEx();
-		int C_Location_ID = createLocation(orderWc);
-		int C_BPartner_Location_ID = createBPLocation(businessPartner.getC_BPartner_ID(), C_Location_ID);
+		int C_BPartner_Location_ID = resolveCheckoutLocation(businessPartner.get_ID(), billing, true);
 		createUser(businessPartner, email, phone, C_BPartner_Location_ID);
 
 		return businessPartner.get_ID();
@@ -231,30 +271,72 @@ public final class WcOrder {
 		user.saveEx();
 	}
 
-	private int createLocation(Map<?, ?> orderWc) {
-		Map<?, ?> billing = (Map<?, ?>) orderWc.get("billing");
-		String countryCode = (String) billing.get("country");
-		int c_country_id;
-		if (isBlankOrNull(countryCode))
-			c_country_id = (int) wcDefaults.get_Value("c_country_id");
-		else
-			c_country_id = DB.getSQLValue(trxName, "select c_country_id " + "from c_country " + "where countrycode = ?",
-					countryCode);
-		String address1 = (String) billing.get("address_1");
-		if (isBlankOrNull(address1))
-			address1 = (String) wcDefaults.get_Value("c_country_id");
-		String address2 = (String) billing.get("address_2");
-		String city = (String) billing.get("city");
-		if (isBlankOrNull(city))
-			city = (String) wcDefaults.get_Value("city");
-		String postal = (String) billing.get("postcode");
-		MLocation location = new MLocation(ctx, c_country_id, 0, city, trxName);
+	private int resolveCheckoutLocation(int partnerId, Map<?, ?> address, boolean billing) {
+		String countryCode = addressValue(address, "country").toUpperCase(Locale.ROOT);
+		int countryId = countryCode.isEmpty()
+				? (int) wcDefaults.get_Value("c_country_id")
+				: DB.getSQLValueEx(trxName,
+						"SELECT C_Country_ID FROM C_Country WHERE UPPER(CountryCode)=?", countryCode);
+		if (countryId <= 0) {
+			throw new AdempiereUserError("WooCommerce checkout address has an unknown country: " + countryCode);
+		}
+
+		String street = addressValue(address, "address_1");
+		if (street.isEmpty()) {
+			throw new AdempiereUserError("WooCommerce checkout is missing the "
+					+ (billing ? "billing" : "delivery") + " street address.");
+		}
+		String address2 = addressValue(address, "address_2");
+		String city = addressValue(address, "city");
+		String postal = addressValue(address, "postcode");
+		String state = addressValue(address, "state");
+		if ("AU".equals(countryCode)) {
+			state = switch (state.toUpperCase(Locale.ROOT)) {
+				case "ACT" -> "Australian Capital Territory";
+				case "NSW" -> "New South Wales";
+				case "NT" -> "Northern Territory";
+				case "QLD" -> "Queensland";
+				case "SA" -> "South Australia";
+				case "TAS" -> "Tasmania";
+				case "VIC" -> "Victoria";
+				case "WA" -> "Western Australia";
+				default -> state;
+			};
+		}
+		String stateCode = addressValue(address, "state");
+		int regionId = state.isEmpty() ? 0 : Math.max(0, DB.getSQLValueEx(trxName,
+				"SELECT C_Region_ID FROM C_Region WHERE C_Country_ID=? AND IsActive='Y'"
+						+ " AND (UPPER(Name)=UPPER(?) OR UPPER(Name)=UPPER(?)) ORDER BY C_Region_ID",
+				countryId, state, stateCode));
+
+		// Reuse a location only when its address and order role match the checkout.
+		String role = billing ? "IsBillTo" : "IsShipTo";
+		int partnerLocationId = DB.getSQLValueEx(trxName,
+				"SELECT bp.C_BPartner_Location_ID FROM C_BPartner_Location bp"
+						+ " JOIN C_Location loc ON loc.C_Location_ID=bp.C_Location_ID"
+						+ " WHERE bp.C_BPartner_ID=? AND bp.IsActive='Y' AND loc.IsActive='Y'"
+						+ " AND bp." + role + "='Y' AND loc.C_Country_ID=? AND COALESCE(loc.C_Region_ID,0)=?"
+						+ " AND UPPER(TRIM(COALESCE(loc.Address1,'')))=UPPER(?)"
+						+ " AND UPPER(TRIM(COALESCE(loc.Address2,'')))=UPPER(?)"
+						+ " AND UPPER(TRIM(COALESCE(loc.City,'')))=UPPER(?)"
+						+ " AND UPPER(TRIM(COALESCE(loc.Postal,'')))=UPPER(?)"
+						+ " ORDER BY bp.C_BPartner_Location_ID",
+				partnerId, countryId, regionId, street, address2, city, postal);
+		if (partnerLocationId > 0) {
+			return partnerLocationId;
+		}
+
+		MLocation location = new MLocation(ctx, countryId, regionId, city, trxName);
 		location.setAD_Org_ID(0);
-		location.setAddress1(address1);
+		location.setAddress1(street);
 		location.setAddress2(address2);
 		location.setPostal(postal);
 		location.saveEx();
-		return location.get_ID();
+		return createBPLocation(partnerId, location.get_ID());
+	}
+
+	private static String addressValue(Map<?, ?> address, String key) {
+		return address != null && address.get(key) instanceof String value ? value.trim() : "";
 	}
 
 	private int createBPLocation(int C_BPartner_ID, int C_Location_ID) {
@@ -303,6 +385,7 @@ public final class WcOrder {
 	}
 
 	public boolean createOrderLine(Map<?, ?> line, Map<?, ?> orderWc) {
+		expectedItemLineCount = 1;
 		WooLineData = line;
 		MOrderLine orderLine = new MOrderLine(order);
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
@@ -333,24 +416,31 @@ public final class WcOrder {
 		orderLine.setPrice(calcOrderLineUnitPrice(line));
 		if (orderLine.getC_UOM_ID()==0)
 			orderLine.setC_UOM_ID(orderLine.getM_Product().getC_UOM_ID());
-		orderLine.saveEx();
-		orderLine.set_ValueOfColumn("lockprice", "Y");
-		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
-		
-		//Added by Phil Barnett 27/5/2023 -> process meta data for attributes and product options
-		//duplicateFields = null;
+		// Resolve all option mappings before the first order-line write.
 		ArrayList<LinkedHashMap<String,Object>> metaData = (ArrayList<LinkedHashMap<String, Object>>) line.get("meta_data");
-		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();//Holds the found Mapping instructions for this WC orderline
+		if (metaData == null) {
+			throw new AdempiereUserError("Order " + order.getDocumentNo() + " has no line metadata.");
+		}
+		ArrayList<MzzWoocommerceMapLine> mzzWoocommerceMapLines = new ArrayList<MzzWoocommerceMapLine>();
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapList = createdMapListFromMetaData(metaData, orderLine.getM_Product_ID());
 		//IF there's been an error with the MapList, abort.
 		if(masterZzWoocommerceMapList == null)
 		{
 			return false;
 		}
+		if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
+				&& DOUBLE_CURTAIN.equals(curtainSelectors.get(CURTAIN_CONFIGURATION_FIELD))) {
+			expectedItemLineCount = 2;
+			createDoubleCurtainLines(orderLine, masterZzWoocommerceMapList);
+			return true;
+		}
+		orderLine.saveEx();
+		orderLine.set_ValueOfColumn("lockprice", "Y");
 		if (isFabricSample()) {
 			createFabricSampleLines(orderLine, masterZzWoocommerceMapList);
 			return true;
 		}
+		System.out.println("*********************Unit Price: " + orderLine.getPriceActual());
 		
 	/*	for (LinkedHashMap<String, Object> metaItem : metaData)
 			{
@@ -704,11 +794,18 @@ public final class WcOrder {
 	 * @param trxn
 	 */
 	public void processOrderLine(MOrderLine line, ArrayList<ArrayList<MzzWoocommerceMap>> mapList, String trxn /*, List<?> changeItems*/) {		
+		expectedItemLineCount = mapList.size();
 		for (int index = 0; index < mapList.size(); index++)
 		{
-			processWooCommMeta(mapList.get(index), line, ctx, trxn);
+			ArrayList<MzzWoocommerceMap> lineMappings = mapList.get(index);
+			// Derive the expected colour before writing the line's component records.
+			SampleColour expected = isFabricSample() ? expectedSampleColour(lineMappings) : null;
+			processWooCommMeta(lineMappings, line, ctx, trxn);
 			if (isFabricSample()) {
 				validateSampleFabric(line, trxn);
+				if (expected != null) {
+					verifySampleColour(line, expected, trxn);
+				}
 			}
 			System.out.println(index);
 			if(calcOrderLineUnitPrice(WooLineData)==Env.ZERO)//
@@ -1084,8 +1181,8 @@ public final class WcOrder {
 			msg.append(". The WooCommerce sync process may need to be run manually.");
 			WcMailNotify.sendEmail(email, msg.toString(), "", ctx, trxName);//Email any issues found.
 			log.warning(msg.toString());
-			//throw new IllegalStateException("Could not create Order Line");
-			//log.warning(msg.toString());
+			// Do not acknowledge an order that is missing its shipping charge.
+			throw new IllegalStateException("Could not save shipping line for order " + order.getDocumentNo());
 		}
 	}
 
@@ -1201,7 +1298,7 @@ public final class WcOrder {
 		{
 			
 			String mapType = mzzWoocommerceMapLines[l].getzz_woocommerce_map_type();
-			if (isFabricSample()
+			if ((isFabricSample() || Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID))
 					&& (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(mapType)
 							|| WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE.equals(mapType))) {
 				applyMappedComponent(line, mzzWoocommerceMapLines[l], currentMapItem.getFieldValue(), trxn);
@@ -1231,8 +1328,18 @@ public final class WcOrder {
 					mAttributeSetInstance.setM_AttributeSet_ID(mAttributeSetID);
 					int m_AttributeSetInstance_ID = mAttributeSetInstance.get_ID();
 					line.setM_AttributeSetInstance_ID(m_AttributeSetInstance_ID);
-					System.out.println(currentMapItem.getFieldValue());
-					setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, currentMapItem.getFieldValue(), mapType,trxn);
+					String value = currentMapItem.getFieldValue();
+					// Curtain manufacturing reads the stored instance text to select its S-wave calculations.
+					if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
+							&& CURTAIN_HEADING_FIELD.equals(currentMapItem.getwoocommerce_field_key()) && "S-Wave".equals(value)) {
+						value = "SWave";
+					}
+					if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
+							&& CURTAIN_FLOOR_CLEARANCE_FIELD.equals(currentMapItem.getwoocommerce_field_key())) {
+						mapAttribute.setMAttributeInstance(m_AttributeSetInstance_ID, new BigDecimal(value));
+					} else {
+						setAttribute(attributeValueType, mzzWoocommerceMapLines[l], m_AttributeSetInstance_ID, value, mapType,trxn);
+					}
 					//setAttribute(String attributeValueType, MzzWoocommerceMap mzzWoocommerceMap, int m_AttributeSetInstance_ID, Properties field, String trxn)
 	
 					mAttributeSetInstance.saveEx();
@@ -1389,6 +1496,8 @@ public final class WcOrder {
 		   }//End for(MzzWoocommerceMap currentMapItem : currentMapList) loop
 	}
 
+	// Component and colour mappings arrive separately. Use the same transaction to find
+	// the component just saved for this order line and attach the colour to it.
 	private void applyMappedComponent(MOrderLine line, MzzWoocommerceMapLine mapping,
 			String fieldValue, String trxn) {
 		String setColumn = "BLD_Line_ProductSetInstance_ID";
@@ -1397,7 +1506,7 @@ public final class WcOrder {
 		MBLDProductPartType partType = new MBLDProductPartType(ctx, partTypeId, trxn);
 		if (partType.get_ID() <= 0 || !partType.isActive() || !partType.isUserSelect()
 				|| partType.getM_Product_ID() != line.getM_Product_ID() || componentProductId <= 0) {
-			throw sampleMappingError("has an invalid fabric component destination for " + fieldValue);
+			throw componentMappingError("has an invalid fabric component destination for " + fieldValue);
 		}
 
 		MBLDLineProductSetInstance components = new MBLDLineProductSetInstance(ctx,
@@ -1430,13 +1539,13 @@ public final class WcOrder {
 		}
 
 		if (component.getM_Product_ID() != componentProductId) {
-			throw sampleMappingError("could not find the saved fabric component for " + fieldValue);
+			throw componentMappingError("could not find the saved fabric component for " + fieldValue);
 		}
 		MAttribute attribute = new MAttribute(ctx, mapping.getM_Attribute_Product_ID(), trxn);
 		MAttributeValue value = new MAttributeValue(ctx, mapping.getM_Attributevalue_Product_ID(), trxn);
 		if (!attribute.isActive() || value.get_ID() <= 0 || !value.isActive()
 				|| value.getM_Attribute_ID() != attribute.get_ID()) {
-			throw sampleMappingError("has an invalid fabric component attribute for " + fieldValue);
+			throw componentMappingError("has an invalid fabric component attribute for " + fieldValue);
 		}
 		MAttributeSetInstance attributes = new MAttributeSetInstance(ctx, component.getM_AttributeSetInstance_ID(), trxn);
 		attributes.setM_AttributeSet_ID(MProduct.get(componentProductId).getM_AttributeSet_ID());
@@ -1444,6 +1553,10 @@ public final class WcOrder {
 		attribute.setMAttributeInstance(attributes.get_ID(), value);
 		component.setM_AttributeSetInstance_ID(attributes.get_ID());
 		component.saveEx(trxn);
+	}
+
+	private AdempiereUserError componentMappingError(String detail) {
+		return isFabricSample() ? sampleMappingError(detail) : curtainMappingError(detail);
 	}
 
 	public void setAttribute(String attributeValueType, 
@@ -1708,6 +1821,8 @@ public final class WcOrder {
 		return 0;
 	}
 	
+	// A WooCommerce sample item can contain several swatches. Fulfilment needs one ERP
+	// line per swatch, with the common product selections applied to each line.
 	private void createFabricSampleLines(MOrderLine orderLine, ArrayList<MzzWoocommerceMap> mappings) {
 		ArrayList<MzzWoocommerceMap> commonMappings = new ArrayList<>();
 		ArrayList<MzzWoocommerceMap> swatches = new ArrayList<>();
@@ -1739,6 +1854,92 @@ public final class WcOrder {
 				+ ", item " + WooLineData.get("id") + ": " + detail);
 	}
 
+	private List<MzzWoocommerceMap> activeSampleFieldMappings(int productId, String fieldKey) {
+		if (fieldKey == null) {
+			return List.of();
+		}
+		return new Query(ctx, MzzWoocommerceMap.Table_Name,
+				"M_Product_ID=? AND LOWER(woocommerce_field_key)=LOWER(?)", trxName)
+				.setParameters(productId, fieldKey).setClient_ID().setOnlyActiveRecords(true).list();
+	}
+
+	private MzzWoocommerceMap sampleSwatchParent(List<MzzWoocommerceMap> maps, String fieldKey, Object label) {
+		boolean swatchField = maps.stream().anyMatch(map -> WOOCOMMERCE_MAP_MULTISELECT_PARENT
+				.equalsIgnoreCase(map.getzz_woocommerce_m_select_type())
+				|| WOOCOMMERCE_MAP_MULTISELECT_CHILD.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()));
+		if (!swatchField) {
+			return null; // Keep the established lookup for non-swatch fields.
+		}
+
+		// The legacy lookup returns the first null-valued record. Reject a competing
+		// parent, including an ordinary null mapping which could shadow this one.
+		List<MzzWoocommerceMap> parents = maps.stream()
+				.filter(map -> !WOOCOMMERCE_MAP_MULTISELECT_CHILD.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()))
+				.filter(map -> map.getwoocommerce_field_value() == null
+						|| WOOCOMMERCE_MAP_MULTISELECT_PARENT.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()))
+				.toList();
+		if (parents.size() == 1) {
+			MzzWoocommerceMap parent = parents.get(0);
+			if (fieldKey.equals(parent.getwoocommerce_field_key()) && parent.getwoocommerce_field_value() == null
+					&& WOOCOMMERCE_MAP_MULTISELECT_PARENT.equalsIgnoreCase(parent.getzz_woocommerce_m_select_type())) {
+				return parent;
+			}
+		}
+		throw sampleMappingError("expected one exact active multi-select parent for " + label
+				+ " [" + fieldKey + "]; found " + parents.size() + " parent candidates");
+	}
+
+	private MzzWoocommerceMap sampleSwatchChild(List<MzzWoocommerceMap> maps, String fieldKey, Object label,
+			String value) {
+		List<MzzWoocommerceMap> matches = maps.stream()
+				.filter(map -> WOOCOMMERCE_MAP_MULTISELECT_CHILD.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()))
+				.filter(map -> value.equals(map.getwoocommerce_field_value())).toList();
+		if (!value.isEmpty() && matches.size() == 1 && fieldKey.equals(matches.get(0).getwoocommerce_field_key())) {
+			return matches.get(0);
+		}
+		throw sampleMappingError("expected one exact active colour mapping for " + label + " [" + fieldKey
+				+ "] = " + value + "; found " + matches.size() + " child candidates");
+	}
+
+	private record SampleColour(int productId, int partTypeId, int attributeId, int valueId) {}
+
+	private SampleColour expectedSampleColour(List<MzzWoocommerceMap> mappings) {
+		List<MzzWoocommerceMap> swatches = mappings.stream()
+				.filter(map -> WOOCOMMERCE_MAP_MULTISELECT_CHILD.equals(map.getzz_woocommerce_m_select_type()))
+				.toList();
+		if (swatches.isEmpty()) {
+			return null; // Preserve the legacy single-sample route.
+		}
+		MzzWoocommerceMap swatch = swatches.get(0);
+		List<MzzWoocommerceMapLine> colours = Arrays.stream(swatch.getMzzWoocommerceMapLines(
+				swatch.get_ID(), ctx, "", ""))
+				.filter(map -> WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE.equals(map.getzz_woocommerce_map_type()))
+				.toList();
+		if (swatches.size() != 1 || colours.size() != 1) {
+			throw sampleMappingError("expected one component colour destination for "
+					+ swatch.getwoocommerce_field_value());
+		}
+		MzzWoocommerceMapLine colour = colours.get(0);
+		return new SampleColour(colour.getM_Product_Line_ID(), colour.getBLD_Product_PartType_ID(),
+				colour.getM_Attribute_Product_ID(), colour.getM_Attributevalue_Product_ID());
+	}
+
+	private void verifySampleColour(MOrderLine line, SampleColour expected, String trxn) {
+		int matches = DB.getSQLValueEx(trxn,
+				"SELECT COUNT(*) FROM BLD_Line_ProductInstance component"
+				+ " JOIN M_AttributeInstance colour ON colour.M_AttributeSetInstance_ID=component.M_AttributeSetInstance_ID"
+				+ " WHERE component.BLD_Line_ProductSetInstance_ID=? AND component.IsActive='Y'"
+				+ " AND component.M_Product_ID=? AND component.BLD_Product_PartType_ID=?"
+				+ " AND colour.M_Attribute_ID=? AND colour.M_AttributeValue_ID=?",
+				line.get_ValueAsInt("BLD_Line_ProductSetInstance_ID"), expected.productId(),
+				expected.partTypeId(), expected.attributeId(), expected.valueId());
+		if (matches != 1) {
+			throw sampleMappingError("ERP line " + line.getLine()
+					+ " does not contain the expected fabric " + expected.productId()
+					+ " and colour " + expected.valueId());
+		}
+	}
+
 	private void validateSampleFabric(MOrderLine line, String trxn) {
 		int fabricCount = DB.getSQLValueEx(trxn,
 				"SELECT COUNT(*) FROM BLD_Line_ProductInstance component"
@@ -1760,6 +1961,7 @@ public final class WcOrder {
 	public ArrayList<MzzWoocommerceMap> createdMapListFromMetaData(ArrayList<LinkedHashMap<String, Object>> metaData, int orderLineProductID) {
 		ArrayList<MzzWoocommerceMap> masterZzWoocommerceMapListFromMeta = new ArrayList<>(); 
 		fieldValues = new LinkedHashMap<Object, Object>();
+		curtainSelectors.clear();
 		boolean foundWapfMeta = false;
 		for (LinkedHashMap<String, Object> metaItem : metaData)
 		{
@@ -1806,7 +2008,23 @@ public final class WcOrder {
 							{                        
 								 LinkedHashMap<String, Object> field = (LinkedHashMap<String, Object>) fieldItem.getValue();
 									
-								 MzzWoocommerceMap zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(orderLineProductID,(String)field.get("id"), (String)field.get("value"), ctx);
+								 String fieldKey = (String) field.get("id");
+								 if (isCurtainSelector(wooCommProductID, fieldKey)) {
+									 if (!(field.get("value") instanceof String selection)
+											 || !isSupportedCurtainSelection(fieldKey, selection)
+											 || curtainSelectors.putIfAbsent(fieldKey, selection) != null) {
+										 throw curtainMappingError("has an invalid or duplicate curtain selection for " + fieldKey);
+									 }
+									 continue;
+								 }
+								 List<MzzWoocommerceMap> sampleFieldMappings = isFabricSample()
+										 ? activeSampleFieldMappings(orderLineProductID, fieldKey) : List.of();
+									 MzzWoocommerceMap zzWoocommerceMap = isFabricSample()
+										 ? sampleSwatchParent(sampleFieldMappings, fieldKey, field.get("label")) : null;
+									 if (zzWoocommerceMap == null) {
+										 zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(
+												 orderLineProductID, fieldKey, (String) field.get("value"), ctx);
+									 }
 								 if(zzWoocommerceMap == null)
 								 {
 									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
@@ -1892,15 +2110,16 @@ public final class WcOrder {
 									 }
 									 for(int p = 0; p < values.length; p++)
 									 {
-										 MzzWoocommerceMap zzWoocommerceMapChild = MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID,(String)field.get("id"), values[p], ctx);
-										 if (isFabricSample()) {
-											if (values[p].isEmpty() || zzWoocommerceMapChild == null || !zzWoocommerceMapChild.isActive()
-													|| !values[p].equals(zzWoocommerceMapChild.getwoocommerce_field_value())) {
-												throw sampleMappingError("no exact colour mapping for " + field.get("label") + " = " + values[p]);
-											}
-										 }
+										 MzzWoocommerceMap zzWoocommerceMapChild = isFabricSample()
+											 ? sampleSwatchChild(sampleFieldMappings, fieldKey, field.get("label"), values[p])
+											 : MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID, fieldKey, values[p], ctx);
 										 if(zzWoocommerceMapChild != null && zzWoocommerceMapChild.isActive())//Changed 24/3/2025 to prevent NPE
 										 {
+											 // Collection validation checks each child ID against its exact swatch,
+											 // not the parent's comma-separated text.
+											 if (isFabricSample()) {
+												 fieldValues.put(zzWoocommerceMapChild.get_ID(), values[p]);
+											 }
 											 masterZzWoocommerceMapListFromMeta.add(zzWoocommerceMapChild);
 										 }
 									 }
@@ -1951,6 +2170,11 @@ public final class WcOrder {
 			throw new AdempiereUserError("Order " + order.getDocumentNo()
 				+ " is missing Fabric Sample WAPF metadata.");
 		}
+		validateCurtainSelectors();
+		if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)) {
+			resolveCurtainFloorClearance(metaData, orderLineProductID, masterZzWoocommerceMapListFromMeta);
+		}
+		validateFabricCollectionSelectors(masterZzWoocommerceMapListFromMeta);
 		return masterZzWoocommerceMapListFromMeta;
 		
 	}
@@ -1978,4 +2202,225 @@ public final class WcOrder {
 	public void deleteOrder() {
 		order.delete(true);
 	}
+	public static boolean isCurtainSelector(Integer wooProductId, String fieldKey) {
+		return Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooProductId)
+				&& (CURTAIN_CONFIGURATION_FIELD.equals(fieldKey) || CURTAIN_HEADING_ARRANGEMENT_FIELD.equals(fieldKey));
+	}
+
+	public static boolean isSupportedCurtainSelection(String fieldKey, String value) {
+		if (CURTAIN_CONFIGURATION_FIELD.equals(fieldKey)) {
+			return "Single Sheer Curtain".equals(value) || "Single Blockout Curtain".equals(value)
+					|| DOUBLE_CURTAIN.equals(value);
+		}
+		return CURTAIN_HEADING_ARRANGEMENT_FIELD.equals(fieldKey) && DOUBLE_CURTAIN_HEADING_ARRANGEMENT.equals(value);
+	}
+
+	private void validateCurtainSelectors() {
+		if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)) {
+			String configuration = curtainSelectors.get(CURTAIN_CONFIGURATION_FIELD);
+			if (configuration == null) {
+				throw curtainMappingError("requires a curtain configuration");
+			}
+			if (DOUBLE_CURTAIN.equals(configuration) != curtainSelectors.containsKey(CURTAIN_HEADING_ARRANGEMENT_FIELD)) {
+				throw curtainMappingError("has a heading arrangement that does not match the curtain configuration");
+			}
+		}
+	}
+
+	private void createDoubleCurtainLines(MOrderLine frontLine, List<MzzWoocommerceMap> mappings) {
+		String sheerCollection = getCurtainFieldValue(mappings, SHEER_COLLECTION_FIELD);
+		String blockoutCollection = getCurtainFieldValue(mappings, BLOCKOUT_COLLECTION_FIELD);
+		if (sheerCollection == null || blockoutCollection == null || sheerCollection.equalsIgnoreCase(blockoutCollection)) {
+			throw curtainMappingError("requires distinct mapped sheer and blockout fabric collections");
+		}
+
+		ArrayList<MzzWoocommerceMap> shared = new ArrayList<>();
+		ArrayList<MzzWoocommerceMap> sheer = new ArrayList<>();
+		ArrayList<MzzWoocommerceMap> blockout = new ArrayList<>();
+		for (MzzWoocommerceMap mapping : mappings) {
+			String field = mapping.getwoocommerce_field_key();
+			if (SHEER_COLLECTION_FIELD.equals(field) || BLOCKOUT_COLLECTION_FIELD.equals(field)
+					|| CURTAIN_HEADING_FIELD.equals(field) || SINGLE_MOTOR_SIDE_FIELD.equals(field)) {
+				continue;
+			}
+			if (SHEER_MOTOR_SIDE_FIELD.equals(field) || SHEER_HEM_FIELD.equals(field)
+					|| isCurtainColourMapping(mapping, sheerCollection)) {
+				sheer.add(mapping);
+			} else if (BLOCKOUT_MOTOR_SIDE_FIELD.equals(field) || BLOCKOUT_HEM_FIELD.equals(field)
+					|| isCurtainColourMapping(mapping, blockoutCollection)) {
+				blockout.add(mapping);
+			} else if (isCurtainColourMapping(mapping, null)) {
+				throw curtainMappingError("has a fabric colour outside the selected curtain collections");
+			} else {
+				shared.add(mapping);
+			}
+		}
+		if (!hasMappedCurtainColour(sheer, sheerCollection) || !hasMappedCurtainColour(blockout, blockoutCollection)) {
+			throw curtainMappingError("requires an active fabric colour mapping for each curtain layer");
+		}
+		sheer.addAll(shared);
+		blockout.addAll(shared);
+		int productId = frontLine.getM_Product_ID();
+		sheer.add(getCurtainHeadingMapping(productId, "S-Wave"));
+		blockout.add(getCurtainHeadingMapping(productId, "Knife Pleat"));
+		MAttributeSet curtainAttributes = (MAttributeSet) frontLine.getM_Product().getM_AttributeSet();
+		MAttributeValue frontPosition = getCurtainPosition(curtainAttributes, "aFront");
+		MAttributeValue backPosition = getCurtainPosition(curtainAttributes, "bback");
+
+		// Populate the rear line from the current values. PO.copyValues reads the saved values.
+		MOrderLine rearLine = new MOrderLine(order);
+		rearLine.setAD_Org_ID(frontLine.getAD_Org_ID());
+		rearLine.setM_Product_ID(productId);
+		rearLine.setDescription(frontLine.getDescription());
+		rearLine.setM_Warehouse_ID(frontLine.getM_Warehouse_ID());
+		rearLine.setC_Tax_ID(frontLine.getC_Tax_ID());
+		rearLine.setC_UOM_ID(frontLine.getC_UOM_ID());
+		rearLine.setQty(frontLine.getQtyOrdered());
+		rearLine.setM_AttributeSetInstance_ID(0);
+		rearLine.set_ValueOfColumn("BLD_Line_ProductSetInstance_ID", null);
+
+		frontLine.set_ValueOfColumn("lockprice", "Y");
+		frontLine.saveEx();
+		processWooCommMeta(sheer, frontLine, ctx, trxName);
+		setCurtainPosition(frontLine, frontPosition);
+		frontLine.setPrice(calcOrderLineUnitPrice(WooLineData));
+		frontLine.setLineNetAmt();
+		frontLine.saveEx();
+
+		// Retain the existing WooCommerce pricing convention for additional manufactured lines.
+		rearLine.setLine(DB.getSQLValue(trxName, "SELECT COALESCE(MAX(Line),0)+10 FROM C_OrderLine WHERE C_Order_ID=?",
+				order.getC_Order_ID()));
+		rearLine.set_ValueOfColumn("lockprice", "Y");
+		rearLine.setPrice(Env.ZERO);
+		rearLine.setPriceList(Env.ZERO);
+		rearLine.setLineNetAmt();
+		rearLine.saveEx();
+		processWooCommMeta(blockout, rearLine, ctx, trxName);
+		setCurtainPosition(rearLine, backPosition);
+		rearLine.setPrice(Env.ZERO);
+		rearLine.setPriceList(Env.ZERO);
+		rearLine.setLineNetAmt();
+		rearLine.saveEx();
+	}
+
+	private MAttributeValue getCurtainPosition(MAttributeSet curtainAttributes, String searchKey) {
+		for (MAttribute attribute : curtainAttributes.getMAttributes(true)) {
+			if (attribute.isActive() && "L".equals(attribute.getAttributeValueType())
+					&& "Curtain position".equalsIgnoreCase(attribute.getName())) {
+				for (MAttributeValue value : attribute.getMAttributeValues()) {
+					if (value != null && value.isActive() && searchKey.equals(value.getValue())) {
+						return value;
+					}
+				}
+			}
+		}
+		throw curtainMappingError("requires an active Curtain position value with search key " + searchKey);
+	}
+
+	private void setCurtainPosition(MOrderLine line, MAttributeValue position) {
+		MAttributeSetInstance attributes = new MAttributeSetInstance(ctx, line.getM_AttributeSetInstance_ID(), trxName);
+		MAttribute attribute = new MAttribute(ctx, position.getM_Attribute_ID(), trxName);
+		attribute.setMAttributeInstance(attributes.get_ID(), position);
+		attributes.setDescription();
+		attributes.saveEx();
+	}
+
+	private String getCurtainFieldValue(List<MzzWoocommerceMap> mappings, String fieldKey) {
+		for (MzzWoocommerceMap mapping : mappings) {
+			if (fieldKey.equals(mapping.getwoocommerce_field_key())) {
+				return (String) fieldValues.get(mapping.get_ID());
+			}
+		}
+		return null;
+	}
+
+	private void resolveCurtainFloorClearance(List<LinkedHashMap<String, Object>> metadata,
+			int productId, List<MzzWoocommerceMap> mappings) {
+		String clearance = getCurtainFieldValue(mappings, CURTAIN_FLOOR_CLEARANCE_FIELD);
+		// Native curtain checkout can store the clearance separately from the WAPF fields.
+		for (Map<String, Object> item : metadata) {
+			if (CURTAIN_FLOOR_CLEARANCE_LABEL.equalsIgnoreCase(String.valueOf(item.get("key")))) {
+				String storedClearance = String.valueOf(item.get("value")).strip();
+				if (clearance != null && !clearance.equals(storedClearance)) {
+					throw curtainMappingError("has conflicting curtain floor clearance values");
+				}
+				clearance = storedClearance;
+			}
+		}
+		if (clearance == null || !clearance.matches("0|[1-9][0-9]?|100")) {
+			throw curtainMappingError("requires a floor clearance from 0 to 100 mm");
+		}
+		MzzWoocommerceMap mapping = MzzWoocommerceMap.getMzzWoocommerceMap(productId,
+				CURTAIN_FLOOR_CLEARANCE_FIELD, clearance, ctx);
+		if (mapping == null) {
+			throw curtainMappingError("requires an active floor clearance mapping");
+		}
+		MzzWoocommerceMapLine[] destinations = mapping.getMzzWoocommerceMapLines(mapping.get_ID(), ctx, "", "");
+		if (destinations.length != 1 || !WOOCOMMERCE_MAP_TYPE_ATTRIBUTE.equals(destinations[0].getzz_woocommerce_map_type())) {
+			throw curtainMappingError("requires one floor clearance attribute mapping");
+		}
+		MAttribute attribute = new MAttribute(ctx, destinations[0].getM_Attribute_ID(), trxName);
+		if (!attribute.isActive() || !"N".equals(attribute.getAttributeValueType())
+				|| !CURTAIN_FLOOR_CLEARANCE_LABEL.equalsIgnoreCase(attribute.getName())) {
+			throw curtainMappingError("requires a numeric Floor Clearance (mm) attribute");
+		}
+		mappings.removeIf(candidate -> CURTAIN_FLOOR_CLEARANCE_FIELD.equals(candidate.getwoocommerce_field_key()));
+		mappings.add(mapping);
+		fieldValues.put(mapping.get_ID(), clearance);
+	}
+
+	private boolean isCurtainColourMapping(MzzWoocommerceMap mapping, String collection) {
+		String label = mapping.getwoocommerce_field_label();
+		return label != null && label.strip().matches("(?i).+\\s+colou?rs?$")
+				&& (collection == null || label.strip().replaceFirst("(?i)\\s+colou?rs?$", "").equalsIgnoreCase(collection));
+	}
+
+	private MzzWoocommerceMap getCurtainHeadingMapping(int productId, String heading) {
+		MzzWoocommerceMap mapping = MzzWoocommerceMap.getMzzWoocommerceMap(productId, CURTAIN_HEADING_FIELD, heading, ctx);
+		if (mapping == null || !heading.equals(mapping.getwoocommerce_field_value())
+				|| mapping.getMzzWoocommerceMapLines(mapping.get_ID(), ctx, "", "").length == 0) {
+			throw curtainMappingError("requires an active heading mapping for " + heading);
+		}
+		fieldValues.put(mapping.get_ID(), heading);
+		return mapping;
+	}
+
+	private AdempiereUserError curtainMappingError(String detail) {
+		return new AdempiereUserError("Order " + order.getDocumentNo() + " " + detail + ".");
+	}
+
+	private boolean hasMappedCurtainColour(List<MzzWoocommerceMap> mappings, String collection) {
+		return mappings.stream()
+				.filter(map -> isCurtainColourMapping(map, collection))
+				.filter(map -> map.getwoocommerce_field_value() != null
+						&& map.getwoocommerce_field_value().equals(fieldValues.get(map.get_ID())))
+				.anyMatch(map -> {
+					for (MzzWoocommerceMapLine line : map.getMzzWoocommerceMapLines(map.get_ID(), ctx, "", "")) {
+						if (WOOCOMMERCE_MAP_TYPE_PRODUCT_ADD.equals(line.getzz_woocommerce_map_type())) {
+							return true;
+						}
+					}
+					return false;
+				});
+	}
+
+	private void validateFabricCollectionSelectors(List<MzzWoocommerceMap> mappings) {
+		for (MzzWoocommerceMap selector : mappings) {
+			if (!FABRIC_COLLECTION_SELECTOR_DESCRIPTION.equals(selector.getDescription())
+					|| !selector.isignore_no_child_records()) {
+				continue;
+			}
+			String collection = (String) fieldValues.get(selector.get_ID());
+			String expected = selector.getwoocommerce_field_value();
+			if (collection == null || !collection.equals(expected)) {
+				throw new AdempiereUserError("Order " + order.getDocumentNo()
+						+ " has an unmapped curtain fabric collection: " + collection);
+			}
+			if (!hasMappedCurtainColour(mappings, collection)) {
+				throw new AdempiereUserError("Order " + order.getDocumentNo()
+						+ " requires a mapped curtain colour for " + collection + ".");
+			}
+		}
+	}
+
 }
