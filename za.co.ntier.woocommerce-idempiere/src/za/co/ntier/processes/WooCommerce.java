@@ -7,14 +7,18 @@ import org.compiere.process.DocAction;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
+import org.compiere.util.DB;
 import org.compiere.util.Trx;
 
 import java.net.URI;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -79,14 +83,15 @@ public class WooCommerce extends SvrProcess {
 			// deliberately excluded from batch exports and Woo updates.
 			String documentNo = documentNoFor(order, rehearsal, sample);
 			try {
-				int erpOrderId = importOrder(defaults, order, documentNo, rehearsal, live, sample);
-				confirmCommittedOrder(erpOrderId, defaults.getAD_Org_ID(), documentNo);
+				OrderReceipt receipt = importOrder(defaults, order, documentNo, rehearsal, live, sample);
+				confirmCommittedOrder(receipt, defaults.getAD_Org_ID(), documentNo);
 				imported++;
 			} catch (RuntimeException | SQLException failure) {
 				// Continue past bad order data, never past a known infrastructure
 				// failure or a transaction whose rollback could not be confirmed.
 				String message = failure instanceof ExistingOrder
 						? failure.getMessage()
+						: failure instanceof LineMismatch ? failure.getMessage()
 						: "WooCommerce order " + id + ": ERP import not confirmed. WooCommerce unchanged.";
 				report(message, failure);
 				if (wooCommerceOrderId != null || isDatabaseUnavailable(failure)) {
@@ -120,7 +125,7 @@ public class WooCommerce extends SvrProcess {
 	}
 
 	/** Owns the lock and the complete ERP write: header, lines and dependent records. */
-	private int importOrder(PO defaults, Map<?, ?> order, String documentNo, boolean rehearsal,
+	private OrderReceipt importOrder(PO defaults, Map<?, ?> order, String documentNo, boolean rehearsal,
 			boolean live, boolean sample) throws SQLException {
 		int id = (Integer) order.get("id");
 		// The process transaction belongs to SvrProcess (or its caller). Do not
@@ -155,14 +160,23 @@ public class WooCommerce extends SvrProcess {
 			}
 			WcOrder wcOrder = new WcOrder(getCtx(), name, lockedDefaults);
 			wcOrder.createOrder(order, documentNo);
+			int erpOrderId = wcOrder.getcOrderID();
+			int lineCount = 0;
+			int itemNumber = 0;
 			for (Object item : lines) {
+				itemNumber++;
 				if (!(item instanceof Map<?, ?> line) || !wcOrder.createOrderLine(line, order)) {
 					throw new AdempiereUserError("Order " + id + " failed line mapping.");
 				}
-			}
-			int lineCount = wcOrder.getOrderLineCount();
-			if (lineCount == 0) {
-				throw new AdempiereUserError("Order " + id + " produced no sales order lines.");
+				int expected = wcOrder.getExpectedItemLineCount();
+				int saved = DB.getSQLValueEx(name,
+						"SELECT COUNT(*) FROM C_OrderLine WHERE C_Order_ID=? AND IsActive='Y'", erpOrderId);
+				if (expected <= 0 || saved != lineCount + expected) {
+					throw new LineMismatch("WooCommerce order " + id + ", item " + itemNumber
+							+ ": expected " + expected + " ERP lines, found " + (saved - lineCount)
+							+ ". Order rejected before commit. WooCommerce unchanged.");
+				}
+				lineCount = saved;
 			}
 			if (rehearsal) {
 				MOrder draft = new MOrder(getCtx(), wcOrder.getcOrderID(), name);
@@ -177,12 +191,19 @@ public class WooCommerce extends SvrProcess {
 				wcOrder.createShippingCharge(order);
 				wcOrder.createPosPayment(order);
 				wcOrder.completeOrder();
+				lineCount++; // The existing import always adds one shipping charge, even at $0.
+			}
+			Map<Integer, String> expectedLines = readOrderLines(erpOrderId, name);
+			if (expectedLines.size() != lineCount) {
+				throw new LineMismatch("WooCommerce order " + id + ": expected " + lineCount
+						+ " active ERP lines including charges, found " + expectedLines.size()
+						+ ". Order rejected before commit. WooCommerce unchanged.");
 			}
 			// Only a confirmed commit allows Woo status or customer-facing side
 			// effects. A reported commit failure may still require reconciliation.
 			commitOrder(trx, id);
 			committed = true;
-			return wcOrder.getcOrderID();
+			return new OrderReceipt(erpOrderId, expectedLines);
 		} finally {
 			finishTransaction(trx, connection, committed);
 		}
@@ -204,22 +225,85 @@ public class WooCommerce extends SvrProcess {
 		}
 	}
 
-	/** Read the exact record this run committed afresh, not any matching old draft. */
-	private void confirmCommittedOrder(int erpOrderId, int orgId, String documentNo) throws ImportUnavailable {
+	private record OrderReceipt(int orderId, Map<Integer, String> lines) {}
+
+	private static final class LineMismatch extends RuntimeException {
+		private static final long serialVersionUID = 1L;
+
+		LineMismatch(String message) {
+			super(message);
+		}
+	}
+
+	// Read line values and linked manufacturing data in one database snapshot.
+	// Line IDs distinguish identical swatches or products ordered more than once.
+	private static Map<Integer, String> readOrderLines(int orderId, String trxName) throws SQLException {
+		String sql = """
+				SELECT ol.C_OrderLine_ID, jsonb_build_array(
+				    ol.Line, ol.M_Product_ID, ol.C_Charge_ID, ol.C_UOM_ID, ol.C_Tax_ID,
+				    ol.QtyOrdered, ol.QtyEntered, ol.PriceActual, ol.LineNetAmt,
+				    ol.M_AttributeSetInstance_ID, ol.BLD_Line_ProductSetInstance_ID,
+				    (SELECT jsonb_agg(jsonb_build_array(ai.M_Attribute_ID,
+				                 ai.M_AttributeValue_ID, ai.Value, ai.ValueNumber)
+				                      ORDER BY ai.M_Attribute_ID)
+				       FROM M_AttributeInstance ai
+				      WHERE ai.M_AttributeSetInstance_ID = ol.M_AttributeSetInstance_ID),
+				    (SELECT jsonb_agg(jsonb_build_array(c.M_Product_ID,
+				                 c.BLD_Product_PartType_ID, c.M_AttributeSetInstance_ID,
+				                 (SELECT jsonb_agg(jsonb_build_array(ca.M_Attribute_ID,
+				                              ca.M_AttributeValue_ID, ca.Value, ca.ValueNumber)
+				                                   ORDER BY ca.M_Attribute_ID)
+				                    FROM M_AttributeInstance ca
+				                   WHERE ca.M_AttributeSetInstance_ID = c.M_AttributeSetInstance_ID))
+				                      ORDER BY c.BLD_Line_ProductInstance_ID)
+				       FROM BLD_Line_ProductInstance c
+				      WHERE c.BLD_Line_ProductSetInstance_ID = ol.BLD_Line_ProductSetInstance_ID
+				        AND c.IsActive = 'Y'))::text
+				FROM C_OrderLine ol WHERE ol.C_Order_ID = ? AND ol.IsActive = 'Y'
+				ORDER BY ol.C_OrderLine_ID
+				""";
+		Map<Integer, String> lines = new LinkedHashMap<>();
+		try (PreparedStatement statement = DB.prepareStatement(sql, trxName)) {
+			statement.setInt(1, orderId);
+			try (ResultSet result = statement.executeQuery()) {
+				while (result.next()) {
+					lines.put(result.getInt(1), result.getString(2));
+				}
+			}
+		}
+		return lines;
+	}
+
+	/** Read the exact record this run committed using a fresh database connection. */
+	private void confirmCommittedOrder(OrderReceipt receipt, int orgId, String documentNo)
+			throws ImportUnavailable {
 		String message = "ERP commit returned success for " + documentNo
 				+ ", but the saved order and lines could not be verified; inspect before retrying.";
 		MOrder durableOrder;
-		boolean hasLines;
+		Map<Integer, String> savedLines;
 		try {
 			durableOrder = new Query(getCtx(), MOrder.Table_Name,
 					"C_Order_ID=? AND AD_Org_ID=? AND DocumentNo=? AND IsSOTrx='Y'", null)
-					.setParameters(erpOrderId, orgId, documentNo).setClient_ID().setOnlyActiveRecords(true).firstOnly();
-			hasLines = durableOrder != null && durableOrder.getLines().length > 0;
-		} catch (RuntimeException failure) {
+					.setParameters(receipt.orderId(), orgId, documentNo)
+					.setClient_ID().setOnlyActiveRecords(true).firstOnly();
+			savedLines = readOrderLines(receipt.orderId(), null);
+		} catch (RuntimeException | SQLException failure) {
 			throw new ImportUnavailable(message, failure);
 		}
-		if (!hasLines) {
+		if (durableOrder == null) {
 			throw new ImportUnavailable(message);
+		}
+		if (!receipt.lines().equals(savedLines)) {
+			List<Integer> missing = receipt.lines().keySet().stream()
+					.filter(id -> !savedLines.containsKey(id)).toList();
+			List<Integer> unexpected = savedLines.keySet().stream()
+					.filter(id -> !receipt.lines().containsKey(id)).toList();
+			List<Integer> changed = receipt.lines().keySet().stream()
+					.filter(id -> savedLines.containsKey(id) && !receipt.lines().get(id).equals(savedLines.get(id)))
+					.toList();
+			throw new LineMismatch("ERP order " + documentNo + ": missing line IDs " + missing
+					+ ", unexpected line IDs " + unexpected + ", changed line IDs " + changed
+					+ ". WooCommerce unchanged. Reconcile the committed ERP order before retrying.");
 		}
 	}
 
