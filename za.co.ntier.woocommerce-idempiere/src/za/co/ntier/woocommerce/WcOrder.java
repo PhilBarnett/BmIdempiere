@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -55,6 +56,7 @@ import za.co.ntier.model.X_ZZ_Woocommerce_Match;
  */
 
 public final class WcOrder {
+	private int expectedItemLineCount;
 	private final Properties ctx;
 	private final String trxName;
 	private final int POSTENDERTYPE_ID = 1000000;
@@ -187,6 +189,10 @@ public final class WcOrder {
 	
 	public int getOrderLineCount() {
 		return order.getLines().length;
+	}
+
+	public int getExpectedItemLineCount() {
+		return expectedItemLineCount;
 	}
 	
 	public int orderTotalOverZero() {
@@ -379,6 +385,7 @@ public final class WcOrder {
 	}
 
 	public boolean createOrderLine(Map<?, ?> line, Map<?, ?> orderWc) {
+		expectedItemLineCount = 1;
 		WooLineData = line;
 		MOrderLine orderLine = new MOrderLine(order);
 		orderLine.setAD_Org_ID(order.getAD_Org_ID());
@@ -423,6 +430,7 @@ public final class WcOrder {
 		}
 		if (Integer.valueOf(CURTAIN_WOO_PRODUCT_ID).equals(wooCommProductID)
 				&& DOUBLE_CURTAIN.equals(curtainSelectors.get(CURTAIN_CONFIGURATION_FIELD))) {
+			expectedItemLineCount = 2;
 			createDoubleCurtainLines(orderLine, masterZzWoocommerceMapList);
 			return true;
 		}
@@ -786,11 +794,18 @@ public final class WcOrder {
 	 * @param trxn
 	 */
 	public void processOrderLine(MOrderLine line, ArrayList<ArrayList<MzzWoocommerceMap>> mapList, String trxn /*, List<?> changeItems*/) {		
+		expectedItemLineCount = mapList.size();
 		for (int index = 0; index < mapList.size(); index++)
 		{
-			processWooCommMeta(mapList.get(index), line, ctx, trxn);
+			ArrayList<MzzWoocommerceMap> lineMappings = mapList.get(index);
+			// Derive the expected colour before writing the line's component records.
+			SampleColour expected = isFabricSample() ? expectedSampleColour(lineMappings) : null;
+			processWooCommMeta(lineMappings, line, ctx, trxn);
 			if (isFabricSample()) {
 				validateSampleFabric(line, trxn);
+				if (expected != null) {
+					verifySampleColour(line, expected, trxn);
+				}
 			}
 			System.out.println(index);
 			if(calcOrderLineUnitPrice(WooLineData)==Env.ZERO)//
@@ -1884,6 +1899,45 @@ public final class WcOrder {
 		}
 		throw sampleMappingError("expected one exact active colour mapping for " + label + " [" + fieldKey
 				+ "] = " + value + "; found " + matches.size() + " child candidates");
+	}
+
+	private record SampleColour(int productId, int partTypeId, int attributeId, int valueId) {}
+
+	private SampleColour expectedSampleColour(List<MzzWoocommerceMap> mappings) {
+		List<MzzWoocommerceMap> swatches = mappings.stream()
+				.filter(map -> WOOCOMMERCE_MAP_MULTISELECT_CHILD.equals(map.getzz_woocommerce_m_select_type()))
+				.toList();
+		if (swatches.isEmpty()) {
+			return null; // Preserve the legacy single-sample route.
+		}
+		MzzWoocommerceMap swatch = swatches.get(0);
+		List<MzzWoocommerceMapLine> colours = Arrays.stream(swatch.getMzzWoocommerceMapLines(
+				swatch.get_ID(), ctx, "", ""))
+				.filter(map -> WOOCOMMERCE_MAP_TYPE_PRODUCT_ATTRIBUTE.equals(map.getzz_woocommerce_map_type()))
+				.toList();
+		if (swatches.size() != 1 || colours.size() != 1) {
+			throw sampleMappingError("expected one component colour destination for "
+					+ swatch.getwoocommerce_field_value());
+		}
+		MzzWoocommerceMapLine colour = colours.get(0);
+		return new SampleColour(colour.getM_Product_Line_ID(), colour.getBLD_Product_PartType_ID(),
+				colour.getM_Attribute_Product_ID(), colour.getM_Attributevalue_Product_ID());
+	}
+
+	private void verifySampleColour(MOrderLine line, SampleColour expected, String trxn) {
+		int matches = DB.getSQLValueEx(trxn,
+				"SELECT COUNT(*) FROM BLD_Line_ProductInstance component"
+				+ " JOIN M_AttributeInstance colour ON colour.M_AttributeSetInstance_ID=component.M_AttributeSetInstance_ID"
+				+ " WHERE component.BLD_Line_ProductSetInstance_ID=? AND component.IsActive='Y'"
+				+ " AND component.M_Product_ID=? AND component.BLD_Product_PartType_ID=?"
+				+ " AND colour.M_Attribute_ID=? AND colour.M_AttributeValue_ID=?",
+				line.get_ValueAsInt("BLD_Line_ProductSetInstance_ID"), expected.productId(),
+				expected.partTypeId(), expected.attributeId(), expected.valueId());
+		if (matches != 1) {
+			throw sampleMappingError("ERP line " + line.getLine()
+					+ " does not contain the expected fabric " + expected.productId()
+					+ " and colour " + expected.valueId());
+		}
 	}
 
 	private void validateSampleFabric(MOrderLine line, String trxn) {
