@@ -320,7 +320,7 @@ public class WooCommerce extends SvrProcess {
 			List<Integer> changed = receipt.lines().keySet().stream()
 					.filter(id -> savedLines.containsKey(id) && !receipt.lines().get(id).equals(savedLines.get(id)))
 					.toList();
-			throw new LineMismatch("ERP order " + documentNo + ": missing line IDs " + missing
+			throw new ImportUnavailable("ERP order " + documentNo + ": missing line IDs " + missing
 					+ ", unexpected line IDs " + unexpected + ", changed line IDs " + changed
 					+ ". WooCommerce unchanged. Reconcile the committed ERP order before retrying.");
 		}
