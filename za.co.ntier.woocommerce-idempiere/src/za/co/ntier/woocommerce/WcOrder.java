@@ -1863,7 +1863,18 @@ public final class WcOrder {
 				.setParameters(productId, fieldKey).setClient_ID().setOnlyActiveRecords(true).list();
 	}
 
-	private MzzWoocommerceMap sampleSwatchParent(List<MzzWoocommerceMap> maps, String fieldKey, Object label) {
+	/** An operator diagnostic containing only validated identifiers and counts. */
+	public static final class SampleSwatchMappingError extends AdempiereUserError {
+		private static final long serialVersionUID = 1L;
+
+		private SampleSwatchMappingError(String fieldKey, String detail) {
+			super("Fabric Sample WAPF field "
+					+ (fieldKey != null && fieldKey.matches("[A-Za-z0-9_-]{1,64}") ? fieldKey : "[invalid ID]")
+					+ ": " + detail);
+		}
+	}
+
+	private MzzWoocommerceMap sampleSwatchParent(List<MzzWoocommerceMap> maps, String fieldKey) {
 		boolean swatchField = maps.stream().anyMatch(map -> WOOCOMMERCE_MAP_MULTISELECT_PARENT
 				.equalsIgnoreCase(map.getzz_woocommerce_m_select_type())
 				|| WOOCOMMERCE_MAP_MULTISELECT_CHILD.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()));
@@ -1885,20 +1896,20 @@ public final class WcOrder {
 				return parent;
 			}
 		}
-		throw sampleMappingError("expected one exact active multi-select parent for " + label
-				+ " [" + fieldKey + "]; found " + parents.size() + " parent candidates");
+		throw new SampleSwatchMappingError(fieldKey,
+				"expected one exact active multi-select parent; found " + parents.size() + " candidates.");
 	}
 
-	private MzzWoocommerceMap sampleSwatchChild(List<MzzWoocommerceMap> maps, String fieldKey, Object label,
-			String value) {
+	private MzzWoocommerceMap sampleSwatchChild(List<MzzWoocommerceMap> maps, String fieldKey, String value,
+			int selectionNumber) {
 		List<MzzWoocommerceMap> matches = maps.stream()
 				.filter(map -> WOOCOMMERCE_MAP_MULTISELECT_CHILD.equalsIgnoreCase(map.getzz_woocommerce_m_select_type()))
 				.filter(map -> value.equals(map.getwoocommerce_field_value())).toList();
 		if (!value.isEmpty() && matches.size() == 1 && fieldKey.equals(matches.get(0).getwoocommerce_field_key())) {
 			return matches.get(0);
 		}
-		throw sampleMappingError("expected one exact active colour mapping for " + label + " [" + fieldKey
-				+ "] = " + value + "; found " + matches.size() + " child candidates");
+		throw new SampleSwatchMappingError(fieldKey, "selection " + selectionNumber
+				+ " needs one exact active colour mapping; found " + matches.size() + " candidates.");
 	}
 
 	private record SampleColour(int productId, int partTypeId, int attributeId, int valueId) {}
@@ -1995,7 +2006,6 @@ public final class WcOrder {
 				 //Create a list of mapping object for this WC order line
 				 for(Entry<String, Object> wapfMetaItem : wapfMeta.entrySet())
 				 {
-					 System.out.println(wapfMetaItem.getValue());
 					 //Get a LinkedHashMap of all the fields and their IDs.
 					 
 					 LinkedHashMap<String, Object> fields = (LinkedHashMap<String, Object>) wapfMetaItem.getValue();
@@ -2020,7 +2030,7 @@ public final class WcOrder {
 								 List<MzzWoocommerceMap> sampleFieldMappings = isFabricSample()
 										 ? activeSampleFieldMappings(orderLineProductID, fieldKey) : List.of();
 									 MzzWoocommerceMap zzWoocommerceMap = isFabricSample()
-										 ? sampleSwatchParent(sampleFieldMappings, fieldKey, field.get("label")) : null;
+										 ? sampleSwatchParent(sampleFieldMappings, fieldKey) : null;
 									 if (zzWoocommerceMap == null) {
 										 zzWoocommerceMap = MzzWoocommerceMap.getMzzWoocommerceMap(
 												 orderLineProductID, fieldKey, (String) field.get("value"), ctx);
@@ -2111,7 +2121,7 @@ public final class WcOrder {
 									 for(int p = 0; p < values.length; p++)
 									 {
 										 MzzWoocommerceMap zzWoocommerceMapChild = isFabricSample()
-											 ? sampleSwatchChild(sampleFieldMappings, fieldKey, field.get("label"), values[p])
+											 ? sampleSwatchChild(sampleFieldMappings, fieldKey, values[p], p + 1)
 											 : MzzWoocommerceMap.getMzzWoocommerceMapChild(orderLineProductID, fieldKey, values[p], ctx);
 										 if(zzWoocommerceMapChild != null && zzWoocommerceMapChild.isActive())//Changed 24/3/2025 to prevent NPE
 										 {

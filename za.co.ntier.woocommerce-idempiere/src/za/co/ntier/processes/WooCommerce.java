@@ -31,6 +31,7 @@ import com.icoderman.woocommerce.oauth.OAuthConfig;
 import au.blindmot.model.MBldMtmInstall;
 import za.co.ntier.model.X_zz_woocommerce;
 import za.co.ntier.woocommerce.WcOrder;
+import za.co.ntier.woocommerce.WcOrder.SampleSwatchMappingError;
 
 /**
  *
@@ -92,6 +93,8 @@ public class WooCommerce extends SvrProcess {
 				String message = failure instanceof ExistingOrder
 						? failure.getMessage()
 						: failure instanceof LineMismatch ? failure.getMessage()
+						: failure instanceof SampleSwatchMappingError
+								? "WooCommerce order " + id + ": " + failure.getMessage() + " WooCommerce unchanged."
 						: "WooCommerce order " + id + ": ERP import not confirmed. WooCommerce unchanged.";
 				report(message, failure);
 				if (wooCommerceOrderId != null || isDatabaseUnavailable(failure)) {
@@ -134,6 +137,7 @@ public class WooCommerce extends SvrProcess {
 		Trx trx = Trx.get(name, true);
 		Connection connection = null;
 		boolean committed = false;
+		String phase = "checking ERP configuration and existing order";
 		try {
 			connection = trx.getConnection();
 			PO lockedDefaults = new Query(getCtx(), X_zz_woocommerce.Table_Name,
@@ -158,6 +162,7 @@ public class WooCommerce extends SvrProcess {
 			if (!(order.get("line_items") instanceof List<?> lines) || lines.isEmpty()) {
 				throw new AdempiereUserError("Order has no WooCommerce items.");
 			}
+			phase = "saving the ERP order header";
 			WcOrder wcOrder = new WcOrder(getCtx(), name, lockedDefaults);
 			wcOrder.createOrder(order, documentNo);
 			int erpOrderId = wcOrder.getcOrderID();
@@ -165,6 +170,10 @@ public class WooCommerce extends SvrProcess {
 			int itemNumber = 0;
 			for (Object item : lines) {
 				itemNumber++;
+				phase = "mapping and saving Woo item " + itemNumber;
+				if (item instanceof Map<?, ?> line && line.get("product_id") instanceof Integer productId) {
+					phase += " (Woo product ID " + productId + ")";
+				}
 				if (!(item instanceof Map<?, ?> line) || !wcOrder.createOrderLine(line, order)) {
 					throw new AdempiereUserError("Order " + id + " failed line mapping.");
 				}
@@ -179,6 +188,7 @@ public class WooCommerce extends SvrProcess {
 				lineCount = saved;
 			}
 			if (rehearsal) {
+				phase = "saving the test draft";
 				MOrder draft = new MOrder(getCtx(), wcOrder.getcOrderID(), name);
 				if (!DocAction.STATUS_Drafted.equals(draft.getDocStatus()) || ((live || sample) && lineCount != 2)) {
 					throw new AdempiereUserError("The QA order did not produce the expected draft order lines.");
@@ -187,12 +197,17 @@ public class WooCommerce extends SvrProcess {
 						: (live ? "LIVE" : "STAGING") + " CURTAIN QA - DO NOT FULFIL");
 				draft.saveEx();
 			} else {
+				phase = "creating and linking the installation";
 				createInstallation(wcOrder, name);
+				phase = "saving shipping";
 				wcOrder.createShippingCharge(order);
+				phase = "saving payment";
 				wcOrder.createPosPayment(order);
+				phase = "processing the ERP order";
 				wcOrder.completeOrder();
 				lineCount++; // The existing import always adds one shipping charge, even at $0.
 			}
+			phase = "checking saved ERP lines before commit";
 			Map<Integer, String> expectedLines = readOrderLines(erpOrderId, name);
 			if (expectedLines.size() != lineCount) {
 				throw new LineMismatch("WooCommerce order " + id + ": expected " + lineCount
@@ -201,9 +216,13 @@ public class WooCommerce extends SvrProcess {
 			}
 			// Only a confirmed commit allows Woo status or customer-facing side
 			// effects. A reported commit failure may still require reconciliation.
+			phase = "committing the ERP order";
 			commitOrder(trx, id);
 			committed = true;
 			return new OrderReceipt(erpOrderId, expectedLines);
+		} catch (RuntimeException | SQLException failure) {
+			addLog("WooCommerce order " + id + " failed while " + phase + ".");
+			throw failure;
 		} finally {
 			finishTransaction(trx, connection, committed);
 		}
@@ -371,13 +390,23 @@ public class WooCommerce extends SvrProcess {
 			message += " " + failure.getMessage();
 		}
 		String sqlState = null;
+		StackTraceElement source = null;
 		for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
-			if (cause instanceof SQLException sql && sql.getSQLState() != null) {
+			if (sqlState == null && cause instanceof SQLException sql && sql.getSQLState() != null) {
 				sqlState = sql.getSQLState();
-				break;
+			}
+			for (StackTraceElement frame : cause.getStackTrace()) {
+				if (frame.getClassName().equals(WcOrder.class.getName())
+						|| frame.getClassName().equals(WooCommerce.class.getName())) {
+					if (source == null || source.getClassName().equals(WooCommerce.class.getName())) {
+						source = frame;
+					}
+					break;
+				}
 			}
 		}
-		addLog(message + " (" + kind + (sqlState == null ? "" : ", SQLState " + sqlState) + ")");
+		addLog(message + " (" + kind + (sqlState == null ? "" : ", SQLState " + sqlState)
+				+ (source == null ? "" : ", " + source) + ")");
 	}
 
 	private static final class ImportUnavailable extends SQLException {
