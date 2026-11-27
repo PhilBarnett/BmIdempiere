@@ -2037,6 +2037,10 @@ public final class WcOrder {
 									 }
 								 if(zzWoocommerceMap == null)
 								 {
+									 if (isFabricSample()) {
+										 throw new SampleSwatchMappingError(fieldKey,
+												 "no mapping for the submitted selector. Check this field on the order and Fabric Sample product.");
+									 }
 									 StringBuilder msg = new StringBuilder("There was no mapping record found for Woocommerce field with ID: ");
 									 msg.append(field.get("id"));
 									 msg.append(" with label: ");
